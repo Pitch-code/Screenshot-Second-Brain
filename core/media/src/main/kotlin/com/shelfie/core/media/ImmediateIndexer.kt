@@ -25,6 +25,7 @@ class ImmediateIndexer @Inject constructor(
     private val repository: ScreenshotRepository,
     private val indexer: ScreenshotIndexer,
     private val scheduler: IndexScheduler,
+    private val quota: IndexingQuota,
 ) {
 
     /** Guards against two concurrent warm-ups racing on the same rows. */
@@ -68,6 +69,9 @@ class ImmediateIndexer @Inject constructor(
                 val outcome = runCatching { indexer.index(entity, rules) }.getOrNull()
                 if (outcome == IndexOutcome.AccessLost) break
             }
+
+            // Roll anything beyond the free window out of the search index.
+            runCatching { quota.enforce() }
         }
     }
 }

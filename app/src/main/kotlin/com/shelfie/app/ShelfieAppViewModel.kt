@@ -2,6 +2,7 @@ package com.shelfie.app
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.shelfie.core.billing.ShelfieBilling
 import com.shelfie.core.datastore.ShelfiePreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +24,21 @@ import javax.inject.Inject
 @HiltViewModel
 class ShelfieAppViewModel @Inject constructor(
     private val preferences: ShelfiePreferences,
+    private val billing: ShelfieBilling,
 ) : ViewModel() {
+
+    /** Theme preference, applied before the first frame of real UI. */
+    val useDynamicColor: StateFlow<Boolean> = preferences.useDynamicColor.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = true,
+    )
+
+    init {
+        // Refreshes the cached entitlement from Play when it is reachable. This
+        // is the restore-purchases path; there is nothing for the user to tap.
+        viewModelScope.launch { runCatching { billing.initialise() } }
+    }
 
     private val overrideComplete = MutableStateFlow(false)
 

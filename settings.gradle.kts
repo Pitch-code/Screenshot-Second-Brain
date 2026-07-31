@@ -35,6 +35,7 @@ include(":core:designsystem")
 include(":core:classify")
 include(":core:ocr")
 include(":core:media")
+include(":core:billing")
 
 include(":feature:shelf")
 include(":feature:search")

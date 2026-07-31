@@ -41,7 +41,7 @@ Android app that makes every screenshot on your phone searchable and actionable,
 
 ## Build status
 
-**Phases 0–4 complete and verified building:** foundation, indexing engine, Shelf/Search/Detail UI, permissions with Limited Mode, and Cleanup with the widget, tile and share target.
+**Phases 0–5 complete and verified building:** foundation, indexing engine, Shelf/Search/Detail UI, permissions with Limited Mode, Cleanup with widget/tile/share, and billing with Settings.
 
 | Check | Result |
 |---|---|
@@ -50,11 +50,11 @@ Android app that makes every screenshot on your phone searchable and actionable,
 | `:app:bundleRelease` (AAB) | passing |
 | `lintVitalRelease` | passing, 0 errors |
 | Unit tests | **144 passing**, 0 failures |
-| Download size, arm64-v8a | **7.2 MB** (budget 15 MB) |
+| Download size, arm64-v8a | **7.3 MB** (budget 15 MB) |
 | Room migration v1→v2 | auto-generated, verified additive |
-| Download size, armeabi-v7a | **6.3 MB** |
+| Download size, armeabi-v7a | **6.4 MB** |
 | `WRITE_EXTERNAL_STORAGE` | absent — deletion uses `createDeleteRequest` |
-| `INTERNET` permission in shipped APK | **absent**, verified with `aapt2 dump permissions` |
+| `INTERNET` permission in shipped APK | **absent**, verified with `aapt2 dump permissions` — including with Play Billing |
 | compileSdk / targetSdk | 37 / 36 — meets the Aug 31 2026 Play requirement |
 
 Test breakdown: `:core:classify` 59, `:core:model` 44, `:core:media` 14, `:core:datastore` 8, `:feature:shelf` 8, `:core:ocr` 7, `:feature:onboarding` 4.
@@ -181,12 +181,33 @@ either way.
 - **Share-sheet target** for images, which doubles as a way to add screenshots in
   Limited Mode without opening the picker.
 
+**Phase 5 — billing, free tier and Settings**
+- Play Billing for a single **one-time** unlock. No subscription, no trial, no expiry.
+- **Billing does not break the no-network guarantee.** The Billing Library talks to
+  the installed Play Store app over IPC and declares only
+  `com.android.vending.BILLING`; the Play Store does the networking. Verified
+  against the library's AAR manifest and then against the built APK.
+- Entitlement is **cached locally**, so a paid user keeps their unlock with no Play
+  Store connection at all. Play stays the source of truth and refreshes the cache
+  whenever reachable — which is also the restore-purchases path, requiring no user
+  action.
+- Free tier is a **rolling window of the newest 150**, not a hard stop. A hard stop
+  would silently break the app for everything taken afterwards; a rolling window
+  keeps recent screenshots searchable, which is where nearly all the value is.
+  Rolled-out rows keep their metadata and stay on the shelf — only the searchable
+  text is dropped, and unlocking restores it.
+- Upgrade prompt appears **only when there is something concrete to gain**
+  (screenshots actually held back), never on a timer.
+- Settings: access status, purchase, rule editor, dynamic-colour toggle wired
+  through the theme, and data export via the system document picker (so no storage
+  permission is needed).
+
 ### Not built yet
 
-Phase 5 onward: Play Billing with the one-time unlock, the free-tier gate, the
-Settings screen with a rule editor and Recently Deleted UI, the category picker in
-the detail sheet, Baseline Profiles, and the accessibility and localisation passes.
-Settings still renders a placeholder. See `docs/05-roadmap-and-tasks.md`.
+Phase 6–7: Baseline Profiles and the macrobenchmark module, the accessibility and
+localisation passes, adaptive layout verification for API 37, the Recently Deleted
+UI, the category picker in the detail sheet, and launch assets.
+See `docs/05-roadmap-and-tasks.md`.
 
 **Not code, but blocking release:** the broad photo-access declaration and the
 Data Safety form must be submitted in Play Console, and the privacy policy hosted

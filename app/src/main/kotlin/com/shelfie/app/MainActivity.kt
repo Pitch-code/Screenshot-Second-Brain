@@ -5,6 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.compose.runtime.getValue
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.shelfie.core.designsystem.theme.ShelfieTheme
 import com.shelfie.core.media.ScreenshotContentObserver
 import dagger.hilt.android.AndroidEntryPoint
@@ -40,8 +43,11 @@ class MainActivity : ComponentActivity() {
         val openSearch = intent?.getBooleanExtra(EXTRA_OPEN_SEARCH, false) == true
 
         setContent {
-            ShelfieTheme {
-                ShelfieApp(startOnSearch = openSearch)
+            val appViewModel: ShelfieAppViewModel = hiltViewModel()
+            val useDynamicColor by appViewModel.useDynamicColor.collectAsStateWithLifecycle()
+
+            ShelfieTheme(dynamicColor = useDynamicColor) {
+                ShelfieApp(startOnSearch = openSearch, viewModel = appViewModel)
             }
         }
     }

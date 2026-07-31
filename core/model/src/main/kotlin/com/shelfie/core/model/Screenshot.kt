@@ -74,6 +74,15 @@ enum class IndexState {
 
     /** Deliberately excluded (e.g. unreadable, or user-hidden). */
     SKIPPED,
+
+    /**
+     * Rolled out of the free tier's newest-N window.
+     *
+     * A distinct state rather than reusing PENDING: pending rows get retried, so
+     * a held row would be re-indexed and immediately evicted again in a loop.
+     * Unlocking the full version flips these back to PENDING.
+     */
+    QUOTA_HELD,
 }
 
 /**
