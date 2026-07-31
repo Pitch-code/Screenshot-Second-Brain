@@ -21,6 +21,10 @@ datastore = "1.2.1"
 work = "2.11.2"
 paging = "3.5.0"
 splashscreen = "1.0.1"
+exifinterface = "1.4.2"
+
+# Bundled ML Kit model: ships in the APK so OCR works with zero network access.
+mlkitTextRecognition = "16.0.1"
 
 # DI
 hilt = "2.60.1"
@@ -54,6 +58,12 @@ androidx-compose-material3-window-size = { group = "androidx.compose.material3",
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+
+# On-device ML. Bundled model — ships inside the APK, so text recognition needs
+# no network at any point. The unbundled play-services variant would have to
+# download the model, which we cannot do without INTERNET.
+mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitTextRecognition" }
+androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
 
 # Room
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }

@@ -27,10 +27,23 @@ The entire competitive thesis is *this app is fast and doesn't crash on a cheap 
 ```xml
 <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-<!-- Deliberately absent: INTERNET, ACCESS_NETWORK_STATE -->
+
+<!-- Stripped even if a dependency declares it. -->
+<uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
 ```
 Omitting `INTERNET` is a hard architectural commitment. It means no Firebase, no Crashlytics, no ad SDK, no remote config. Accept it — it is the moat. Rely on Play Console vitals (collected by the OS, not by us) for crash data.
+
+**Measured reality, not intent.** The shipped release APK also contains four permissions merged in from WorkManager: `WAKE_LOCK`, `ACCESS_NETWORK_STATE`, `RECEIVE_BOOT_COMPLETED`, `FOREGROUND_SERVICE`. None can transmit data without `INTERNET`, so the guarantee holds, but the privacy policy discloses them by name rather than implying a shorter list. Verify the merged result on every release:
+
+```bash
+aapt2 dump permissions app/build/outputs/apk/release/*.apk
+```
+
+Two honesty constraints that follow from this:
+- **`ACCESS_NETWORK_STATE` cannot be safely stripped** without device testing — WorkManager queries connectivity internally and would throw `SecurityException`. Treat removal as a device-verified task, not a blind edit.
+- **Do not tell users to confirm the absence of `INTERNET` in Settings.** It is a *normal* permission, so Android's runtime-permission screen never lists it either way.
 
 > **Note:** if you later add the GenAI tier, verify whether AICore model provisioning on your minimum target devices requires network from *your* process. It normally doesn't — AICore is a system service — but validate on real hardware before shipping, because it would break the no-internet promise.
 
@@ -130,14 +143,20 @@ Therefore:
 | Time to populated shelf | **< 10s** on 5,000-image library | Tier 1 pipeline |
 | Frozen frames | **0** | Macrobenchmark on Shelf scroll |
 | Jank (P90 frame) | < 16ms | Paging 3 + stable keys + `Modifier.animateItem` |
-| APK download size | **< 15MB** | R8 full mode, unbundled ML Kit model, no Firebase |
+| APK download size | **< 15MB** | **Measured: 6.9MB arm64, 6.0MB armeabi-v7a** via AAB splits |
 | Memory (P90) | < 180MB | Downsample-before-decode, single in-flight |
 | Battery | No "excessive background" flag in Play vitals | Tier 3 idle+charging constraints |
 
 Implementation notes:
 - **Ship Baseline Profiles.** Generate via `:benchmark` module. Typically 20–30% faster cold start for free.
 - **R8 full mode** on, with `-keep` rules verified for ML Kit and Room.
-- Use the **unbundled** (Play-services) ML Kit text recognizer to keep APK small; handle the model-not-yet-downloaded state gracefully. If your audience is heavily offline-first, reconsider and bundle the Latin recognizer — but measure the size delta first.
+- **Use the bundled ML Kit recogniser, and always measure via AAB, never a universal APK.** The bundled Latin model ships `libmlkit_google_ocr_pipeline.so` per ABI at 6–11MB each, so a *universal* APK is ~43MB and looks alarming. Play delivers only one ABI: measured download is **6.9MB on arm64-v8a** and **6.0MB on armeabi-v7a**. Verify with:
+  ```bash
+  bundletool build-apks --bundle=app-release.aab --output=out.apks --ks=...
+  bundletool get-size total --apks=out.apks --dimensions=ABI
+  ```
+  The unbundled Play-services recogniser would shrink the APK further but requires downloading the model, which is impossible without `INTERNET` and would break first-launch OCR offline. Bundled is the correct trade for this product.
+- **Do not use `setExpedited` for background indexing.** On API 30 and below WorkManager backs expedited work with a foreground service, which drags in a Play declaration requirement for zero user benefit — Tier 1 already covers immediacy.
 - **Test on a real 4GB budget device.** An emulator will hide every problem this document is about.
 
 ---

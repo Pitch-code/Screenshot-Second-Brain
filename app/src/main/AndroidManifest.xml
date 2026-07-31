@@ -64,6 +64,25 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+          Remove WorkManager's automatic startup initializer.
+
+          ShelfieApplication implements Configuration.Provider, so WorkManager
+          initialises on demand at the first getInstance() call instead of during
+          app startup. That keeps work off the cold-start path, which matters for
+          the sub-500ms budget on budget devices.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
     </application>
 
 </manifest>

@@ -70,11 +70,12 @@ No overheating. No all-day battery drain.
 
 TRULY PRIVATE — AND YOU CAN CHECK
 
-Shelfie does not have internet permission. Not restricted, not optional — the
-permission is simply not in the app. Android will not let it connect to a network.
+Shelfie ships without Android's internet permission. Not restricted, not
+optional — the permission is simply not in the app, so the operating system will
+not let it open a network connection at all.
 
-That means your screenshots physically cannot be uploaded anywhere. Verify it
-yourself: Settings > Apps > Shelfie > Permissions.
+That means your screenshots physically cannot be uploaded anywhere. There is no
+server to send them to, and no way to reach one.
 
 No account. No sign-up. No email required. Nothing to leak.
 
@@ -111,10 +112,17 @@ Order matters more than polish. Each one answers the objection the previous rais
 | 2 | Shelf with category chips and populated grid | **Sorted automatically. No folders to make.** |
 | 3 | Detail sheet, OTP with Copy action highlighted | **Copy the code without hunting for it** |
 | 4 | Cleanup screen showing "780 MB" reclaimable | **Get your storage back** |
-| 5 | Android system permissions screen with no Internet listed | **No internet permission. Check for yourself.** |
+| 5 | In-app privacy screen stating the app has no internet permission | **No internet permission. It cannot upload anything.** |
 | 6 | Purchase screen | **One payment. No subscription.** |
 
-Screenshot 5 is the differentiator. No competitor can show that screen.
+Screenshot 5 is the differentiator — no competitor can honestly make that claim.
+
+**Accuracy note:** do not tell users to verify this in Settings > Apps >
+Permissions. That screen lists only runtime permissions, and `INTERNET` is a
+normal permission, so it never appears there either way. The absence is real and
+checkable (`adb shell dumpsys package com.shelfie.app`), but it is not something
+an ordinary user can confirm in system settings. Claiming otherwise would be a
+deceptive-behaviour risk.
 
 **Specs:** min 2, up to 8. 1080×1920 or higher, 16:9 or 9:16, PNG/JPEG. Show the real app only — mockups implying non-existent features violate the Deceptive Behaviour policy.
 

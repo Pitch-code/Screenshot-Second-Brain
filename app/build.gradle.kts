@@ -20,6 +20,7 @@ dependencies {
     implementation(projects.core.model)
     implementation(projects.core.database)
     implementation(projects.core.datastore)
+    implementation(projects.core.media)
 
     implementation(projects.feature.shelf)
     implementation(projects.feature.search)
@@ -33,4 +34,9 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.splashscreen)
+
+    // Required so @HiltWorker index workers can be constructed by WorkManager.
+    implementation(libs.androidx.work.runtime)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
 }

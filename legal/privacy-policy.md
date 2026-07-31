@@ -31,10 +31,11 @@ We collect no personal information. We do not operate a server that receives you
 
 ## 3. Why we can make that promise credibly
 
-Shelfie is built without the `INTERNET` permission. On Android, an app cannot make a network connection without it. This is enforced by the operating system, not by our good intentions.
+Shelfie is built without the `INTERNET` permission. On Android, an app cannot open a network connection without it. This is enforced by the operating system, not by our good intentions.
 
-You can verify this yourself:
-**Settings → Apps → Shelfie → Permissions** — and inspect the app's declared permissions.
+You can verify this yourself by inspecting the app's declared permissions — for example with `adb shell dumpsys package com.shelfie.app`, or any app-info viewer that lists declared permissions. `android.permission.INTERNET` will not be there.
+
+Note that Android's own **Settings → Apps → Permissions** screen only shows *runtime* permissions you can toggle, so it will not list `INTERNET` either way. The absence is visible in the app's full declared-permission list, which is what the methods above show.
 
 ## 4. Permissions we request, and why
 
@@ -42,9 +43,31 @@ You can verify this yourself:
 |---|---|
 | `READ_MEDIA_IMAGES` | To read your screenshots so they can be indexed and searched. Without it, Shelfie can only work on images you hand-pick individually. |
 | `READ_MEDIA_VISUAL_USER_SELECTED` | To support Android's partial-access option, where you grant access to specific images rather than all of them. |
+| `READ_EXTERNAL_STORAGE` (Android 12 and older only) | The older equivalent of the permission above, on versions of Android that predate the granular media permissions. |
 | `POST_NOTIFICATIONS` | To show occasional storage-cleanup suggestions. Optional — you can decline or turn it off, and the app works fully without it. |
 
-We deliberately do **not** request: internet access, network state, location, contacts, camera, microphone, phone, or SMS.
+### Permissions added by Android's background-work library
+
+Shelfie uses Android's standard WorkManager library to index older screenshots
+while your phone is idle and charging. That library declares four permissions of
+its own, so you will see them listed in Android's app info screen:
+
+| Permission | What it does here |
+|---|---|
+| `WAKE_LOCK` | Lets a background indexing batch finish without the CPU sleeping mid-way. |
+| `ACCESS_NETWORK_STATE` | Lets the library *check* whether a network exists. It cannot send or receive data. |
+| `RECEIVE_BOOT_COMPLETED` | Lets unfinished indexing resume after you restart your phone. |
+| `FOREGROUND_SERVICE` | Declared by the library. Shelfie does not run any foreground service. |
+
+We want to be precise about `ACCESS_NETWORK_STATE`, because at a glance it looks
+network-related. On Android, observing connectivity and *using* the network are
+two separate permissions. Without `INTERNET`, an app cannot open a connection no
+matter what else it holds. So this permission cannot be used to transmit your
+data, and Shelfie does not use it to do anything at all — it comes along with the
+scheduling library.
+
+We deliberately do **not** request: internet access, location, contacts, camera,
+microphone, phone, or SMS.
 
 ### If you decline photo access
 Shelfie still works. You can select individual images through Android's system photo picker and Shelfie will index those. We call this Limited Mode, and every feature works within it.
