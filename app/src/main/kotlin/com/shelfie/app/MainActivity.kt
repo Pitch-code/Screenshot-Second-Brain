@@ -1,0 +1,59 @@
+package com.shelfie.app
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.compose.runtime.getValue
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.shelfie.core.designsystem.theme.ShelfieTheme
+import com.shelfie.core.media.ScreenshotContentObserver
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+
+@AndroidEntryPoint
+class MainActivity : ComponentActivity() {
+
+    /**
+     * Watches MediaStore while the app is in the foreground. Only a hint — the
+     * watermark reconcile is what guarantees nothing is missed — so it is safe
+     * to register and unregister with the visible lifecycle.
+     */
+    @Inject
+    lateinit var screenshotObserver: ScreenshotContentObserver
+
+    override fun onStart() {
+        super.onStart()
+        screenshotObserver.start()
+    }
+
+    override fun onStop() {
+        screenshotObserver.stop()
+        super.onStop()
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
+        // Edge-to-edge is enforced for apps targeting API 35+.
+        enableEdgeToEdge()
+        super.onCreate(savedInstanceState)
+
+        val openSearch = intent?.getBooleanExtra(EXTRA_OPEN_SEARCH, false) == true
+
+        setContent {
+            val appViewModel: ShelfieAppViewModel = hiltViewModel()
+            val useDynamicColor by appViewModel.useDynamicColor.collectAsStateWithLifecycle()
+
+            ShelfieTheme(dynamicColor = useDynamicColor) {
+                ShelfieApp(startOnSearch = openSearch, viewModel = appViewModel)
+            }
+        }
+    }
+
+    companion object {
+        /** Set by the widget and the Quick Settings tile to land on Search. */
+        const val EXTRA_OPEN_SEARCH = "com.shelfie.app.OPEN_SEARCH"
+    }
+}

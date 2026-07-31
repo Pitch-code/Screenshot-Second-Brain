@@ -103,7 +103,7 @@ Four defensible claims, each mapped to a real competitor gap:
 
 1. **Runs everywhere** → Pixel Screenshots doesn't; AICore-dependent rivals degrade on budget devices
 2. **Fast on weak hardware** → the #1 review complaint in the category
-3. **Zero network permission** → verifiable, not just a marketing claim (see §6)
+3. **No internet permission at all** → enforced by the OS, not just a marketing claim (see §6)
 4. **One-time price** → exploits documented [subscription fatigue](https://tech.yahoo.com/apps/articles/subscription-creep-backlash-grows-users-084000792.html)
 
 ---
@@ -114,7 +114,9 @@ Six competitors claim "100% private / on-device". Almost all of them still decla
 
 **We ship with no `INTERNET` permission at all.**
 
-That converts a marketing claim into a **verifiable fact** a user or reviewer can check in app info. It is the strongest trust asset available in this category and it is free. It costs us: no remote analytics, no crash reporting via network, no ads. Those are acceptable trade-offs for a one-time-purchase utility, and the constraint forces a better product.
+That converts a marketing claim into a **fact enforced by the operating system** rather than by our promises. It is the strongest trust asset available in this category and it is free.
+
+One caveat to stay honest about: `INTERNET` is a *normal* permission, so it does not appear in Android's runtime-permission settings screen. The absence is real and checkable with `adb shell dumpsys package`, but it is not something a typical user can confirm in Settings. Market the guarantee, not a verification ritual that does not work. It costs us: no remote analytics, no crash reporting via network, no ads. Those are acceptable trade-offs for a one-time-purchase utility, and the constraint forces a better product.
 
 This is the moat. Not the OCR.
 

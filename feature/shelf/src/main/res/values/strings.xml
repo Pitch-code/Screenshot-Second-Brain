@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="shelf_limited_empty_title">Pick a few screenshots</string>
+    <string name="shelf_limited_empty_body">Shelfie will read them and make them searchable. Everything works the same in Limited Mode.</string>
+    <string name="shelf_limited_empty_cta">Choose screenshots</string>
+
+    <string name="shelf_empty_title">Nothing on the shelf yet</string>
+    <string name="shelf_empty_body">Take a screenshot and it\'ll land here automatically.</string>
+
+    <string name="shelf_date_today">Today</string>
+    <string name="shelf_date_yesterday">Yesterday</string>
+
+</resources>

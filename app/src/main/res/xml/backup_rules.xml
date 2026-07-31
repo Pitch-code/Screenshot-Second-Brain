@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 11 and below backup rules.
+
+  Only shared preferences are backed up. Because an explicit <include> list is
+  given, everything not listed is excluded automatically — which means the
+  extracted-text index in shelfie.db never leaves the device via cloud backup.
+  That is deliberate: the index is derived data that rebuilds locally in
+  seconds, and keeping it out of backup keeps the privacy story simple.
+-->
+<full-backup-content>
+    <include domain="sharedpref" path="." />
+</full-backup-content>
