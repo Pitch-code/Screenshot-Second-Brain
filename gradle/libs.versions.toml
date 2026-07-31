@@ -30,6 +30,10 @@ mlkitTextRecognition = "16.0.1"
 # declare INTERNET, which would break the no-network guarantee.
 coil = "3.5.0"
 
+# Play Billing talks to the Play Store app over IPC, so it declares only
+# com.android.vending.BILLING and NOT INTERNET. Verified against the AAR manifest.
+billing = "9.1.0"
+
 # DI
 hilt = "2.60.1"
 hiltNavigationCompose = "1.4.0"
@@ -71,6 +75,9 @@ androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterfa
 
 # Images
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
+
+# Billing
+billing-ktx = { group = "com.android.billingclient", name = "billing-ktx", version.ref = "billing" }
 
 # Room
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }

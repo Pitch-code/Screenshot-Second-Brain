@@ -6,6 +6,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.shelfie.core.media.IndexOutcome
 import com.shelfie.core.media.IndexTierPolicy
+import com.shelfie.core.media.IndexingQuota
 import com.shelfie.core.media.ScreenshotIndexer
 import com.shelfie.core.media.ScreenshotRepository
 import dagger.assisted.Assisted
@@ -22,6 +23,7 @@ class RecentIndexWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val repository: ScreenshotRepository,
     private val indexer: ScreenshotIndexer,
+    private val quota: IndexingQuota,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
@@ -29,6 +31,7 @@ class RecentIndexWorker @AssistedInject constructor(
         return indexBatch(
             repository = repository,
             indexer = indexer,
+            quota = quota,
             batchSize = IndexTierPolicy.RECENT_BATCH,
             reportProgress = { done, total -> setProgress(indexProgressData(done, total)) },
         )
@@ -53,6 +56,7 @@ class BacklogIndexWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val repository: ScreenshotRepository,
     private val indexer: ScreenshotIndexer,
+    private val quota: IndexingQuota,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
@@ -61,6 +65,7 @@ class BacklogIndexWorker @AssistedInject constructor(
         val result = indexBatch(
             repository = repository,
             indexer = indexer,
+            quota = quota,
             batchSize = IndexTierPolicy.BACKLOG_CHUNK,
             reportProgress = { done, total -> setProgress(indexProgressData(done, total)) },
         )
@@ -103,6 +108,7 @@ class ReconcileWorker @AssistedInject constructor(
 private suspend fun indexBatch(
     repository: ScreenshotRepository,
     indexer: ScreenshotIndexer,
+    quota: IndexingQuota,
     batchSize: Int,
     reportProgress: suspend (done: Int, total: Int) -> Unit,
 ): androidx.work.ListenableWorker.Result {
@@ -125,6 +131,10 @@ private suspend fun indexBatch(
         processed++
         reportProgress(processed, pending.size)
     }
+
+    // Keep the free tier to its newest-N window.
+    runCatching { quota.enforce() }
+
     return androidx.work.ListenableWorker.Result.success()
 }
 

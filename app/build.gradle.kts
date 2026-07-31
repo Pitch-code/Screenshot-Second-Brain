@@ -21,6 +21,7 @@ dependencies {
     implementation(projects.core.database)
     implementation(projects.core.datastore)
     implementation(projects.core.media)
+    implementation(projects.core.billing)
 
     implementation(projects.feature.shelf)
     implementation(projects.feature.search)

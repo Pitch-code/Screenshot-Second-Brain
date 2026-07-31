@@ -34,6 +34,10 @@ class ShelfiePreferences @Inject constructor(
 
     val lastReconcileAt: Flow<Long> = dataStore.data.map { it[KEY_LAST_RECONCILE] ?: 0L }
 
+    /** Dynamic colour follows the system wallpaper by default on Android 12+. */
+    val useDynamicColor: Flow<Boolean> =
+        dataStore.data.map { it[KEY_DYNAMIC_COLOR] ?: true }
+
     /** Advances the watermark; never moves backwards. */
     suspend fun advanceWatermark(dateAddedSeconds: Long) {
         dataStore.edit { prefs ->
@@ -57,6 +61,10 @@ class ShelfiePreferences @Inject constructor(
         dataStore.edit { it[KEY_FULL_VERSION] = purchased }
     }
 
+    suspend fun setDynamicColor(enabled: Boolean) {
+        dataStore.edit { it[KEY_DYNAMIC_COLOR] = enabled }
+    }
+
     suspend fun setLastReconcileAt(epochSeconds: Long) {
         dataStore.edit { it[KEY_LAST_RECONCILE] = epochSeconds }
     }
@@ -66,5 +74,6 @@ class ShelfiePreferences @Inject constructor(
         val KEY_ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
         val KEY_FULL_VERSION = booleanPreferencesKey("full_version_purchased")
         val KEY_LAST_RECONCILE = longPreferencesKey("last_reconcile_seconds")
+        val KEY_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
     }
 }

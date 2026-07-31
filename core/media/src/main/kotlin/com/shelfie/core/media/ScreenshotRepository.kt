@@ -110,6 +110,36 @@ class ScreenshotRepository @Inject constructor(
         enabled = rule.enabled,
     )
 
+    // ------------------------------------------------------------------ export
+
+    /**
+     * Plain-text dump of the index, for the "Export my data" setting.
+     *
+     * Exists to satisfy the access and portability rights described in the
+     * privacy policy. Since nothing is held on a server, exporting is entirely
+     * local and there is no request for anyone to process.
+     */
+    suspend fun exportIndex(): String = buildString {
+        appendLine("Shelfie index export")
+        appendLine("Generated: ${java.time.Instant.now()}")
+        appendLine()
+
+        val rows = dao.exportRows()
+        appendLine("${rows.size} screenshots")
+        appendLine()
+
+        rows.forEach { row ->
+            appendLine("---")
+            appendLine("Name: ${row.displayName}")
+            appendLine("Date added (epoch seconds): ${row.dateAdded}")
+            appendLine("Category: ${row.category}")
+            row.primaryValue?.let { appendLine("Key value: $it") }
+            appendLine("Text:")
+            appendLine(row.text.orEmpty().ifBlank { "(no text recognised)" })
+            appendLine()
+        }
+    }
+
     // ---------------------------------------------------------------- progress
 
     fun observeProgress(): Flow<IndexProgress> = combine(
