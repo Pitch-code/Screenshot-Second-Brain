@@ -14,6 +14,7 @@ Android app that makes every screenshot on your phone searchable and actionable,
 | [`docs/04-architecture-and-performance.md`](docs/04-architecture-and-performance.md) | Stack, module map, three-tier indexing pipeline, performance budgets, 12-item crash checklist |
 | [`docs/05-roadmap-and-tasks.md`](docs/05-roadmap-and-tasks.md) | 8 phases, 40 tasks with explicit ownership, gates, timeline, critical path |
 | [`docs/06-play-store-compliance.md`](docs/06-play-store-compliance.md) | Deadlines, the photo-permission declaration, Data Safety answers, pre-submission checklist |
+| [`docs/08-run-on-device.md`](docs/08-run-on-device.md) | **Start here to actually run it.** Build, install, and a priority-ordered list of what to test first |
 | [`docs/07-localisation.md`](docs/07-localisation.md) | Localisation status, why translations are not machine-generated, and how to add a language |
 | [`legal/privacy-policy.md`](legal/privacy-policy.md) | Publishable policy template *(needs legal review)* |
 | [`store/listing-copy.md`](store/listing-copy.md) | Title, descriptions, screenshot sequence, ASO targets |
@@ -74,13 +75,25 @@ Test breakdown: `:core:classify` 59, `:core:model` 44, `:core:media` 14, `:core:
 
 ### Building locally
 
+Requires **JDK 21**, Android SDK platform **android-37.0** and build-tools **37.0.0**.
+
 ```bash
-echo "sdk.dir=/path/to/android-sdk" > local.properties
-./gradlew :app:assembleDebug        # debug APK
+echo "sdk.dir=/absolute/path/to/Android/sdk" > local.properties
+./gradlew :app:assembleDebug        # debug APK (~64MB, universal, signed)
 ./gradlew test                      # all unit tests
-./gradlew :app:assembleRelease      # R8 + lint vital
-./gradlew :app:bundleRelease        # AAB for Play
+./gradlew :app:assembleRelease      # R8 + lint
+./gradlew :app:bundleRelease        # AAB for Play (~7.3MB delivered)
 ```
+
+Install on a connected phone:
+
+```bash
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+Debug builds install as **`com.shelfie.app.debug`**. Full instructions and a
+priority-ordered test plan are in
+[`docs/08-run-on-device.md`](docs/08-run-on-device.md).
 
 ### Verifying the privacy claim
 
