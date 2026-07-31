@@ -14,6 +14,26 @@ android {
         versionCode = 1
         versionName = "0.1.0"
     }
+
+    /**
+     * Optional per-ABI APKs, enabled with `-PabiSplits`.
+     *
+     * A universal debug APK is ~64MB because it carries the ML Kit native library
+     * for all four architectures. Splitting gives a ~17MB download for a real
+     * phone, which matters when installing over mobile data. Off by default so
+     * local builds keep producing a single predictable artifact.
+     */
+    if (providers.gradleProperty("abiSplits").isPresent) {
+        splits {
+            abi {
+                isEnable = true
+                reset()
+                include("arm64-v8a", "armeabi-v7a")
+                // Keep a universal APK as a fallback for unusual devices.
+                isUniversalApk = true
+            }
+        }
+    }
 }
 
 dependencies {

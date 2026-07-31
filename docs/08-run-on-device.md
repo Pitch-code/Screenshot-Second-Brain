@@ -20,7 +20,58 @@ Verified facts about the artifacts:
 
 ---
 
-## Option A — Android Studio (easiest, recommended)
+## Option A — Let GitHub build it, download straight to your phone
+
+**No Android Studio, no SDK, no cable.** Best option if you just want the app on
+your phone.
+
+### One-time setup
+
+The workflow lives at `.github/workflows/build-apk.yml`. GitHub only shows the
+manual "Run workflow" button for workflows present on the **default branch**, so
+this has to be merged into `main` before it can be triggered.
+
+### Every time you want a build
+
+1. Go to the repository → **Actions** tab → **Build APK**
+2. Click **Run workflow**, leave *"Attach the APKs to a prerelease"* ticked, and run it
+3. Wait ~10 minutes. Two jobs run: the APK build, and tests + lint in parallel
+4. When it finishes, go to the **Releases** page — there'll be a new prerelease
+
+### On your phone
+
+1. Open the release page in the phone's browser
+2. Download **`app-arm64-v8a-debug.apk`** — correct for almost every phone made in
+   the last several years
+3. Tap the downloaded file
+4. Android will ask permission to install from your browser. Allow it, then install
+
+That's it. It installs as `com.shelfie.app.debug`, so it won't clash with anything.
+
+**Which file?**
+
+| File | Size | Use it if |
+|---|---|---|
+| `app-arm64-v8a-debug.apk` | ~35 MB | Almost every modern phone. **Start here.** |
+| `app-armeabi-v7a-debug.apk` | ~31 MB | Older or very low-end 32-bit devices |
+| `app-universal-debug.apk` | ~64 MB | Fallback if neither of the above installs |
+
+If arm64 installs but immediately crashes, or Android refuses it as incompatible,
+try the universal one.
+
+> **Why so large for a "7 MB app"?** Debug builds are unminified, carry debug
+> tooling, and are not split the way Play splits them. The release build delivers
+> ~7.3 MB. Nothing is wrong.
+
+### The tradeoff of this route
+
+You get the app, but **no logcat**. If it crashes on launch you'll have no idea
+why. For actually diagnosing problems, Option B or C gives you the log output —
+and on a first-ever run, that log is worth a lot.
+
+---
+
+## Option B — Android Studio (best for diagnosing)
 
 1. Install **Android Studio Otter 3 Feature Drop or newer**. Earlier versions do
    not understand AGP 9 and will refuse to sync.
@@ -30,11 +81,11 @@ Verified facts about the artifacts:
    (Settings → About phone → tap *Build number* 7 times → Developer options → USB debugging).
 5. Pick your device in the toolbar dropdown and press **Run** (▶).
 
-That's it. Skip to [What to test first](#what-to-test-first).
+Then skip to [What to test first](#what-to-test-first).
 
 ---
 
-## Option B — Command line
+## Option C — Command line
 
 ### 1. Prerequisites
 
