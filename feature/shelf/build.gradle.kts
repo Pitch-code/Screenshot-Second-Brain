@@ -11,4 +11,5 @@ dependencies {
     implementation(projects.core.database)
     implementation(projects.core.datastore)
     implementation(projects.core.media)
+    implementation(libs.androidx.paging.compose)
 }

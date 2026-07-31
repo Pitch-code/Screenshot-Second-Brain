@@ -8,7 +8,8 @@ android {
 }
 
 dependencies {
-    implementation(projects.core.model)
+    api(projects.core.model)
     implementation(libs.androidx.core.ktx)
+    api(libs.coil.compose)
     implementation(libs.androidx.compose.material.icons.extended)
 }

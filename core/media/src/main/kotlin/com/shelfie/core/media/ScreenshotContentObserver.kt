@@ -76,8 +76,9 @@ class ScreenshotContentObserver @Inject constructor(
                     repository.nextPending(MAX_IMMEDIATE_ON_CHANGE)
                 }.getOrDefault(emptyList())
 
+                val rules = runCatching { repository.currentRules() }.getOrDefault(emptyList())
                 for (entity in pending) {
-                    val outcome = runCatching { indexer.index(entity) }.getOrNull()
+                    val outcome = runCatching { indexer.index(entity, rules) }.getOrNull()
                     if (outcome == IndexOutcome.AccessLost) break
                 }
             }

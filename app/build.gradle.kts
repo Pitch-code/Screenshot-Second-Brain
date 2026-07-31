@@ -26,6 +26,7 @@ dependencies {
     implementation(projects.feature.search)
     implementation(projects.feature.cleanup)
     implementation(projects.feature.settings)
+    implementation(projects.feature.detail)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

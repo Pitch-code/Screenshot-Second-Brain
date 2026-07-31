@@ -79,6 +79,19 @@ interface ScreenshotDao {
     )
     suspend fun markAttempt(id: Long, state: IndexState)
 
+    /**
+     * Applies a manual re-categorisation. Confidence is forced to 1.0 because a
+     * user's explicit choice is not a guess.
+     */
+    @Query(
+        """
+        UPDATE screenshots
+        SET category = :category, category_confidence = 1.0
+        WHERE id = :id
+        """,
+    )
+    suspend fun setCategory(id: Long, category: ScreenshotCategory)
+
     @Query("UPDATE screenshots SET is_deleted = 1, deleted_at = :deletedAt WHERE id IN (:ids)")
     suspend fun softDelete(ids: List<Long>, deletedAt: Long)
 

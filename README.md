@@ -41,7 +41,7 @@ Android app that makes every screenshot on your phone searchable and actionable,
 
 ## Build status
 
-**Phase 0 (Foundation) and Phase 1 (Indexing engine) are complete and verified building.**
+**Phases 0–2 complete and verified building:** foundation, indexing engine, and the Shelf/Search/Detail UI.
 
 | Check | Result |
 |---|---|
@@ -49,13 +49,13 @@ Android app that makes every screenshot on your phone searchable and actionable,
 | `:app:assembleRelease` (R8 full mode + resource shrinking) | passing |
 | `:app:bundleRelease` (AAB) | passing |
 | `lintVitalRelease` | passing, 0 errors |
-| Unit tests | **72 passing**, 0 failures |
-| Download size, arm64-v8a | **6.9 MB** (budget 15 MB) |
-| Download size, armeabi-v7a | **6.0 MB** |
+| Unit tests | **118 passing**, 0 failures |
+| Download size, arm64-v8a | **7.1 MB** (budget 15 MB) |
+| Download size, armeabi-v7a | **6.3 MB** |
 | `INTERNET` permission in shipped APK | **absent**, verified with `aapt2 dump permissions` |
 | compileSdk / targetSdk | 37 / 36 — meets the Aug 31 2026 Play requirement |
 
-Test breakdown: `:core:classify` 44, `:core:media` 14, `:core:model` 7, `:core:ocr` 7.
+Test breakdown: `:core:classify` 44, `:core:model` 37, `:core:media` 14, `:core:datastore` 8, `:feature:shelf` 8, `:core:ocr` 7.
 
 > **On APK size:** a *universal* release APK is ~43 MB, because the bundled ML Kit
 > model ships a 6–11 MB native library for each of four ABIs. Play delivers only
@@ -123,16 +123,42 @@ either way.
   Tier 1 (60 newest, foreground), Tier 2 (500, background),
   Tier 3 (backlog, chunked, **idle + charging only**).
 
+**Phase 2 — Shelf, Search and Detail UI**
+- Paged shelf grid with **date separators inserted over the paged stream**
+  (`insertSeparators`), so grouping never loads the whole library. Adaptive
+  columns, so it widens on tablets and foldables.
+- Tiles show the **extracted value** (amount, OTP, PNR) rather than a filename,
+  plus **one action chip** — so the index has an obvious next step instead of
+  being a dead end.
+- Category filter chips built from the user's *actual* library, only surfacing a
+  category once it has enough matches.
+- Search with a 200ms debounce and **match highlighting**, so the user can see
+  *why* a result matched. Query tokenisation is shared between the FTS query and
+  the highlighter via `:core:model`, so they can never disagree.
+- Detail bottom sheet rendered as an **overlay**, keeping the shelf visible
+  behind it: selectable OCR text, tap-to-copy entity chips, and an action row.
+- Action layer producing real intents (open link, copy, dial, share, calendar
+  insert with a best-effort parsed date), every one guarded so a device with no
+  dialler or browser shows a message rather than crashing.
+- Non-blocking, dismissible index status strip — never a modal progress dialog.
+- User sorting rules persisted, created inline from the detail sheet.
+
 ### Not built yet
 
-Phase 2 onward: the real Shelf grid and Search UI, detail sheet and actions,
-onboarding and permission flow, **Limited Mode** (required by Play policy),
-Cleanup, billing, widget. Feature screens still render a shared placeholder.
-See `docs/05-roadmap-and-tasks.md`.
+Phase 3 onward: onboarding and the permission flow, **Limited Mode** (required by
+Play's Photo and Video Permissions policy), Cleanup with duplicate/blur detection,
+billing, the widget, and the category picker in the detail sheet. Cleanup and
+Settings still render a placeholder. See `docs/05-roadmap-and-tasks.md`.
 
 ### Not yet verified
 
 Nothing has run on a physical device or emulator — only build, lint and unit
 tests. Specifically unverified: real OCR accuracy on real screenshots, the
-sub-10-second Tier 1 target, actual memory ceiling, and whether the
-idle+charging constraints behave as intended across OEM skins.
+sub-10-second Tier 1 target, the actual memory ceiling, grid scroll performance
+against a 5,000-item library, and whether the idle+charging constraints behave
+as intended across OEM skins.
+
+No Compose UI tests yet, so the screens are compile-verified only. The 118 unit
+tests cover pure logic: classification, entity extraction, search tokenisation
+and highlighting, date parsing, OEM path heuristics, subsample maths and rule
+encoding.

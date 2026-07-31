@@ -60,9 +60,12 @@ class ImmediateIndexer @Inject constructor(
         withContext(NonCancellable) {
             repository.discoverNewest(IndexTierPolicy.IMMEDIATE_BATCH)
 
+            // Rules are read once per batch rather than per item.
+            val rules = runCatching { repository.currentRules() }.getOrDefault(emptyList())
+
             val pending = repository.nextPending(IndexTierPolicy.IMMEDIATE_BATCH)
             for (entity in pending) {
-                val outcome = runCatching { indexer.index(entity) }.getOrNull()
+                val outcome = runCatching { indexer.index(entity, rules) }.getOrNull()
                 if (outcome == IndexOutcome.AccessLost) break
             }
         }
