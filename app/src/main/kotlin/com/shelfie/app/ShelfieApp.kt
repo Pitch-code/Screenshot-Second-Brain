@@ -15,11 +15,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.shelfie.app.navigation.ShelfieDestination
 import com.shelfie.app.navigation.ShelfieNavHost
+import com.shelfie.feature.onboarding.OnboardingScreen
 
 /**
  * Adaptive app shell.
@@ -31,13 +34,29 @@ import com.shelfie.app.navigation.ShelfieNavHost
 @Composable
 fun ShelfieApp(
     navController: NavHostController = rememberNavController(),
+    viewModel: ShelfieAppViewModel = hiltViewModel(),
 ) {
+    val startState by viewModel.startState.collectAsStateWithLifecycle()
+
+    when (val state = startState) {
+        ShelfieStartState.Loading -> Unit // Splash screen is still showing.
+
+        ShelfieStartState.Onboarding -> OnboardingScreen(
+            onFinished = viewModel::onOnboardingFinished,
+        )
+
+        is ShelfieStartState.Ready -> MainShell(navController = navController)
+    }
+}
+
+@Composable
+private fun MainShell(navController: NavHostController) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val current = ShelfieDestination.fromRoute(backStackEntry?.destination?.route)
 
     val onNavigate: (ShelfieDestination) -> Unit = { destination ->
         navController.navigate(destination.route) {
-            // Single instance per tab, and preserve each tab's state.
+            // One instance per tab, and each tab keeps its own state.
             popUpTo(navController.graph.startDestinationId) { saveState = true }
             launchSingleTop = true
             restoreState = true
@@ -94,7 +113,7 @@ fun ShelfieApp(
 private fun DestinationIcon(destination: ShelfieDestination, selected: Boolean) {
     Icon(
         imageVector = if (selected) destination.selectedIcon else destination.unselectedIcon,
-        // Label is always present alongside, so the icon is decorative.
+        // The label is always shown alongside, so the icon is decorative.
         contentDescription = null,
     )
 }

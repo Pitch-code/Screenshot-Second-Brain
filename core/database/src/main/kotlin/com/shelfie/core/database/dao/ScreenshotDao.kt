@@ -102,8 +102,19 @@ interface ScreenshotDao {
     @Query("DELETE FROM screenshots WHERE is_deleted = 1 AND deleted_at < :threshold")
     suspend fun purgeDeletedBefore(threshold: Long): Int
 
-    /** Removes rows whose underlying file no longer exists in MediaStore. */
-    @Query("DELETE FROM screenshots WHERE media_store_id NOT IN (:liveIds)")
+    /**
+     * Removes rows whose underlying file no longer exists in MediaStore.
+     *
+     * Scoped to MEDIA_STORE rows on purpose: picker-imported screenshots have no
+     * MediaStore id, so without the source filter every one of them would be
+     * deleted on the first reconcile.
+     */
+    @Query(
+        """
+        DELETE FROM screenshots
+        WHERE source = 'MEDIA_STORE' AND media_store_id NOT IN (:liveIds)
+        """,
+    )
     suspend fun pruneMissing(liveIds: List<Long>): Int
 
     // ----------------------------------------------------------------- reads
@@ -180,11 +191,23 @@ interface ScreenshotDao {
     @Query("SELECT * FROM screenshots WHERE id = :id")
     fun observeById(id: Long): Flow<ScreenshotEntity?>
 
-    @Query("SELECT MAX(date_added) FROM screenshots")
+    /**
+     * Watermark source. Restricted to MEDIA_STORE rows: picker imports are
+     * stamped with the import time, so counting them would advance the watermark
+     * to "now" and permanently skip older screenshots still on disk.
+     */
+    @Query("SELECT MAX(date_added) FROM screenshots WHERE source = 'MEDIA_STORE'")
     suspend fun newestDateAdded(): Long?
 
-    @Query("SELECT media_store_id FROM screenshots")
+    @Query("SELECT media_store_id FROM screenshots WHERE source = 'MEDIA_STORE'")
     suspend fun allMediaStoreIds(): List<Long>
+
+    /** Keys of picker-imported rows, so orphaned local copies can be pruned. */
+    @Query("SELECT media_store_id FROM screenshots WHERE source = 'PICKER'")
+    suspend fun allPickerIds(): List<Long>
+
+    @Query("SELECT COUNT(*) FROM screenshots WHERE source = 'PICKER' AND is_deleted = 0")
+    fun observePickedCount(): Flow<Int>
 }
 
 /** Backs the category chips; only categories with enough matches are shown. */

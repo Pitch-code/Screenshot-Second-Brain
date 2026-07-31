@@ -8,6 +8,7 @@ import com.shelfie.core.model.IndexState
 import com.shelfie.core.model.Screenshot
 import com.shelfie.core.model.ScreenshotAction
 import com.shelfie.core.model.ScreenshotCategory
+import com.shelfie.core.model.ScreenshotSource
 
 /**
  * The main screenshot row. Kept deliberately narrow — the extracted OCR text
@@ -91,6 +92,14 @@ data class ScreenshotEntity(
 
     @ColumnInfo(name = "deleted_at")
     val deletedAt: Long? = null,
+
+    /** MEDIA_STORE or PICKER. Added in schema v2 for Limited Mode. */
+    @ColumnInfo(name = "source", defaultValue = "MEDIA_STORE")
+    val source: ScreenshotSource = ScreenshotSource.MEDIA_STORE,
+
+    /** Path to a durable downscaled copy, for picker-imported screenshots. */
+    @ColumnInfo(name = "local_thumbnail_path")
+    val localThumbnailPath: String? = null,
 )
 
 fun ScreenshotEntity.toDomain(): Screenshot = Screenshot(
@@ -108,4 +117,6 @@ fun ScreenshotEntity.toDomain(): Screenshot = Screenshot(
     primaryAction = primaryAction,
     indexedAt = indexedAt,
     isDeleted = isDeleted,
+    source = source,
+    localThumbnailPath = localThumbnailPath,
 )

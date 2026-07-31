@@ -1,5 +1,6 @@
 package com.shelfie.feature.shelf
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
@@ -8,10 +9,11 @@ import androidx.paging.insertSeparators
 import androidx.paging.map
 import com.shelfie.core.database.dao.CategoryCount
 import com.shelfie.core.media.ImmediateIndexer
+import com.shelfie.core.media.PickerImporter
 import com.shelfie.core.media.ScreenshotRepository
 import com.shelfie.core.model.IndexProgress
 import com.shelfie.core.model.MediaAccess
-import com.shelfie.core.model.ScreenshotAction
+import com.shelfie.core.model.Screenshot
 import com.shelfie.core.model.ScreenshotCategory
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -30,23 +32,36 @@ import javax.inject.Inject
 @HiltViewModel
 class ShelfViewModel @Inject constructor(
     private val repository: ScreenshotRepository,
+    private val pickerImporter: PickerImporter,
     private val immediateIndexer: ImmediateIndexer,
 ) : ViewModel() {
 
     private val selectedCategory = MutableStateFlow<ScreenshotCategory?>(null)
     private val statusDismissed = MutableStateFlow(false)
+    private val isImporting = MutableStateFlow(false)
+
+    /**
+     * Access is re-read on every refresh rather than cached.
+     *
+     * Permissions can be revoked while the app is running, and a stale "granted"
+     * value turns straight into a SecurityException.
+     */
+    private val accessRefresh = MutableStateFlow(0)
 
     val uiState: StateFlow<ShelfUiState> = combine(
         repository.observeProgress(),
         repository.observeCategoryCounts(),
-        selectedCategory,
-        statusDismissed,
-    ) { progress, categories, selected, dismissed ->
+        combine(selectedCategory, statusDismissed, isImporting) { a, b, c -> Triple(a, b, c) },
+        repository.observePickedCount(),
+        accessRefresh,
+    ) { progress, categories, (selected, dismissed, importing), pickedCount, _ ->
         ShelfUiState(
             progress = progress,
             categories = categories,
             selectedCategory = selected,
             statusDismissed = dismissed,
+            isImporting = importing,
+            pickedCount = pickedCount,
             access = repository.currentAccess(),
         )
     }.stateIn(
@@ -60,7 +75,7 @@ class ShelfViewModel @Inject constructor(
      *
      * `insertSeparators` runs over the paged stream, so grouping never requires
      * loading the whole library. `cachedIn` keeps the list alive across
-     * configuration changes so rotating the device does not restart paging.
+     * configuration changes so rotating does not restart paging.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     val items: Flow<PagingData<ShelfListItem>> = selectedCategory
@@ -71,7 +86,7 @@ class ShelfViewModel @Inject constructor(
                 repository.pagedByCategory(category)
             }
         }
-        .map { paging -> paging.map<com.shelfie.core.model.Screenshot, ShelfListItem> { ShelfListItem.Item(it) } }
+        .map { paging -> paging.map<Screenshot, ShelfListItem> { ShelfListItem.Item(it) } }
         .map { paging ->
             paging.insertSeparators { before, after ->
                 val beforeDate = (before as? ShelfListItem.Item)?.screenshot?.dateAdded
@@ -91,6 +106,12 @@ class ShelfViewModel @Inject constructor(
         immediateIndexer.warmUp(viewModelScope)
     }
 
+    /** Called when the screen resumes, to pick up permission changes made in Settings. */
+    fun onResumed() {
+        accessRefresh.update { it + 1 }
+        immediateIndexer.warmUp(viewModelScope)
+    }
+
     fun onCategorySelected(category: ScreenshotCategory?) {
         selectedCategory.value = category
     }
@@ -99,16 +120,24 @@ class ShelfViewModel @Inject constructor(
         statusDismissed.update { true }
     }
 
-    /** Records a manual re-categorisation and offers to make it a standing rule. */
+    /** Limited Mode: index newly hand-picked screenshots. */
+    fun onImagesPicked(uris: List<Uri>) {
+        if (uris.isEmpty()) return
+
+        isImporting.value = true
+        viewModelScope.launch {
+            pickerImporter.import(uris)
+            isImporting.value = false
+        }
+    }
+
     fun onRecategorise(screenshotId: Long, category: ScreenshotCategory) {
         viewModelScope.launch { repository.setCategory(screenshotId, category) }
     }
 
     /** Values the action layer needs, fetched lazily rather than held per tile. */
-    suspend fun actionContext(screenshotId: Long): ActionContext {
-        val text = repository.textFor(screenshotId)
-        return ActionContext(fullText = text)
-    }
+    suspend fun actionContext(screenshotId: Long): ActionContext =
+        ActionContext(fullText = repository.textFor(screenshotId))
 }
 
 data class ActionContext(val fullText: String?)
@@ -118,15 +147,13 @@ data class ShelfUiState(
     val categories: List<CategoryCount> = emptyList(),
     val selectedCategory: ScreenshotCategory? = null,
     val statusDismissed: Boolean = false,
+    val isImporting: Boolean = false,
+    val pickedCount: Int = 0,
     val access: MediaAccess = MediaAccess.DENIED,
 ) {
     val isIndexing: Boolean get() = !progress.isComplete
     val showStatusStrip: Boolean get() = isIndexing && !statusDismissed
-}
 
-/** Actions available without opening the detail sheet. */
-val quickActions: Set<ScreenshotAction> = setOf(
-    ScreenshotAction.COPY_CODE,
-    ScreenshotAction.OPEN_LINK,
-    ScreenshotAction.DIAL_NUMBER,
-)
+    /** True when the shelf is genuinely empty rather than merely still indexing. */
+    val isEmpty: Boolean get() = progress.total == 0 && !isIndexing
+}

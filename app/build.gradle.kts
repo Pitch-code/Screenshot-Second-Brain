@@ -27,6 +27,7 @@ dependencies {
     implementation(projects.feature.cleanup)
     implementation(projects.feature.settings)
     implementation(projects.feature.detail)
+    implementation(projects.feature.onboarding)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

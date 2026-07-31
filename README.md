@@ -41,7 +41,7 @@ Android app that makes every screenshot on your phone searchable and actionable,
 
 ## Build status
 
-**Phases 0–2 complete and verified building:** foundation, indexing engine, and the Shelf/Search/Detail UI.
+**Phases 0–3 complete and verified building:** foundation, indexing engine, Shelf/Search/Detail UI, and the permission flow with Limited Mode.
 
 | Check | Result |
 |---|---|
@@ -49,13 +49,14 @@ Android app that makes every screenshot on your phone searchable and actionable,
 | `:app:assembleRelease` (R8 full mode + resource shrinking) | passing |
 | `:app:bundleRelease` (AAB) | passing |
 | `lintVitalRelease` | passing, 0 errors |
-| Unit tests | **118 passing**, 0 failures |
+| Unit tests | **122 passing**, 0 failures |
 | Download size, arm64-v8a | **7.1 MB** (budget 15 MB) |
+| Room migration v1→v2 | auto-generated, verified additive |
 | Download size, armeabi-v7a | **6.3 MB** |
 | `INTERNET` permission in shipped APK | **absent**, verified with `aapt2 dump permissions` |
 | compileSdk / targetSdk | 37 / 36 — meets the Aug 31 2026 Play requirement |
 
-Test breakdown: `:core:classify` 44, `:core:model` 37, `:core:media` 14, `:core:datastore` 8, `:feature:shelf` 8, `:core:ocr` 7.
+Test breakdown: `:core:classify` 44, `:core:model` 37, `:core:media` 14, `:core:datastore` 8, `:feature:shelf` 8, `:core:ocr` 7, `:feature:onboarding` 4.
 
 > **On APK size:** a *universal* release APK is ~43 MB, because the bundled ML Kit
 > model ships a 6–11 MB native library for each of four ABIs. Play delivers only
@@ -143,12 +144,32 @@ either way.
 - Non-blocking, dismissible index status strip — never a modal progress dialog.
 - User sorting rules persisted, created inline from the detail sheet.
 
+**Phase 3 — permissions, onboarding and Limited Mode**
+- Three-screen onboarding: problem, then **trust before any system dialog**, then
+  the permission rationale. No account, no paywall, roughly fifteen seconds.
+- Permission state machine covering all four states — full, **partial**
+  (`READ_MEDIA_VISUAL_USER_SELECTED` on Android 14+), denied, and
+  revoked-mid-session. Access is re-read on resume, never cached.
+- **Limited Mode**, required by Play's Photo and Video Permissions policy: the app
+  stays fully functional over photo-picker-selected images. Search, categories and
+  actions behave identically.
+- Picker imports are **copied into app-private storage before indexing**, because
+  photo-picker grants expire with the process and cannot be made persistable.
+  Without the local copy those tiles would be blank on the next launch.
+- Schema v2 via Room **auto-migration**, verified purely additive: two columns
+  added, no table recreate, no data loss.
+
 ### Not built yet
 
-Phase 3 onward: onboarding and the permission flow, **Limited Mode** (required by
-Play's Photo and Video Permissions policy), Cleanup with duplicate/blur detection,
-billing, the widget, and the category picker in the detail sheet. Cleanup and
+Phase 4 onward: Cleanup with duplicate and blur detection, the 30-day Recently
+Deleted window, the Glance widget and Quick Settings tile, billing, the settings
+screen with a rule editor, and the category picker in the detail sheet. Cleanup and
 Settings still render a placeholder. See `docs/05-roadmap-and-tasks.md`.
+
+**Not code, but blocking release:** the broad photo-access declaration and the
+Data Safety form must be submitted in Play Console, and the privacy policy hosted
+at a public HTTPS URL. Ready-to-paste content is in
+`docs/06-play-store-compliance.md` and `legal/privacy-policy.md`.
 
 ### Not yet verified
 
