@@ -28,13 +28,18 @@ class RecentIndexWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         repository.discoverNew()
-        return indexBatch(
-            repository = repository,
-            indexer = indexer,
-            quota = quota,
-            batchSize = IndexTierPolicy.RECENT_BATCH,
-            reportProgress = { done, total -> setProgress(indexProgressData(done, total)) },
-        )
+        return when (
+            indexBatch(
+                repository = repository,
+                indexer = indexer,
+                quota = quota,
+                batchSize = IndexTierPolicy.RECENT_BATCH,
+                reportProgress = { done, total -> setProgress(indexProgressData(done, total)) },
+            )
+        ) {
+            BatchOutcome.Completed -> Result.success()
+            BatchOutcome.Retry -> Result.retry()
+        }
     }
 }
 
@@ -62,7 +67,7 @@ class BacklogIndexWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         repository.discoverNew()
 
-        val result = indexBatch(
+        val outcome = indexBatch(
             repository = repository,
             indexer = indexer,
             quota = quota,
@@ -75,7 +80,7 @@ class BacklogIndexWorker @AssistedInject constructor(
         // never hold the device awake.
         val remaining = repository.nextPending(1).isNotEmpty()
         return when {
-            result is Result.Failure -> result
+            outcome == BatchOutcome.Retry -> Result.retry()
             remaining -> Result.retry()
             else -> Result.success()
         }
@@ -99,8 +104,15 @@ class ReconcileWorker @AssistedInject constructor(
     }
 }
 
+/** Result of a batch, kept separate from androidx.work's restricted Result API. */
+private enum class BatchOutcome { Completed, Retry }
+
 /**
  * Shared batch loop.
+ *
+ * Returns a plain enum rather than a `ListenableWorker.Result`: those factory
+ * methods are library-group restricted and must only be constructed inside a
+ * Worker. Each worker maps the outcome itself.
  *
  * Stops immediately on [IndexOutcome.AccessLost] — once permission is gone there
  * is no point burning a retry attempt on every remaining row.
@@ -111,9 +123,9 @@ private suspend fun indexBatch(
     quota: IndexingQuota,
     batchSize: Int,
     reportProgress: suspend (done: Int, total: Int) -> Unit,
-): androidx.work.ListenableWorker.Result {
+): BatchOutcome {
     val pending = repository.nextPending(batchSize)
-    if (pending.isEmpty()) return androidx.work.ListenableWorker.Result.success()
+    if (pending.isEmpty()) return BatchOutcome.Completed
 
     // Read user rules once for the whole batch.
     val rules = runCatching { repository.currentRules() }.getOrDefault(emptyList())
@@ -121,11 +133,11 @@ private suspend fun indexBatch(
     var processed = 0
     for (entity in pending) {
         val outcome = runCatching { indexer.index(entity, rules) }
-            .getOrElse { return androidx.work.ListenableWorker.Result.retry() }
+            .getOrElse { return BatchOutcome.Retry }
 
         if (outcome == IndexOutcome.AccessLost) {
             // Not a failure: the user revoked access, which is their right.
-            return androidx.work.ListenableWorker.Result.success()
+            return BatchOutcome.Completed
         }
 
         processed++
@@ -135,7 +147,7 @@ private suspend fun indexBatch(
     // Keep the free tier to its newest-N window.
     runCatching { quota.enforce() }
 
-    return androidx.work.ListenableWorker.Result.success()
+    return BatchOutcome.Completed
 }
 
 internal fun indexProgressData(done: Int, total: Int) = androidx.work.workDataOf(

@@ -27,6 +27,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.shelfie.feature.onboarding.R
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -106,22 +108,21 @@ fun OnboardingScreen(
 private fun ProblemStep(onNext: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
-            text = "You have hundreds of screenshots.",
+            text = stringResource(R.string.onboarding_problem_title),
             style = MaterialTheme.typography.displaySmall,
         )
         Text(
-            text = "You can't find any of them.",
+            text = stringResource(R.string.onboarding_problem_subtitle),
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.primary,
         )
         Text(
-            text = "Shelfie reads the text inside every screenshot so you can just " +
-                "search for what you remember.",
+            text = stringResource(R.string.onboarding_problem_body),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) {
-            Text("Show me")
+            Text(stringResource(R.string.onboarding_problem_cta))
         }
     }
 }
@@ -136,23 +137,20 @@ private fun TrustStep(onNext: () -> Unit) {
             tint = MaterialTheme.colorScheme.primary,
         )
         Text(
-            text = "Everything happens on your phone.",
+            text = stringResource(R.string.onboarding_trust_title),
             style = MaterialTheme.typography.headlineMedium,
         )
         Text(
-            text = "Shelfie reads the text in your screenshots so you can search them. " +
-                "That reading happens here, on this device.",
+            text = stringResource(R.string.onboarding_trust_body),
             style = MaterialTheme.typography.bodyLarge,
         )
         Text(
-            text = "Shelfie has no internet permission. Android will not let it open a " +
-                "network connection, so it physically cannot upload anything. There is " +
-                "no account and no sign-up.",
+            text = stringResource(R.string.onboarding_trust_detail),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) {
-            Text("Continue")
+            Text(stringResource(R.string.onboarding_trust_cta))
         }
     }
 }
@@ -171,12 +169,11 @@ private fun PermissionStep(
             tint = MaterialTheme.colorScheme.primary,
         )
         Text(
-            text = "Shelfie needs to see your screenshots",
+            text = stringResource(R.string.onboarding_permission_title),
             style = MaterialTheme.typography.headlineMedium,
         )
         Text(
-            text = "That's the whole job. With access, your newest screenshots become " +
-                "searchable in about ten seconds.",
+            text = stringResource(R.string.onboarding_permission_body),
             style = MaterialTheme.typography.bodyLarge,
         )
 
@@ -187,20 +184,19 @@ private fun PermissionStep(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 CircularProgressIndicator()
-                Text("Reading your selection…", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.onboarding_importing), style = MaterialTheme.typography.bodyMedium)
             }
         } else {
             Button(onClick = onAllow, modifier = Modifier.fillMaxWidth()) {
-                Text("Allow access")
+                Text(stringResource(R.string.onboarding_permission_allow))
             }
             // Limited Mode is offered up front, not hidden behind a denial. It is
             // required by Play policy, so it may as well be a real choice.
             TextButton(onClick = onPickManually, modifier = Modifier.fillMaxWidth()) {
-                Text("Pick screenshots manually instead")
+                Text(stringResource(R.string.onboarding_permission_pick))
             }
             Text(
-                text = "Picking manually works too — search, categories and actions all " +
-                    "behave the same. You just choose which screenshots Shelfie sees.",
+                text = stringResource(R.string.onboarding_permission_pick_detail),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Start,

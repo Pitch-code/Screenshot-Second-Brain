@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="settings_section_full">Shelfie Full</string>
+    <string name="settings_section_access">Access</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_section_rules">My sorting rules</string>
+    <string name="settings_section_data">Your data</string>
+    <string name="settings_section_about">About</string>
+
+    <!-- Purchase -->
+    <string name="settings_unlocked_title">Unlocked</string>
+    <string name="settings_unlocked_body">Unlimited screenshots, forever. Thank you.</string>
+    <string name="settings_purchase_title">One payment. No subscription.</string>
+    <plurals name="settings_purchase_held_back">
+        <item quantity="one">%d older screenshot isn\'t searchable yet. Unlocking indexes it.</item>
+        <item quantity="other">%d older screenshots aren\'t searchable yet. Unlocking indexes all of them.</item>
+    </plurals>
+    <plurals name="settings_purchase_free_tier">
+        <item quantity="one">Free covers your newest %1$d screenshot. Unlocking covers everything.</item>
+        <item quantity="other">Free covers your newest %1$d screenshots. Unlocking covers everything.</item>
+    </plurals>
+    <string name="settings_purchase_cta">Unlock for %1$s</string>
+    <string name="settings_purchase_checking">Checking with Google Play…</string>
+    <string name="settings_purchase_unavailable">Purchases aren\'t available on this device right now. Everything else keeps working.</string>
+    <string name="settings_purchase_unlocked_message">Unlocked. Thank you.</string>
+    <plurals name="settings_purchase_reindexing">
+        <item quantity="one">Unlocked. Re-indexing %d older screenshot.</item>
+        <item quantity="other">Unlocked. Re-indexing %d older screenshots.</item>
+    </plurals>
+    <string name="settings_purchase_pending">Payment pending. The unlock applies once it clears.</string>
+
+    <!-- Access -->
+    <string name="settings_access_full">All screenshots</string>
+    <string name="settings_access_partial">Only screenshots you selected</string>
+    <string name="settings_access_denied">Only screenshots you pick manually</string>
+    <string name="settings_access_full_detail">Shelfie indexes new screenshots automatically.</string>
+    <string name="settings_access_limited_detail">Limited Mode. Everything works, on a smaller set.</string>
+    <string name="settings_change">Change</string>
+
+    <!-- Appearance -->
+    <string name="settings_dynamic_color">Match my wallpaper colours</string>
+    <string name="settings_dynamic_color_detail">Uses Android\'s dynamic colour on Android 12 and newer.</string>
+
+    <!-- Rules -->
+    <string name="settings_rules_empty">No rules yet. When Shelfie files something in the wrong place, open it and tap Change — the rule is created there.</string>
+    <string name="settings_rule_keyword">\"%1$s\"</string>
+    <string name="settings_rule_target">goes to %1$s</string>
+    <string name="settings_rule_delete">Delete rule</string>
+    <string name="settings_rule_saved">Rule saved. New screenshots will use it.</string>
+
+    <!-- Data -->
+    <string name="settings_export_title">Export my data</string>
+    <string name="settings_export_detail">Saves everything Shelfie has extracted as a text file.</string>
+    <string name="settings_export_cta">Export</string>
+    <string name="settings_export_saved">Export saved</string>
+    <string name="settings_export_failed">Couldn\'t save the export</string>
+    <string name="settings_export_filename">shelfie-export.txt</string>
+
+    <string name="settings_privacy_title">Privacy policy</string>
+    <string name="settings_privacy_detail">Shelfie has no internet permission. It cannot upload your screenshots.</string>
+    <string name="settings_privacy_cta">Read</string>
+
+    <string name="settings_about_title">Shelfie</string>
+    <string name="settings_about_detail">Screenshot finder. Works offline. One payment.</string>
+
+</resources>

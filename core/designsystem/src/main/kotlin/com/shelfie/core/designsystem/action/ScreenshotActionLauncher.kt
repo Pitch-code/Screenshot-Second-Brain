@@ -6,6 +6,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.core.net.toUri
 import android.provider.CalendarContract
 import androidx.core.content.getSystemService
 import com.shelfie.core.model.DateTextParser
@@ -60,7 +61,7 @@ class ScreenshotActionLauncher(private val context: Context) {
         if (url.isNullOrBlank()) return ActionResult.NothingToDo
 
         val normalised = if (url.startsWith("http", ignoreCase = true)) url else "https://$url"
-        return start(Intent(Intent.ACTION_VIEW, Uri.parse(normalised)), "No browser found")
+        return start(Intent(Intent.ACTION_VIEW, normalised.toUri()), "No browser found")
     }
 
     private fun dial(number: String?): ActionResult {
@@ -71,7 +72,7 @@ class ScreenshotActionLauncher(private val context: Context) {
 
         // ACTION_DIAL rather than ACTION_CALL: it opens the dialler pre-filled
         // and needs no CALL_PHONE permission, keeping the permission list short.
-        return start(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$digits")), "No dialler found")
+        return start(Intent(Intent.ACTION_DIAL, "tel:$digits".toUri()), "No dialler found")
     }
 
     private fun share(text: String?): ActionResult {

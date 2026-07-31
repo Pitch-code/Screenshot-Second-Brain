@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="cleanup_empty_title">Nothing to clean up</string>
+    <string name="cleanup_empty_body">No duplicates, no unreadable captures, nothing gathering dust. Check back after a few hundred more screenshots.</string>
+
+    <string name="cleanup_freeable">could be freed up</string>
+    <string name="cleanup_no_delete_warning">On this version of Android, Shelfie can remove these from its own list but cannot delete the files themselves.</string>
+
+    <string name="cleanup_duplicates_title">Duplicates</string>
+    <plurals name="cleanup_duplicates_count">
+        <item quantity="one">%d extra copy</item>
+        <item quantity="other">%d extra copies</item>
+    </plurals>
+    <string name="cleanup_duplicates_detail">One copy of each is always kept.</string>
+
+    <string name="cleanup_blurry_title">Blurry or unreadable</string>
+    <string name="cleanup_blurry_detail">No readable text was found in these.</string>
+
+    <string name="cleanup_old_title">Older than 6 months</string>
+    <string name="cleanup_old_detail">Still searchable until you delete them.</string>
+
+    <plurals name="cleanup_screenshot_count">
+        <item quantity="one">%d screenshot</item>
+        <item quantity="other">%d screenshots</item>
+    </plurals>
+    <string name="cleanup_subtitle_format">%1$s · %2$s</string>
+
+    <string name="cleanup_back">Back</string>
+    <string name="cleanup_select_all">Select all</string>
+    <string name="cleanup_clear">Clear</string>
+    <plurals name="cleanup_selected_summary">
+        <item quantity="one">%1$d selected · %2$s to free</item>
+        <item quantity="other">%1$d selected · %2$s to free</item>
+    </plurals>
+    <string name="cleanup_delete_selected">Delete selected</string>
+    <string name="cleanup_cancel">Cancel</string>
+    <string name="cleanup_recovery_note">Deleted screenshots stay recoverable in Shelfie for 30 days.</string>
+
+    <string name="cleanup_removed_from_shelfie">Removed from Shelfie</string>
+    <string name="cleanup_removed_needs_android_11">Removed from Shelfie. Deleting the files needs Android 11 or newer.</string>
+    <plurals name="cleanup_deleted">
+        <item quantity="one">Deleted %d screenshot</item>
+        <item quantity="other">Deleted %d screenshots</item>
+    </plurals>
+
+</resources>

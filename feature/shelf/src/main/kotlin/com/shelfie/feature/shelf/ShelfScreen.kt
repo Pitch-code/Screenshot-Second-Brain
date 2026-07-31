@@ -26,6 +26,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.shelfie.feature.shelf.R
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -63,6 +65,9 @@ fun ShelfScreen(
     val context = LocalContext.current
     val launcher = remember(context) { ScreenshotActionLauncher(context) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val copiedLabel = stringResource(com.shelfie.core.designsystem.R.string.copied)
+    val nothingToCopyLabel =
+        stringResource(com.shelfie.core.designsystem.R.string.nothing_to_copy)
     val scope = rememberCoroutineScope()
 
     val pickerLauncher = rememberLauncherForActivityResult(
@@ -115,17 +120,16 @@ fun ShelfScreen(
             when {
                 state.isEmpty && state.access.isLimited -> EmptyState(
                     icon = Icons.Outlined.PhotoLibrary,
-                    title = "Pick a few screenshots",
-                    description = "Shelfie will read them and make them searchable. " +
-                        "Everything works the same in Limited Mode.",
-                    actionLabel = "Choose screenshots",
+                    title = stringResource(R.string.shelf_limited_empty_title),
+                    description = stringResource(R.string.shelf_limited_empty_body),
+                    actionLabel = stringResource(R.string.shelf_limited_empty_cta),
                     onAction = openPicker,
                 )
 
                 state.isEmpty -> EmptyState(
                     icon = Icons.Outlined.PhotoLibrary,
-                    title = "Nothing on the shelf yet",
-                    description = "Take a screenshot and it'll land here automatically.",
+                    title = stringResource(R.string.shelf_empty_title),
+                    description = stringResource(R.string.shelf_empty_body),
                 )
 
                 else -> ShelfGrid(
@@ -139,7 +143,8 @@ fun ShelfScreen(
                                 primaryValue = screenshot.primaryValue,
                                 fullText = ctx.fullText,
                             )
-                            result.messageOrNull()?.let { snackbarHostState.showSnackbar(it) }
+                            result.messageOrNull(copiedLabel, nothingToCopyLabel)
+                                ?.let { snackbarHostState.showSnackbar(it) }
                         }
                     },
                 )
@@ -183,7 +188,7 @@ private fun ShelfGrid(
         ) { index ->
             when (val item = items[index]) {
                 is ShelfListItem.DateHeader -> Text(
-                    text = item.label,
+                    text = item.label.resolve(),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -202,10 +207,10 @@ private fun ShelfGrid(
     }
 }
 
-private fun ActionResult.messageOrNull(): String? = when (this) {
+private fun ActionResult.messageOrNull(copiedLabel: String, nothingToCopy: String): String? = when (this) {
     is ActionResult.Failed -> message
-    is ActionResult.Copied -> if (showConfirmation) "Copied" else null
-    ActionResult.NothingToDo -> "Nothing to copy here"
+    is ActionResult.Copied -> if (showConfirmation) copiedLabel else null
+    ActionResult.NothingToDo -> nothingToCopy
     ActionResult.Launched -> null
 }
 
@@ -229,3 +234,11 @@ internal fun requestedMediaPermissions(): Array<String> = when {
 
 /** Photo picker selection cap. */
 private const val MAX_PICK = 100
+
+/** Resolves a date group heading to localised text. */
+@Composable
+private fun DateLabel.resolve(): String = when (this) {
+    DateLabel.Today -> stringResource(R.string.shelf_date_today)
+    DateLabel.Yesterday -> stringResource(R.string.shelf_date_yesterday)
+    is DateLabel.Formatted -> text
+}

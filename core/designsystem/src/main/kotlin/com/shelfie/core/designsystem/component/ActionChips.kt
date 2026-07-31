@@ -1,7 +1,7 @@
 package com.shelfie.core.designsystem.component
 
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
+import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -17,19 +17,24 @@ import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.shelfie.core.designsystem.R
 import com.shelfie.core.model.ScreenshotAction
 
-val ScreenshotAction.label: String
+@get:StringRes
+val ScreenshotAction.labelRes: Int
     get() = when (this) {
-        ScreenshotAction.OPEN_LINK -> "Open link"
-        ScreenshotAction.COPY_CODE -> "Copy code"
-        ScreenshotAction.ADD_TO_CALENDAR -> "Add to calendar"
-        ScreenshotAction.DIAL_NUMBER -> "Call"
-        ScreenshotAction.COPY_TEXT -> "Copy text"
-        ScreenshotAction.SHARE -> "Share"
+        ScreenshotAction.OPEN_LINK -> R.string.action_open_link
+        ScreenshotAction.COPY_CODE -> R.string.action_copy_code
+        ScreenshotAction.ADD_TO_CALENDAR -> R.string.action_add_to_calendar
+        ScreenshotAction.DIAL_NUMBER -> R.string.action_call
+        ScreenshotAction.COPY_TEXT -> R.string.action_copy_text
+        ScreenshotAction.SHARE -> R.string.action_share
     }
 
 val ScreenshotAction.icon: ImageVector
@@ -53,7 +58,7 @@ fun TileActionChip(
         onClick = onClick,
         modifier = modifier,
         label = {
-            Text(text = action.label, maxLines = 1)
+            Text(text = stringResource(action.labelRes), maxLines = 1)
         },
         icon = {
             Icon(
@@ -81,7 +86,7 @@ fun DetailActionChip(
     AssistChip(
         onClick = onClick,
         modifier = modifier,
-        label = { Text(action.label) },
+        label = { Text(stringResource(action.labelRes)) },
         leadingIcon = {
             Icon(
                 imageVector = action.icon,
@@ -99,18 +104,22 @@ fun EntityChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Screen readers otherwise announce only the raw value with no hint that
+    // tapping copies it.
+    val copyDescription = stringResource(R.string.a11y_copy_value, value)
+
     AssistChip(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.semantics {
+            contentDescription = copyDescription
+        },
         label = { Text(value, maxLines = 1) },
         leadingIcon = {
-            Row {
-                Icon(
-                    imageVector = Icons.Outlined.ContentCopy,
-                    contentDescription = null,
-                    modifier = Modifier.size(AssistChipDefaults.IconSize),
-                )
-            }
+            Icon(
+                imageVector = Icons.Outlined.ContentCopy,
+                contentDescription = null,
+                modifier = Modifier.size(AssistChipDefaults.IconSize),
+            )
         },
     )
 }

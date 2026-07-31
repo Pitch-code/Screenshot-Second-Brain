@@ -3,8 +3,10 @@ package com.shelfie.core.media
 import android.content.ContentResolver
 import android.content.IntentSender
 import android.net.Uri
+import androidx.core.net.toUri
 import android.os.Build
 import android.provider.MediaStore
+import androidx.annotation.ChecksSdkIntAtLeast
 import com.shelfie.core.database.dao.ScreenshotDao
 import com.shelfie.core.model.ScreenshotSource
 import com.shelfie.core.ocr.ThumbnailStore
@@ -60,7 +62,7 @@ class ScreenshotDeleter @Inject constructor(
 
             val uris = dao.byIds(ids)
                 .filter { it.source == ScreenshotSource.MEDIA_STORE }
-                .map { Uri.parse(it.uri) }
+                .map { it.uri.toUri() }
 
             if (uris.isEmpty()) return@withContext null
 
@@ -88,6 +90,7 @@ class ScreenshotDeleter @Inject constructor(
     }
 
     /** True when this device can actually reclaim storage. */
+    @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.R)
     fun canDeleteFiles(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
 
     companion object {

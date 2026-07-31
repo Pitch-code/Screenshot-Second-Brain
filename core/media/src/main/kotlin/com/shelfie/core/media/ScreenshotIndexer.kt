@@ -1,6 +1,7 @@
 package com.shelfie.core.media
 
 import android.net.Uri
+import androidx.core.net.toUri
 import com.shelfie.core.classify.ScreenshotClassifier
 import com.shelfie.core.classify.UserRule
 import com.shelfie.core.database.dao.ScreenshotDao
@@ -39,7 +40,7 @@ class ScreenshotIndexer @Inject constructor(
     ): IndexOutcome {
         dao.markAttempt(entity.id, IndexState.IN_PROGRESS)
 
-        val uri = Uri.parse(entity.uri)
+        val uri = entity.uri.toUri()
 
         return when (val result = recognitionEngine.recognize(uri)) {
             is OcrResult.Success -> {

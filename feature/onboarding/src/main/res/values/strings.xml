@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Step 1: mirror the problem back to the user. -->
+    <string name="onboarding_problem_title">You have hundreds of screenshots.</string>
+    <string name="onboarding_problem_subtitle">You can\'t find any of them.</string>
+    <string name="onboarding_problem_body">Shelfie reads the text inside every screenshot so you can just search for what you remember.</string>
+    <string name="onboarding_problem_cta">Show me</string>
+
+    <!-- Step 2: trust, deliberately before any system dialog. -->
+    <string name="onboarding_trust_title">Everything happens on your phone.</string>
+    <string name="onboarding_trust_body">Shelfie reads the text in your screenshots so you can search them. That reading happens here, on this device.</string>
+    <string name="onboarding_trust_detail">Shelfie has no internet permission. Android will not let it open a network connection, so it physically cannot upload anything. There is no account and no sign-up.</string>
+    <string name="onboarding_trust_cta">Continue</string>
+
+    <!-- Step 3: rationale, then the system permission dialog. -->
+    <string name="onboarding_permission_title">Shelfie needs to see your screenshots</string>
+    <string name="onboarding_permission_body">That\'s the whole job. With access, your newest screenshots become searchable in about ten seconds.</string>
+    <string name="onboarding_permission_allow">Allow access</string>
+    <string name="onboarding_permission_pick">Pick screenshots manually instead</string>
+    <string name="onboarding_permission_pick_detail">Picking manually works too — search, categories and actions all behave the same. You just choose which screenshots Shelfie sees.</string>
+    <string name="onboarding_importing">Reading your selection…</string>
+
+</resources>

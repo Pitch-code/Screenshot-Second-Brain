@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Category names. "Not sorted yet" describes a pending state rather than
+         blaming the user's library for being messy. -->
+    <string name="category_payments">Payments</string>
+    <string name="category_otp">OTP codes</string>
+    <string name="category_tickets">Tickets</string>
+    <string name="category_wifi">Wi-Fi</string>
+    <string name="category_products">Products</string>
+    <string name="category_chats">Chats</string>
+    <string name="category_documents">Documents</string>
+    <string name="category_recipes">Recipes</string>
+    <string name="category_places">Places</string>
+    <string name="category_study">Study</string>
+    <string name="category_contacts">Contacts</string>
+    <string name="category_not_sorted">Not sorted yet</string>
+
+    <!-- Actions offered on a tile or in the detail sheet. -->
+    <string name="action_open_link">Open link</string>
+    <string name="action_copy_code">Copy code</string>
+    <string name="action_add_to_calendar">Add to calendar</string>
+    <string name="action_call">Call</string>
+    <string name="action_copy_text">Copy text</string>
+    <string name="action_share">Share</string>
+
+    <!-- Indexing status. Informational, never blocking. -->
+    <string name="index_status_title">Indexing older screenshots</string>
+    <plurals name="index_status_detail">
+        <item quantity="one">%1$d of %2$d done · the rest finish while charging</item>
+        <item quantity="other">%1$d of %2$d done · the rest finish while charging</item>
+    </plurals>
+    <string name="index_status_hide">Hide indexing status</string>
+
+    <!-- Limited Mode. A working state, not an error. -->
+    <string name="limited_mode_title">Limited Mode</string>
+    <string name="limited_mode_empty">Shelfie can only see screenshots you choose. Add some to get started.</string>
+    <plurals name="limited_mode_selected">
+        <item quantity="one">Shelfie can see %d screenshot you selected.</item>
+        <item quantity="other">Shelfie can see %d screenshots you selected.</item>
+    </plurals>
+    <plurals name="limited_mode_picked">
+        <item quantity="one">Shelfie can see %d screenshot you picked.</item>
+        <item quantity="other">Shelfie can see %d screenshots you picked.</item>
+    </plurals>
+    <string name="limited_mode_add_more">Add more</string>
+    <string name="limited_mode_allow_all">Allow all</string>
+
+    <!-- Accessibility -->
+    <string name="a11y_selected_for_deletion">Selected for deletion</string>
+    <string name="a11y_not_selected">Not selected</string>
+    <string name="a11y_screenshot_tile">%1$s, %2$s</string>
+    <string name="a11y_copy_value">Copy %1$s</string>
+
+    <!-- Feedback -->
+    <string name="copied">Copied</string>
+    <string name="nothing_to_copy">Nothing to copy here</string>
+
+</resources>

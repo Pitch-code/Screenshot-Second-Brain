@@ -12,9 +12,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.shelfie.core.designsystem.category.icon
-import com.shelfie.core.designsystem.category.label
+import com.shelfie.core.designsystem.category.labelRes
 import com.shelfie.core.model.ScreenshotCategory
 
 /**
@@ -50,7 +51,7 @@ fun CategoryFilterRow(
             FilterChip(
                 selected = isSelected,
                 onClick = { onSelect(if (isSelected) null else category) },
-                label = { Text("${category.label} $count") },
+                label = { Text("${stringResource(category.labelRes)}  $count") },
                 leadingIcon = {
                     Icon(
                         imageVector = category.icon,

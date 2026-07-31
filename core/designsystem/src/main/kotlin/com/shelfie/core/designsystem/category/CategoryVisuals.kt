@@ -1,5 +1,6 @@
 package com.shelfie.core.designsystem.category
 
+import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
@@ -14,32 +15,34 @@ import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.shelfie.core.designsystem.R
 import com.shelfie.core.model.ScreenshotCategory
 
 /**
  * Display label and icon for each category.
  *
- * Labels are user-facing wording, not enum names. Note that [ScreenshotCategory.NOT_SORTED]
- * reads "Not sorted yet" rather than "Uncategorised" — it describes a pending
- * state rather than blaming the user's library for being messy.
+ * Labels are string resources rather than literals so the app can be localised —
+ * the launch market is multilingual, and hardcoded English would make that a
+ * rewrite rather than a translation.
  *
- * Every category carries an icon as well as a colour so meaning is never encoded
+ * Every category carries an icon as well as a colour, so meaning is never encoded
  * in colour alone.
  */
-val ScreenshotCategory.label: String
+@get:StringRes
+val ScreenshotCategory.labelRes: Int
     get() = when (this) {
-        ScreenshotCategory.PAYMENTS -> "Payments"
-        ScreenshotCategory.OTP_CODES -> "OTP codes"
-        ScreenshotCategory.TICKETS -> "Tickets"
-        ScreenshotCategory.WIFI_PASSWORDS -> "Wi-Fi"
-        ScreenshotCategory.PRODUCTS -> "Products"
-        ScreenshotCategory.CHATS -> "Chats"
-        ScreenshotCategory.DOCUMENTS -> "Documents"
-        ScreenshotCategory.RECIPES -> "Recipes"
-        ScreenshotCategory.PLACES -> "Places"
-        ScreenshotCategory.STUDY -> "Study"
-        ScreenshotCategory.CONTACTS -> "Contacts"
-        ScreenshotCategory.NOT_SORTED -> "Not sorted yet"
+        ScreenshotCategory.PAYMENTS -> R.string.category_payments
+        ScreenshotCategory.OTP_CODES -> R.string.category_otp
+        ScreenshotCategory.TICKETS -> R.string.category_tickets
+        ScreenshotCategory.WIFI_PASSWORDS -> R.string.category_wifi
+        ScreenshotCategory.PRODUCTS -> R.string.category_products
+        ScreenshotCategory.CHATS -> R.string.category_chats
+        ScreenshotCategory.DOCUMENTS -> R.string.category_documents
+        ScreenshotCategory.RECIPES -> R.string.category_recipes
+        ScreenshotCategory.PLACES -> R.string.category_places
+        ScreenshotCategory.STUDY -> R.string.category_study
+        ScreenshotCategory.CONTACTS -> R.string.category_contacts
+        ScreenshotCategory.NOT_SORTED -> R.string.category_not_sorted
     }
 
 val ScreenshotCategory.icon: ImageVector

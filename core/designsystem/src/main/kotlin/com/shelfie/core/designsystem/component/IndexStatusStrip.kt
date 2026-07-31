@@ -19,6 +19,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.shelfie.core.designsystem.R
 import com.shelfie.core.model.IndexProgress
 
 /**
@@ -50,12 +53,16 @@ fun IndexStatusStrip(
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
                         Text(
-                            text = "Indexing older screenshots",
+                            text = stringResource(R.string.index_status_title),
                             style = MaterialTheme.typography.labelLarge,
                         )
                         Text(
-                            text = "${progress.indexed} of ${progress.total} done · " +
-                                "the rest finish while charging",
+                            text = pluralStringResource(
+                                R.plurals.index_status_detail,
+                                progress.total,
+                                progress.indexed,
+                                progress.total,
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -64,7 +71,7 @@ fun IndexStatusStrip(
                     IconButton(onClick = onDismiss) {
                         Icon(
                             imageVector = Icons.Outlined.Close,
-                            contentDescription = "Hide indexing status",
+                            contentDescription = stringResource(R.string.index_status_hide),
                             modifier = Modifier.size(18.dp),
                         )
                     }

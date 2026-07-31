@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="search_placeholder">Search inside your screenshots</string>
+    <string name="search_clear">Clear search</string>
+
+    <string name="search_idle_title">Search your screenshots</string>
+    <string name="search_idle_body">Type an amount, a name, a code, a booking ID — anything you remember seeing.</string>
+
+    <string name="search_no_results_title">No matches for \"%1$s\"</string>
+    <string name="search_no_results_body">Older screenshots finish indexing while your phone is idle and charging, so try again later if it was a while ago.</string>
+
+</resources>

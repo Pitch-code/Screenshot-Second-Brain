@@ -20,7 +20,7 @@ room = "2.8.4"
 datastore = "1.2.1"
 work = "2.11.2"
 paging = "3.5.0"
-splashscreen = "1.0.1"
+splashscreen = "1.2.0"
 exifinterface = "1.4.2"
 
 # Bundled ML Kit model: ships in the APK so OCR works with zero network access.
@@ -33,6 +33,14 @@ coil = "3.5.0"
 # Play Billing talks to the Play Store app over IPC, so it declares only
 # com.android.vending.BILLING and NOT INTERNET. Verified against the AAR manifest.
 billing = "9.1.0"
+
+# Performance measurement. Macrobenchmark and Baseline Profiles both require a
+# real device or emulator to RUN; the modules here are wired but unexecuted.
+# 1.4.x does not recognise AGP 9 application modules. This is build-time tooling
+# only and never ships in the APK, so a beta is an acceptable trade here.
+benchmark = "1.5.0-beta01"
+uiautomator = "2.4.0"
+profileinstaller = "1.4.1"
 
 # DI
 hilt = "2.60.1"
@@ -75,6 +83,11 @@ androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterfa
 
 # Images
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
+
+# Benchmark
+androidx-benchmark-macro = { group = "androidx.benchmark", name = "benchmark-macro-junit4", version.ref = "benchmark" }
+androidx-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "uiautomator" }
+androidx-profileinstaller = { group = "androidx.profileinstaller", name = "profileinstaller", version.ref = "profileinstaller" }
 
 # Billing
 billing-ktx = { group = "com.android.billingclient", name = "billing-ktx", version.ref = "billing" }
@@ -124,6 +137,8 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+android-test = { id = "com.android.test", version.ref = "agp" }
+baselineprofile = { id = "androidx.baselineprofile", version.ref = "benchmark" }
 
 # Local convention plugins
 shelfie-android-application = { id = "shelfie.android.application" }

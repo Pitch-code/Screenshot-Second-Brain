@@ -25,6 +25,8 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
+import com.shelfie.feature.search.R
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -33,7 +35,7 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import coil3.compose.AsyncImage
 import com.shelfie.core.designsystem.category.icon
-import com.shelfie.core.designsystem.category.label
+import com.shelfie.core.designsystem.category.labelRes
 import com.shelfie.core.designsystem.component.EmptyState
 import com.shelfie.core.designsystem.component.HighlightedText
 import com.shelfie.core.model.Screenshot
@@ -55,12 +57,12 @@ fun SearchScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 8.dp),
-            placeholder = { Text("Search inside your screenshots") },
+            placeholder = { Text(stringResource(R.string.search_placeholder)) },
             leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
             trailingIcon = {
                 if (query.isNotEmpty()) {
                     IconButton(onClick = viewModel::onClear) {
-                        Icon(Icons.Outlined.Close, contentDescription = "Clear search")
+                        Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.search_clear))
                     }
                 }
             },
@@ -74,16 +76,14 @@ fun SearchScreen(
         when {
             query.isBlank() -> EmptyState(
                 icon = Icons.Outlined.Search,
-                title = "Search your screenshots",
-                description = "Type an amount, a name, a code, a booking ID — anything " +
-                    "you remember seeing.",
+                title = stringResource(R.string.search_idle_title),
+                description = stringResource(R.string.search_idle_body),
             )
 
             results.itemCount == 0 -> EmptyState(
                 icon = Icons.Outlined.Search,
-                title = "No matches for \"$query\"",
-                description = "Older screenshots finish indexing while your phone is " +
-                    "idle and charging, so try again later if it was a while ago.",
+                title = stringResource(R.string.search_no_results_title, query),
+                description = stringResource(R.string.search_no_results_body),
             )
 
             else -> LazyColumn(
@@ -161,7 +161,7 @@ private fun SearchResultRow(
                         tint = MaterialTheme.colorScheme.primary,
                     )
                     Text(
-                        text = screenshot.category.label,
+                        text = stringResource(screenshot.category.labelRes),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )

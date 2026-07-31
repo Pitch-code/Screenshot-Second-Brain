@@ -4,7 +4,6 @@
   LinearLayout, TextView and ImageView.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -18,8 +17,7 @@
         android:layout_height="26dp"
         android:layout_marginEnd="12dp"
         android:contentDescription="@null"
-        android:src="@drawable/ic_widget_search"
-        android:tint="@color/brand_signal" />
+        android:src="@drawable/ic_widget_search" />
 
     <LinearLayout
         android:layout_width="0dp"
@@ -44,7 +42,6 @@
             android:ellipsize="end"
             android:textColor="@color/brand_shelf"
             android:textSize="13sp"
-            android:alpha="0.75"
-            tools:ignore="MissingPrefix" />
+            android:alpha="0.75" />
     </LinearLayout>
 </LinearLayout>

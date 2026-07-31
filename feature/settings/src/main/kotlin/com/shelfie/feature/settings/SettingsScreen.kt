@@ -2,6 +2,7 @@ package com.shelfie.feature.settings
 
 import android.content.Intent
 import android.net.Uri
+import androidx.core.net.toUri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -35,12 +36,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.shelfie.feature.settings.R
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.shelfie.core.billing.BillingState
-import com.shelfie.core.designsystem.category.label
+import com.shelfie.core.designsystem.category.labelRes
 import com.shelfie.core.media.IndexingQuota
+import com.shelfie.core.designsystem.component.resolve
 import com.shelfie.core.model.MediaAccess
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -55,6 +60,9 @@ fun SettingsScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val exportFilename = stringResource(R.string.settings_export_filename)
+    val exportSaved = stringResource(R.string.settings_export_saved)
+    val exportFailed = stringResource(R.string.settings_export_failed)
 
     // Export via the system document picker: the user chooses where the file
     // lands, so no storage permission is needed.
@@ -71,12 +79,13 @@ fun SettingsScreen(
                     }
                 }.isSuccess
             }
-            snackbarHostState.showSnackbar(if (ok) "Export saved" else "Couldn't save the export")
+            snackbarHostState.showSnackbar(if (ok) exportSaved else exportFailed)
         }
     }
 
-    LaunchedEffect(state.message) {
-        state.message?.let {
+    val resolvedMessage = state.message?.resolve() ?: state.failureText
+    LaunchedEffect(resolvedMessage) {
+        resolvedMessage?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.onMessageShown()
         }
@@ -88,41 +97,45 @@ fun SettingsScreen(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            item { SectionHeader("Shelfie Full") }
+            item { SectionHeader(stringResource(R.string.settings_section_full)) }
             item { PurchaseCard(state = state, onPurchase = viewModel::onPurchase) }
 
-            item { SectionHeader("Access") }
+            item { SectionHeader(stringResource(R.string.settings_section_access)) }
             item {
                 ListItem(
                     headlineContent = {
                         Text(
                             when (state.access) {
-                                MediaAccess.FULL -> "All screenshots"
-                                MediaAccess.PARTIAL -> "Only screenshots you selected"
-                                MediaAccess.DENIED -> "Only screenshots you pick manually"
+                                MediaAccess.FULL -> stringResource(R.string.settings_access_full)
+                                MediaAccess.PARTIAL -> stringResource(R.string.settings_access_partial)
+                                MediaAccess.DENIED -> stringResource(R.string.settings_access_denied)
                             },
                         )
                     },
                     supportingContent = {
                         Text(
-                            if (state.access == MediaAccess.FULL) {
-                                "Shelfie indexes new screenshots automatically."
-                            } else {
-                                "Limited Mode. Everything works, on a smaller set."
-                            },
+                            stringResource(
+                                if (state.access == MediaAccess.FULL) {
+                                    R.string.settings_access_full_detail
+                                } else {
+                                    R.string.settings_access_limited_detail
+                                },
+                            ),
                         )
                     },
                     trailingContent = {
-                        TextButton(onClick = { context.openAppSettings() }) { Text("Change") }
+                        TextButton(onClick = { context.openAppSettings() }) {
+                            Text(stringResource(R.string.settings_change))
+                        }
                     },
                 )
             }
 
-            item { SectionHeader("Appearance") }
+            item { SectionHeader(stringResource(R.string.settings_section_appearance)) }
             item {
                 ListItem(
-                    headlineContent = { Text("Match my wallpaper colours") },
-                    supportingContent = { Text("Uses Android's dynamic colour on Android 12 and newer.") },
+                    headlineContent = { Text(stringResource(R.string.settings_dynamic_color)) },
+                    supportingContent = { Text(stringResource(R.string.settings_dynamic_color_detail)) },
                     trailingContent = {
                         Switch(
                             checked = state.useDynamicColor,
@@ -132,12 +145,11 @@ fun SettingsScreen(
                 )
             }
 
-            item { SectionHeader("My sorting rules") }
+            item { SectionHeader(stringResource(R.string.settings_section_rules)) }
             if (state.rules.isEmpty()) {
                 item {
                     Text(
-                        text = "No rules yet. When Shelfie files something in the wrong " +
-                            "place, open it and tap Change — the rule is created there.",
+                        text = stringResource(R.string.settings_rules_empty),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp),
@@ -146,11 +158,21 @@ fun SettingsScreen(
             } else {
                 items(items = state.rules, key = { it.id }) { rule ->
                     ListItem(
-                        headlineContent = { Text("\"${rule.keyword}\"") },
-                        supportingContent = { Text("goes to ${rule.category.label}") },
+                        headlineContent = { Text(stringResource(R.string.settings_rule_keyword, rule.keyword)) },
+                        supportingContent = {
+                            Text(
+                                stringResource(
+                                    R.string.settings_rule_target,
+                                    stringResource(rule.category.labelRes),
+                                ),
+                            )
+                        },
                         trailingContent = {
                             IconButton(onClick = { viewModel.onDeleteRule(rule.id) }) {
-                                Icon(Icons.Outlined.Delete, contentDescription = "Delete rule")
+                                Icon(
+                                    Icons.Outlined.Delete,
+                                    contentDescription = stringResource(R.string.settings_rule_delete),
+                                )
                             }
                         },
                     )
@@ -159,40 +181,41 @@ fun SettingsScreen(
 
             item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) }
 
-            item { SectionHeader("Your data") }
+            item { SectionHeader(stringResource(R.string.settings_section_data)) }
             item {
                 ListItem(
-                    headlineContent = { Text("Export my data") },
+                    headlineContent = { Text(stringResource(R.string.settings_export_title)) },
                     supportingContent = {
-                        Text("Saves everything Shelfie has extracted as a text file.")
+                        Text(stringResource(R.string.settings_export_detail))
                     },
                     trailingContent = {
-                        TextButton(onClick = { exportLauncher.launch("shelfie-export.txt") }) {
-                            Text("Export")
+                        TextButton(onClick = { exportLauncher.launch(exportFilename) }) {
+                            Text(stringResource(R.string.settings_export_cta))
                         }
                     },
                 )
             }
             item {
                 ListItem(
-                    headlineContent = { Text("Privacy policy") },
+                    headlineContent = { Text(stringResource(R.string.settings_privacy_title)) },
                     supportingContent = {
                         Text(
-                            "Shelfie has no internet permission. It cannot upload your " +
-                                "screenshots.",
+                            stringResource(R.string.settings_privacy_detail),
                         )
                     },
                     trailingContent = {
-                        TextButton(onClick = { context.openPrivacyPolicy() }) { Text("Read") }
+                        TextButton(onClick = { context.openPrivacyPolicy() }) {
+                            Text(stringResource(R.string.settings_privacy_cta))
+                        }
                     },
                 )
             }
 
-            item { SectionHeader("About") }
+            item { SectionHeader(stringResource(R.string.settings_section_about)) }
             item {
                 ListItem(
-                    headlineContent = { Text("Shelfie") },
-                    supportingContent = { Text("Screenshot finder. Works offline. One payment.") },
+                    headlineContent = { Text(stringResource(R.string.settings_about_title)) },
+                    supportingContent = { Text(stringResource(R.string.settings_about_detail)) },
                 )
             }
         }
@@ -218,26 +241,35 @@ private fun PurchaseCard(state: SettingsUiState, onPurchase: (android.app.Activi
         ) {
             when {
                 state.quota.isUnlimited || state.billing is BillingState.Owned -> {
-                    Text("Unlocked", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.settings_unlocked_title), style = MaterialTheme.typography.titleMedium)
                     Text(
-                        text = "Unlimited screenshots, forever. Thank you.",
+                        text = stringResource(R.string.settings_unlocked_body),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
                 else -> {
-                    Text("One payment. No subscription.", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = stringResource(R.string.settings_purchase_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
 
                     // The prompt only appears when there is something concrete to
                     // gain, rather than nagging on a timer.
                     Text(
                         text = if (state.quota.hasHeldBackItems) {
-                            "${state.quota.heldBack} older screenshots aren't searchable " +
-                                "yet. Unlocking indexes all of them."
+                            pluralStringResource(
+                                R.plurals.settings_purchase_held_back,
+                                state.quota.heldBack,
+                                state.quota.heldBack,
+                            )
                         } else {
-                            "Free covers your newest ${IndexingQuota.FREE_INDEX_LIMIT} " +
-                                "screenshots. Unlocking covers everything."
+                            pluralStringResource(
+                                R.plurals.settings_purchase_free_tier,
+                                IndexingQuota.FREE_INDEX_LIMIT,
+                                IndexingQuota.FREE_INDEX_LIMIT,
+                            )
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -250,17 +282,16 @@ private fun PurchaseCard(state: SettingsUiState, onPurchase: (android.app.Activi
                             },
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Text("Unlock for ${billing.formattedPrice}")
+                            Text(stringResource(R.string.settings_purchase_cta, billing.formattedPrice))
                         }
 
                         BillingState.Connecting -> Text(
-                            text = "Checking with Google Play…",
+                            text = stringResource(R.string.settings_purchase_checking),
                             style = MaterialTheme.typography.bodySmall,
                         )
 
                         is BillingState.Unavailable -> Text(
-                            text = "Purchases aren't available on this device right now. " +
-                                "Everything else keeps working.",
+                            text = stringResource(R.string.settings_purchase_unavailable),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -299,7 +330,7 @@ private fun android.content.Context.openPrivacyPolicy() {
     // network permission.
     runCatching {
         startActivity(
-            Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_POLICY_URL))
+            Intent(Intent.ACTION_VIEW, PRIVACY_POLICY_URL.toUri())
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         )
     }

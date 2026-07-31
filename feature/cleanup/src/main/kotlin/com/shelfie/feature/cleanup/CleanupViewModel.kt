@@ -8,6 +8,7 @@ import com.shelfie.core.media.CleanupReport
 import com.shelfie.core.media.ScreenshotDeleter
 import com.shelfie.core.model.Screenshot
 import dagger.hilt.android.lifecycle.HiltViewModel
+import com.shelfie.core.designsystem.component.UiMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -90,11 +91,13 @@ class CleanupViewModel @Inject constructor(
                     it.copy(
                         selectedIds = emptySet(),
                         openGroup = null,
-                        lastMessage = if (deleter.canDeleteFiles()) {
-                            "Removed from Shelfie"
-                        } else {
-                            "Removed from Shelfie. Deleting the files needs Android 11 or newer."
-                        },
+                        lastMessage = UiMessage.Text(
+                            if (deleter.canDeleteFiles()) {
+                                R.string.cleanup_removed_from_shelfie
+                            } else {
+                                R.string.cleanup_removed_needs_android_11
+                            },
+                        ),
                     )
                 }
                 refresh()
@@ -113,7 +116,7 @@ class CleanupViewModel @Inject constructor(
                 it.copy(
                     selectedIds = emptySet(),
                     openGroup = null,
-                    lastMessage = "Deleted $removed screenshots",
+                    lastMessage = UiMessage.Plural(R.plurals.cleanup_deleted, removed, listOf(removed)),
                 )
             }
             refresh()
@@ -145,7 +148,7 @@ data class CleanupUiState(
     val openGroup: CleanupGroup? = null,
     val selectedIds: Set<Long> = emptySet(),
     val canDeleteFiles: Boolean = true,
-    val lastMessage: String? = null,
+    val lastMessage: UiMessage? = null,
 ) {
     /** Items in the currently open group, excluding any marked to keep. */
     fun itemsFor(group: CleanupGroup): List<Screenshot> = when (group) {

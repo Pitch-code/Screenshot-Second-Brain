@@ -23,7 +23,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import coil3.compose.AsyncImage
+import com.shelfie.core.designsystem.R
 
 /**
  * Thumbnail with a selection state, used by Cleanup's preview-before-delete grid.
@@ -38,6 +40,10 @@ fun SelectableThumbnail(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val description = stringResource(
+        if (selected) R.string.a11y_selected_for_deletion else R.string.a11y_not_selected,
+    )
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -55,13 +61,7 @@ fun SelectableThumbnail(
                 },
             )
             .clickable(onClick = onClick)
-            .semantics {
-                contentDescription = if (selected) {
-                    "Selected for deletion"
-                } else {
-                    "Not selected"
-                }
-            },
+            .semantics { contentDescription = description },
     ) {
         AsyncImage(
             model = model,
