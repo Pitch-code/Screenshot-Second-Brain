@@ -1,14 +1,25 @@
 package com.shelfie.core.media
 
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.map
+import com.shelfie.core.classify.UserRule
 import com.shelfie.core.database.dao.CategoryCount
 import com.shelfie.core.database.dao.ScreenshotDao
 import com.shelfie.core.database.entity.ScreenshotEntity
+import com.shelfie.core.database.entity.toDomain
 import com.shelfie.core.datastore.ShelfiePreferences
+import com.shelfie.core.datastore.UserRuleStore
 import com.shelfie.core.model.IndexProgress
 import com.shelfie.core.model.IndexTier
 import com.shelfie.core.model.MediaAccess
+import com.shelfie.core.model.Screenshot
+import com.shelfie.core.model.ScreenshotCategory
+import com.shelfie.core.model.SearchQuery
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,8 +37,80 @@ class ScreenshotRepository @Inject constructor(
     private val dao: ScreenshotDao,
     private val mediaStore: MediaStoreScreenshotSource,
     private val preferences: ShelfiePreferences,
+    private val ruleStore: UserRuleStore,
     private val accessChecker: MediaAccessChecker,
 ) {
+
+    // ------------------------------------------------------------------ paging
+
+    /** The shelf feed: newest first, always. */
+    fun pagedShelf(): Flow<PagingData<Screenshot>> = pager { dao.pagedShelf() }
+
+    fun pagedByCategory(category: ScreenshotCategory): Flow<PagingData<Screenshot>> =
+        pager { dao.pagedByCategory(category) }
+
+    /**
+     * Full-text search. Returns null when [rawQuery] has no usable tokens, so
+     * callers can show the unfiltered shelf instead of an empty result set.
+     */
+    fun search(rawQuery: String): Flow<PagingData<Screenshot>>? {
+        val match = SearchQuery.toFtsMatch(rawQuery) ?: return null
+        return pager { dao.search(match) }
+    }
+
+    private fun pager(
+        source: () -> androidx.paging.PagingSource<Int, ScreenshotEntity>,
+    ): Flow<PagingData<Screenshot>> = Pager(
+        config = PagingConfig(
+            // A screen holds roughly 15 tiles, so a 60-item page keeps several
+            // screens buffered while never pulling 5,000 rows into memory.
+            pageSize = 60,
+            prefetchDistance = 30,
+            initialLoadSize = 60,
+            enablePlaceholders = false,
+        ),
+        pagingSourceFactory = source,
+    ).flow.map { data -> data.map(ScreenshotEntity::toDomain) }
+
+    // ------------------------------------------------------------------ detail
+
+    fun observeScreenshot(id: Long): Flow<Screenshot?> =
+        dao.observeById(id).map { it?.toDomain() }
+
+    /** The recognised text, for the detail sheet. */
+    suspend fun textFor(id: Long): String? = dao.textFor(id)
+
+    /** Applies a manual re-categorisation. */
+    suspend fun setCategory(id: Long, category: ScreenshotCategory) =
+        dao.setCategory(id, category)
+
+    // ------------------------------------------------------------------- rules
+
+    fun observeRules(): Flow<List<UserRule>> = ruleStore.rules.map { stored ->
+        stored.map(::toUserRule)
+    }
+
+    /**
+     * Creates a rule from the detail sheet's "always sort <keyword> here".
+     *
+     * Captured at the exact moment the user notices a wrong category, which is
+     * the only moment they are motivated to fix it.
+     */
+    suspend fun addRule(keyword: String, category: ScreenshotCategory) =
+        ruleStore.add(keyword, category)
+
+    suspend fun removeRule(id: Long) = ruleStore.remove(id)
+
+    suspend fun currentRules(): List<UserRule> = ruleStore.current().map(::toUserRule)
+
+    private fun toUserRule(rule: com.shelfie.core.datastore.StoredRule) = UserRule(
+        id = rule.id,
+        keyword = rule.keyword,
+        category = rule.category,
+        enabled = rule.enabled,
+    )
+
+    // ---------------------------------------------------------------- progress
 
     fun observeProgress(): Flow<IndexProgress> = combine(
         dao.observeTotalCount(),

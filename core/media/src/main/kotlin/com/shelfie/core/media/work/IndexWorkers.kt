@@ -109,9 +109,12 @@ private suspend fun indexBatch(
     val pending = repository.nextPending(batchSize)
     if (pending.isEmpty()) return androidx.work.ListenableWorker.Result.success()
 
+    // Read user rules once for the whole batch.
+    val rules = runCatching { repository.currentRules() }.getOrDefault(emptyList())
+
     var processed = 0
     for (entity in pending) {
-        val outcome = runCatching { indexer.index(entity) }
+        val outcome = runCatching { indexer.index(entity, rules) }
             .getOrElse { return androidx.work.ListenableWorker.Result.retry() }
 
         if (outcome == IndexOutcome.AccessLost) {

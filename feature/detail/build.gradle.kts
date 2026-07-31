@@ -3,10 +3,9 @@ plugins {
 }
 
 android {
-    namespace = "com.shelfie.feature.search"
+    namespace = "com.shelfie.feature.detail"
 }
 
 dependencies {
     implementation(projects.core.media)
-    implementation(libs.androidx.paging.compose)
 }

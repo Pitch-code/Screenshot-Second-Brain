@@ -8,7 +8,7 @@ android {
 }
 
 dependencies {
-    implementation(projects.core.model)
+    api(projects.core.model)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.datastore.preferences)
 }

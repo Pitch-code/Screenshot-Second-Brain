@@ -26,6 +26,10 @@ exifinterface = "1.4.2"
 # Bundled ML Kit model: ships in the APK so OCR works with zero network access.
 mlkitTextRecognition = "16.0.1"
 
+# Image loading. Only coil-compose is used: the coil-network-* artifacts would
+# declare INTERNET, which would break the no-network guarantee.
+coil = "3.5.0"
+
 # DI
 hilt = "2.60.1"
 hiltNavigationCompose = "1.4.0"
@@ -64,6 +68,9 @@ androidx-navigation-compose = { group = "androidx.navigation", name = "navigatio
 # download the model, which we cannot do without INTERNET.
 mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitTextRecognition" }
 androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
+
+# Images
+coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 
 # Room
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
