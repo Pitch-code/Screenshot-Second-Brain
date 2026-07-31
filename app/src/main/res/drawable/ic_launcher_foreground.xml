@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Brand mark: a screenshot tile resting on a shelf.
+  All detail is kept inside the central 66dp safe circle of the 108dp canvas so
+  it survives every adaptive icon mask.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- The screenshot tile -->
+    <path
+        android:fillColor="#FFD24A"
+        android:pathData="M41,30 H71 A5,5 0 0 1 76,35 V61 A5,5 0 0 1 71,66 H41 A5,5 0 0 1 36,61 V35 A5,5 0 0 1 41,30 Z" />
+
+    <!-- Suggested lines of text inside the tile -->
+    <path
+        android:fillColor="#12122A"
+        android:pathData="M43,39 H63 V42.5 H43 Z" />
+    <path
+        android:fillColor="#12122A"
+        android:pathData="M43,47 H69 V50.5 H43 Z" />
+    <path
+        android:fillColor="#12122A"
+        android:pathData="M43,55 H57 V58.5 H43 Z" />
+
+    <!-- The shelf -->
+    <path
+        android:fillColor="#F5F5FA"
+        android:pathData="M29,70 H79 A3,3 0 0 1 79,76 H29 A3,3 0 0 1 29,70 Z" />
+</vector>

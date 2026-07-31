@@ -35,3 +35,64 @@ Android app that makes every screenshot on your phone searchable and actionable,
 
 - **Aug 31, 2026** — new apps and updates must target Android 16 / API 36
 - **Sept 30, 2026** — developer verification registration closes
+
+
+---
+
+## Build status
+
+**Phase 0 (Foundation) is complete and verified building.**
+
+| Check | Result |
+|---|---|
+| `:app:assembleDebug` | passing |
+| `:app:assembleRelease` (R8 full mode + resource shrinking) | passing |
+| `lintVitalRelease` | passing, 0 errors |
+| Unit tests | 7 passing (`:core:model`) |
+| Release APK size (unsigned) | **1.1 MB** — budget is 15 MB |
+| `INTERNET` permission in shipped APK | **absent**, verified with `aapt2 dump permissions` |
+| compileSdk / targetSdk | 37 / 36 — meets the Aug 31 2026 Play requirement |
+
+### Toolchain
+
+- AGP 9.3.1, Gradle 9.6.1, Kotlin 2.4.10, KSP 2.3.10, Hilt 2.60.1
+- JDK 21, Android SDK Platform 37.0, Build Tools 37.0.0
+- AGP 9 provides **built-in Kotlin support** — do not apply `org.jetbrains.kotlin.android`
+
+### Building locally
+
+```bash
+echo "sdk.dir=/path/to/android-sdk" > local.properties
+./gradlew :app:assembleDebug        # debug APK
+./gradlew test                      # unit tests
+./gradlew :app:assembleRelease      # R8 + lint vital
+```
+
+### Verifying the privacy claim
+
+The strongest asset in this project is that the app has no network permission at all.
+It is worth re-checking on every release, because a single transitive dependency can reintroduce it:
+
+```bash
+aapt2 dump permissions app/build/outputs/apk/release/app-release-unsigned.apk
+```
+
+`android.permission.INTERNET` must not appear. The manifest also carries an explicit
+`tools:node="remove"` for it, which strips the permission even if a library declares it.
+
+### What exists so far
+
+- 9 Gradle modules wired through 7 local convention plugins, so SDK levels, Java level,
+  Compose and Hilt setup are declared exactly once
+- Room schema with an **FTS4** search table, the three-tier index work queue, soft-delete
+  for the 30-day recovery window, and enum-name-based type converters
+- `ShelfiePreferences` holding the MediaStore watermark that makes screenshot detection self-healing
+- Material 3 Expressive theme, dark-first, dynamic colour, brand palette
+- Adaptive shell: NavigationBar under 600dp, NavigationRail above, four destinations navigating
+- Vector launcher icon with foreground, background and **monochrome** layers
+
+### Not built yet
+
+Phase 1 onward: MediaStore querying, ContentObserver, ML Kit OCR, the classifier,
+the real Shelf/Search/Cleanup UI, permissions flow, Limited Mode, billing, widget.
+See `docs/05-roadmap-and-tasks.md`.

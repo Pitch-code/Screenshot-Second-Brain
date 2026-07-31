@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+      Post-splash theme. Compose draws all app UI, so this only needs to provide
+      a correct window background to avoid a flash during startup.
+    -->
+    <style name="Theme.Shelfie" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/brand_deep</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="Theme.Shelfie.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/brand_deep</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.Shelfie</item>
+    </style>
+
+</resources>

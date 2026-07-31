@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand tokens. Kept in sync with core:designsystem BrandColors. -->
+    <color name="brand_deep">#FF12122A</color>
+    <color name="brand_signal">#FFFFD24A</color>
+    <color name="brand_shelf">#FFF5F5FA</color>
+</resources>

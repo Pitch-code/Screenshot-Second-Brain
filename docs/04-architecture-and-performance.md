@@ -8,10 +8,11 @@ The entire competitive thesis is *this app is fast and doesn't crash on a cheap 
 
 | Layer | Choice | Why |
 |---|---|---|
-| Language | Kotlin 2.x | — |
-| UI | Jetpack Compose + Material 3 Expressive (Material Components 1.14.0+) | Current design language |
-| Min / Target SDK | **min 26, target 36 (Android 16)** | Target 36 is **mandatory for new apps and updates from Aug 31, 2026** ([source](https://quasa.io/media/google-play-s-target-sdk-policy-a-gradual-cleanup-that-opens-the-door-for-modern-apps)). min 26 unlocks GenAI Image Description later and covers >98% of devices |
-| DI | Hilt | — |
+| Build | **AGP 9.3.1 + Gradle 9.6.1** | AGP 9 has built-in Kotlin support; the `kotlin-android` plugin must NOT be applied |
+| Language | **Kotlin 2.4.10** (KSP 2.3.10) | — |
+| UI | Jetpack Compose + Material 3 Expressive (Compose BOM 2026.06.01) | Current design language. Note: `MaterialExpressiveTheme` is no longer public API — Expressive is now the default behaviour of `MaterialTheme` |
+| Min / Target / Compile SDK | **min 26, target 36 (Android 16), compile 37 (Android 17)** | Target 36 is **mandatory for new apps and updates from Aug 31, 2026** ([source](https://quasa.io/media/google-play-s-target-sdk-policy-a-gradual-cleanup-that-opens-the-door-for-modern-apps)). Compiling against 37 is required by current AndroidX libraries; targeting 36 avoids opting into Android 17 runtime behaviour changes before they are tested. min 26 unlocks GenAI Image Description later and covers >98% of devices |
+| DI | Hilt 2.60.1 | Requires AGP 9+; earlier Hilt caps out at AGP 8 |
 | Async | Coroutines + Flow | — |
 | DB | Room + **FTS4** virtual table | On-device full-text search |
 | Paging | Paging 3 | Never load a 5,000-item grid into memory |
