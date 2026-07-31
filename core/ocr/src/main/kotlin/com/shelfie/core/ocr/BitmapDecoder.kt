@@ -45,6 +45,25 @@ class BitmapDecoder @Inject constructor(
         }
     }
 
+    /**
+     * Decodes a very small copy for quality analysis.
+     *
+     * Duplicate hashing and blur measurement work on a tiny grid, so decoding at
+     * ~64px keeps this almost free even across thousands of screenshots.
+     */
+    fun decodeForAnalysis(uri: Uri, targetEdge: Int = ANALYSIS_EDGE): Bitmap? {
+        val (width, height) = readBounds(uri) ?: return null
+        if (width <= 0 || height <= 0) return null
+
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = Companion.calculateInSampleSize(width, height, targetEdge)
+            inPreferredConfig = Bitmap.Config.RGB_565
+        }
+        return contentResolver.openInputStream(uri)?.use { stream ->
+            BitmapFactory.decodeStream(stream, null, options)
+        }
+    }
+
     /** Reads dimensions without allocating pixel memory. */
     fun readBounds(uri: Uri): Pair<Int, Int>? {
         val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -67,6 +86,9 @@ class BitmapDecoder @Inject constructor(
          */
         const val TARGET_LONGEST_EDGE = 1440
 
+        /** Analysis grid size for hashing and blur measurement. */
+        const val ANALYSIS_EDGE = 64
+
         /**
          * Largest power-of-two subsample that keeps the longest edge at or above
          * [TARGET_LONGEST_EDGE].
@@ -77,13 +99,17 @@ class BitmapDecoder @Inject constructor(
          * Kept as a pure companion function with no Android dependencies so the
          * memory-safety maths is unit-testable on the JVM.
          */
-        internal fun calculateInSampleSize(width: Int, height: Int): Int {
+        internal fun calculateInSampleSize(
+            width: Int,
+            height: Int,
+            targetLongestEdge: Int = TARGET_LONGEST_EDGE,
+        ): Int {
             var sampleSize = 1
             var longest = maxOf(width, height)
 
             // Halve while the next halving would still leave enough resolution
-            // for reliable recognition.
-            while (longest / 2 >= TARGET_LONGEST_EDGE) {
+            // for the requested target.
+            while (longest / 2 >= targetLongestEdge) {
                 longest /= 2
                 sampleSize *= 2
             }

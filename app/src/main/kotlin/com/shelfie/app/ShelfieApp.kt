@@ -12,7 +12,11 @@ import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -33,6 +37,7 @@ import com.shelfie.feature.onboarding.OnboardingScreen
  */
 @Composable
 fun ShelfieApp(
+    startOnSearch: Boolean = false,
     navController: NavHostController = rememberNavController(),
     viewModel: ShelfieAppViewModel = hiltViewModel(),
 ) {
@@ -45,14 +50,26 @@ fun ShelfieApp(
             onFinished = viewModel::onOnboardingFinished,
         )
 
-        is ShelfieStartState.Ready -> MainShell(navController = navController)
+        is ShelfieStartState.Ready -> MainShell(
+            navController = navController,
+            startOnSearch = startOnSearch,
+        )
     }
 }
 
 @Composable
-private fun MainShell(navController: NavHostController) {
+private fun MainShell(navController: NavHostController, startOnSearch: Boolean = false) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val current = ShelfieDestination.fromRoute(backStackEntry?.destination?.route)
+
+    // Jump to Search once, when launched from the widget or the tile.
+    var handledDeepLink by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(startOnSearch) {
+        if (startOnSearch && !handledDeepLink) {
+            handledDeepLink = true
+            navController.navigate(ShelfieDestination.SEARCH.route) { launchSingleTop = true }
+        }
+    }
 
     val onNavigate: (ShelfieDestination) -> Unit = { destination ->
         navController.navigate(destination.route) {

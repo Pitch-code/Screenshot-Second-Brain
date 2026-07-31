@@ -5,3 +5,7 @@ plugins {
 android {
     namespace = "com.shelfie.feature.cleanup"
 }
+
+dependencies {
+    implementation(projects.core.media)
+}

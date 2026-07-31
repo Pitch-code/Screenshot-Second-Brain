@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_title">Search screenshots</string>
+    <string name="widget_subtitle_loading">Opening Shelfie…</string>
+    <string name="widget_subtitle_empty">Nothing indexed yet</string>
+    <plurals name="widget_subtitle_count">
+        <item quantity="one">%d screenshot ready</item>
+        <item quantity="other">%d screenshots ready</item>
+    </plurals>
+    <string name="widget_description">Search your screenshots from the home screen.</string>
+
+    <string name="tile_label">Search Shelfie</string>
+
+    <string name="share_adding">Adding to Shelfie…</string>
+    <string name="share_nothing_to_add">Nothing to add</string>
+    <string name="share_failed">Couldn\'t read that image</string>
+    <plurals name="share_added">
+        <item quantity="one">Added %d screenshot</item>
+        <item quantity="other">Added %d screenshots</item>
+    </plurals>
+</resources>
