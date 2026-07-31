@@ -92,6 +92,15 @@ interface ScreenshotDao {
     )
     suspend fun setCategory(id: Long, category: ScreenshotCategory)
 
+    @Query(
+        """
+        UPDATE screenshots
+        SET perceptual_hash = :hash, blur_score = :blurScore
+        WHERE id = :id
+        """,
+    )
+    suspend fun setQuality(id: Long, hash: String?, blurScore: Float?)
+
     @Query("UPDATE screenshots SET is_deleted = 1, deleted_at = :deletedAt WHERE id IN (:ids)")
     suspend fun softDelete(ids: List<Long>, deletedAt: Long)
 
@@ -196,6 +205,61 @@ interface ScreenshotDao {
      * stamped with the import time, so counting them would advance the watermark
      * to "now" and permanently skip older screenshots still on disk.
      */
+    // ------------------------------------------------------------- cleanup
+
+    /**
+     * Rows sharing a perceptual hash: byte-level duplicates after downscaling.
+     * Ordered so the oldest of each group comes first, which is the one to keep.
+     */
+    @Query(
+        """
+        SELECT * FROM screenshots
+        WHERE is_deleted = 0 AND perceptual_hash IS NOT NULL
+          AND perceptual_hash IN (
+            SELECT perceptual_hash FROM screenshots
+            WHERE is_deleted = 0 AND perceptual_hash IS NOT NULL
+            GROUP BY perceptual_hash HAVING COUNT(*) > 1
+          )
+        ORDER BY perceptual_hash, date_added ASC
+        """,
+    )
+    suspend fun duplicateCandidates(): List<ScreenshotEntity>
+
+    @Query(
+        """
+        SELECT * FROM screenshots
+        WHERE is_deleted = 0 AND blur_score IS NOT NULL AND blur_score < :threshold
+        ORDER BY blur_score ASC
+        """,
+    )
+    suspend fun blurryScreenshots(threshold: Float): List<ScreenshotEntity>
+
+    /**
+     * Old screenshots that were never opened in Shelfie. The strongest signal
+     * that something is clutter rather than something the user wants.
+     */
+    @Query(
+        """
+        SELECT * FROM screenshots
+        WHERE is_deleted = 0 AND date_added < :olderThan
+        ORDER BY date_added ASC
+        """,
+    )
+    suspend fun olderThan(olderThan: Long): List<ScreenshotEntity>
+
+    @Query("SELECT * FROM screenshots WHERE is_deleted = 1 ORDER BY deleted_at DESC")
+    fun pagedDeleted(): PagingSource<Int, ScreenshotEntity>
+
+    @Query("SELECT COUNT(*) FROM screenshots WHERE is_deleted = 1")
+    fun observeDeletedCount(): Flow<Int>
+
+    @Query("SELECT * FROM screenshots WHERE id IN (:ids)")
+    suspend fun byIds(ids: List<Long>): List<ScreenshotEntity>
+
+    /** Hard-removes rows after their file has actually been deleted. */
+    @Query("DELETE FROM screenshots WHERE id IN (:ids)")
+    suspend fun hardDelete(ids: List<Long>): Int
+
     @Query("SELECT MAX(date_added) FROM screenshots WHERE source = 'MEDIA_STORE'")
     suspend fun newestDateAdded(): Long?
 

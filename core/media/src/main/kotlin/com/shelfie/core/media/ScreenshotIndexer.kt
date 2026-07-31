@@ -6,6 +6,7 @@ import com.shelfie.core.classify.UserRule
 import com.shelfie.core.database.dao.ScreenshotDao
 import com.shelfie.core.database.entity.ScreenshotEntity
 import com.shelfie.core.model.IndexState
+import com.shelfie.core.ocr.ImageAnalyzer
 import com.shelfie.core.ocr.OcrFailure
 import com.shelfie.core.ocr.OcrResult
 import com.shelfie.core.ocr.TextRecognitionEngine
@@ -24,6 +25,7 @@ class ScreenshotIndexer @Inject constructor(
     private val dao: ScreenshotDao,
     private val recognitionEngine: TextRecognitionEngine,
     private val classifier: ScreenshotClassifier,
+    private val imageAnalyzer: ImageAnalyzer,
 ) {
 
     /**
@@ -37,9 +39,21 @@ class ScreenshotIndexer @Inject constructor(
     ): IndexOutcome {
         dao.markAttempt(entity.id, IndexState.IN_PROGRESS)
 
-        return when (val result = recognitionEngine.recognize(Uri.parse(entity.uri))) {
+        val uri = Uri.parse(entity.uri)
+
+        return when (val result = recognitionEngine.recognize(uri)) {
             is OcrResult.Success -> {
                 val classification = classifier.classify(result.text, rules)
+
+                // Duplicate and blur signals for Cleanup. Decoded at ~64px, so
+                // this is cheap; a failure here must not fail the index.
+                imageAnalyzer.analyze(uri)?.let { quality ->
+                    dao.setQuality(
+                        id = entity.id,
+                        hash = quality.perceptualHash,
+                        blurScore = quality.blurVariance.toFloat(),
+                    )
+                }
 
                 dao.saveIndexResult(
                     screenshotId = entity.id,

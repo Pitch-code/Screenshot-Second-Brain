@@ -41,7 +41,7 @@ Android app that makes every screenshot on your phone searchable and actionable,
 
 ## Build status
 
-**Phases 0–3 complete and verified building:** foundation, indexing engine, Shelf/Search/Detail UI, and the permission flow with Limited Mode.
+**Phases 0–4 complete and verified building:** foundation, indexing engine, Shelf/Search/Detail UI, permissions with Limited Mode, and Cleanup with the widget, tile and share target.
 
 | Check | Result |
 |---|---|
@@ -49,14 +49,15 @@ Android app that makes every screenshot on your phone searchable and actionable,
 | `:app:assembleRelease` (R8 full mode + resource shrinking) | passing |
 | `:app:bundleRelease` (AAB) | passing |
 | `lintVitalRelease` | passing, 0 errors |
-| Unit tests | **122 passing**, 0 failures |
-| Download size, arm64-v8a | **7.1 MB** (budget 15 MB) |
+| Unit tests | **144 passing**, 0 failures |
+| Download size, arm64-v8a | **7.2 MB** (budget 15 MB) |
 | Room migration v1→v2 | auto-generated, verified additive |
 | Download size, armeabi-v7a | **6.3 MB** |
+| `WRITE_EXTERNAL_STORAGE` | absent — deletion uses `createDeleteRequest` |
 | `INTERNET` permission in shipped APK | **absent**, verified with `aapt2 dump permissions` |
 | compileSdk / targetSdk | 37 / 36 — meets the Aug 31 2026 Play requirement |
 
-Test breakdown: `:core:classify` 44, `:core:model` 37, `:core:media` 14, `:core:datastore` 8, `:feature:shelf` 8, `:core:ocr` 7, `:feature:onboarding` 4.
+Test breakdown: `:core:classify` 59, `:core:model` 44, `:core:media` 14, `:core:datastore` 8, `:feature:shelf` 8, `:core:ocr` 7, `:feature:onboarding` 4.
 
 > **On APK size:** a *universal* release APK is ~43 MB, because the bundled ML Kit
 > model ships a 6–11 MB native library for each of four ABIs. Play delivers only
@@ -159,12 +160,33 @@ either way.
 - Schema v2 via Room **auto-migration**, verified purely additive: two columns
   added, no table recreate, no data loss.
 
+**Phase 4 — Cleanup, widget and share target**
+- **Duplicate detection** via a 64-bit dHash perceptual hash, with near-duplicate
+  merging by Hamming distance so re-compressed copies are caught. The oldest of
+  each group is always kept and never offered for deletion.
+- **Blur detection** via Laplacian variance. Both algorithms are pure functions in
+  `:core:classify` with 15 tests; the Android side decodes at ~64px, so analysis
+  is nearly free and runs during indexing.
+- Cleanup screen with **preview-before-delete**, honest reclaimable-storage figures
+  in binary units matching Android's own storage settings, and select-all.
+- Two-stage deletion: soft delete into the **30-day Recently Deleted** window
+  first, then `MediaStore.createDeleteRequest` for the user's system confirmation.
+  Declining the dialog restores the rows, so cancelling really cancels.
+- **No `WRITE_EXTERNAL_STORAGE`.** On Android 10 and below, deleting other apps'
+  media would require it, so those devices get index-only cleanup and the UI says
+  so plainly rather than silently failing.
+- **Home-screen widget** and **Quick Settings tile**, both deep-linking into
+  Search — re-entry points that cost no notification. Built with RemoteViews, so
+  no new dependency.
+- **Share-sheet target** for images, which doubles as a way to add screenshots in
+  Limited Mode without opening the picker.
+
 ### Not built yet
 
-Phase 4 onward: Cleanup with duplicate and blur detection, the 30-day Recently
-Deleted window, the Glance widget and Quick Settings tile, billing, the settings
-screen with a rule editor, and the category picker in the detail sheet. Cleanup and
-Settings still render a placeholder. See `docs/05-roadmap-and-tasks.md`.
+Phase 5 onward: Play Billing with the one-time unlock, the free-tier gate, the
+Settings screen with a rule editor and Recently Deleted UI, the category picker in
+the detail sheet, Baseline Profiles, and the accessibility and localisation passes.
+Settings still renders a placeholder. See `docs/05-roadmap-and-tasks.md`.
 
 **Not code, but blocking release:** the broad photo-access declaration and the
 Data Safety form must be submitted in Play Console, and the privacy policy hosted

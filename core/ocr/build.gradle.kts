@@ -9,6 +9,7 @@ android {
 
 dependencies {
     implementation(projects.core.model)
+    implementation(projects.core.classify)
     implementation(libs.androidx.core.ktx)
 
     // Bundled model: the recogniser ships inside the APK, so text recognition

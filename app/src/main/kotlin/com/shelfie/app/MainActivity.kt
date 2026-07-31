@@ -37,10 +37,17 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
+        val openSearch = intent?.getBooleanExtra(EXTRA_OPEN_SEARCH, false) == true
+
         setContent {
             ShelfieTheme {
-                ShelfieApp()
+                ShelfieApp(startOnSearch = openSearch)
             }
         }
+    }
+
+    companion object {
+        /** Set by the widget and the Quick Settings tile to land on Search. */
+        const val EXTRA_OPEN_SEARCH = "com.shelfie.app.OPEN_SEARCH"
     }
 }
