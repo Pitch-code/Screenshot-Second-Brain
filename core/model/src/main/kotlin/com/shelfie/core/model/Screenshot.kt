@@ -27,9 +27,35 @@ data class Screenshot(
     val primaryAction: ScreenshotAction? = null,
     val indexedAt: Long? = null,
     val isDeleted: Boolean = false,
+    val source: ScreenshotSource = ScreenshotSource.MEDIA_STORE,
+    /**
+     * Absolute path to a downscaled copy in the app's private storage.
+     *
+     * Only set for screenshots imported through the system photo picker in
+     * Limited Mode. The picker grants read access that expires when the process
+     * dies and cannot be made persistable, so without a local copy those tiles
+     * would render as blank boxes on the next launch.
+     */
+    val localThumbnailPath: String? = null,
 ) {
     val aspectRatio: Float
         get() = if (height == 0) 1f else width.toFloat() / height.toFloat()
+
+    /**
+     * What the UI should actually load. Prefers the durable local copy when one
+     * exists, and falls back to the MediaStore URI.
+     */
+    val displayUri: String
+        get() = localThumbnailPath ?: uri
+}
+
+/** Where a screenshot came from, which determines whether we can re-read it. */
+enum class ScreenshotSource {
+    /** Discovered via MediaStore with broad or partial media access. */
+    MEDIA_STORE,
+
+    /** Hand-picked through the system photo picker in Limited Mode. */
+    PICKER,
 }
 
 /** Where a screenshot is in the indexing pipeline. */

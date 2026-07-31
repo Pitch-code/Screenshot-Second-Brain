@@ -4,6 +4,7 @@ import androidx.room.TypeConverter
 import com.shelfie.core.model.IndexState
 import com.shelfie.core.model.ScreenshotAction
 import com.shelfie.core.model.ScreenshotCategory
+import com.shelfie.core.model.ScreenshotSource
 
 /**
  * Enums are stored as their names rather than ordinals on purpose: reordering an
@@ -28,6 +29,13 @@ class ShelfieConverters {
     fun toCategory(value: String): ScreenshotCategory =
         runCatching { ScreenshotCategory.valueOf(value) }
             .getOrDefault(ScreenshotCategory.NOT_SORTED)
+
+    @TypeConverter
+    fun fromSource(value: ScreenshotSource): String = value.name
+
+    @TypeConverter
+    fun toSource(value: String): ScreenshotSource =
+        runCatching { ScreenshotSource.valueOf(value) }.getOrDefault(ScreenshotSource.MEDIA_STORE)
 
     @TypeConverter
     fun fromAction(value: ScreenshotAction?): String? = value?.name

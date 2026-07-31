@@ -125,6 +125,11 @@ class ScreenshotRepository @Inject constructor(
 
     fun observeCategoryCounts(): Flow<List<CategoryCount>> = dao.observeCategoryCounts()
 
+    /** How many screenshots Limited Mode can currently see. */
+    fun observePickedCount(): Flow<Int> = dao.observePickedCount()
+
+    fun observeTotalCount(): Flow<Int> = dao.observeTotalCount()
+
     fun currentAccess(): MediaAccess = accessChecker.current()
 
     /**

@@ -1,5 +1,8 @@
 package com.shelfie.feature.shelf
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.MaterialTheme
@@ -21,11 +23,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import com.shelfie.core.designsystem.action.ActionResult
@@ -33,8 +38,10 @@ import com.shelfie.core.designsystem.action.ScreenshotActionLauncher
 import com.shelfie.core.designsystem.component.CategoryFilterRow
 import com.shelfie.core.designsystem.component.EmptyState
 import com.shelfie.core.designsystem.component.IndexStatusStrip
+import com.shelfie.core.designsystem.component.LimitedModeBanner
 import com.shelfie.core.designsystem.component.ScreenshotTile
-import com.shelfie.core.model.MediaAccess
+import com.shelfie.core.model.Screenshot
+import com.shelfie.core.model.ScreenshotAction
 import kotlinx.coroutines.launch
 
 @Composable
@@ -46,19 +53,54 @@ fun ShelfScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val items = viewModel.items.collectAsLazyPagingItems()
 
+    // Re-check access on resume, so granting or revoking it in system Settings is
+    // reflected without needing a restart.
+    LifecycleResumeEffect(Unit) {
+        viewModel.onResumed()
+        onPauseOrDispose { }
+    }
+
     val context = LocalContext.current
     val launcher = remember(context) { ScreenshotActionLauncher(context) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    val pickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(MAX_PICK),
+    ) { uris -> viewModel.onImagesPicked(uris) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { viewModel.onResumed() }
+
+    val openPicker = {
+        pickerLauncher.launch(
+            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+        )
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
+
+            // Limited Mode is a working state, not an error, so the banner sits
+            // above content without blocking it.
+            LimitedModeBanner(
+                access = state.access,
+                visibleCount = state.pickedCount,
+                onAddMore = openPicker,
+                onGrantFullAccess = {
+                    permissionLauncher.launch(
+                        com.shelfie.feature.shelf.requestedMediaPermissions(),
+                    )
+                },
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            )
 
             if (state.showStatusStrip) {
                 IndexStatusStrip(
                     progress = state.progress,
                     onDismiss = viewModel::onStatusDismissed,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                 )
             }
 
@@ -71,14 +113,16 @@ fun ShelfScreen(
             }
 
             when {
-                state.access == MediaAccess.DENIED -> EmptyState(
+                state.isEmpty && state.access.isLimited -> EmptyState(
                     icon = Icons.Outlined.PhotoLibrary,
-                    title = "Shelfie can't see your screenshots yet",
-                    description = "Grant access and your newest screenshots become " +
-                        "searchable in a few seconds.",
+                    title = "Pick a few screenshots",
+                    description = "Shelfie will read them and make them searchable. " +
+                        "Everything works the same in Limited Mode.",
+                    actionLabel = "Choose screenshots",
+                    onAction = openPicker,
                 )
 
-                items.itemCount == 0 && state.progress.total == 0 -> EmptyState(
+                state.isEmpty -> EmptyState(
                     icon = Icons.Outlined.PhotoLibrary,
                     title = "Nothing on the shelf yet",
                     description = "Take a screenshot and it'll land here automatically.",
@@ -104,19 +148,20 @@ fun ShelfScreen(
 
         SnackbarHost(
             hostState = snackbarHostState,
-            modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter),
+            modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
 }
 
 @Composable
 private fun ShelfGrid(
-    items: androidx.paging.compose.LazyPagingItems<ShelfListItem>,
+    items: LazyPagingItems<ShelfListItem>,
     onScreenshotClick: (Long) -> Unit,
-    onAction: (com.shelfie.core.model.Screenshot, com.shelfie.core.model.ScreenshotAction) -> Unit,
+    onAction: (Screenshot, ScreenshotAction) -> Unit,
 ) {
     LazyVerticalGrid(
-        // 3 columns on a phone; widens automatically on tablets and foldables.
+        // Adaptive rather than fixed, so tablets and foldables widen instead of
+        // stretching three oversized tiles.
         columns = GridCells.Adaptive(minSize = 116.dp),
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -127,8 +172,8 @@ private fun ShelfGrid(
             count = items.itemCount,
             key = items.itemKey { it.key },
             span = { index ->
-                // Date headers span the full row. peek() avoids triggering a load
-                // just to work out the span.
+                // Date headers span the row. peek() avoids triggering a page load
+                // just to compute a span.
                 if (items.peek(index) is ShelfListItem.DateHeader) {
                     GridItemSpan(maxLineSpan)
                 } else {
@@ -151,7 +196,6 @@ private fun ShelfGrid(
                     onAction = { action -> onAction(item.screenshot, action) },
                 )
 
-                // Placeholder slot while a page loads.
                 null -> Box(modifier = Modifier.fillMaxWidth())
             }
         }
@@ -164,3 +208,24 @@ private fun ActionResult.messageOrNull(): String? = when (this) {
     ActionResult.NothingToDo -> "Nothing to copy here"
     ActionResult.Launched -> null
 }
+
+/**
+ * Mirrors the onboarding permission set.
+ *
+ * Duplicated deliberately: `:feature:shelf` must not depend on
+ * `:feature:onboarding`, and this array is small enough that pushing it into a
+ * core module would be more indirection than it is worth.
+ */
+internal fun requestedMediaPermissions(): Array<String> = when {
+    android.os.Build.VERSION.SDK_INT >= 34 -> arrayOf(
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+    )
+
+    android.os.Build.VERSION.SDK_INT >= 33 -> arrayOf("android.permission.READ_MEDIA_IMAGES")
+
+    else -> arrayOf("android.permission.READ_EXTERNAL_STORAGE")
+}
+
+/** Photo picker selection cap. */
+private const val MAX_PICK = 100
