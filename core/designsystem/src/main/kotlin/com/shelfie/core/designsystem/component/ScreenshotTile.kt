@@ -28,11 +28,13 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import coil3.compose.AsyncImage
+import com.shelfie.core.designsystem.R
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.shelfie.core.designsystem.category.icon
-import com.shelfie.core.designsystem.category.label
+import com.shelfie.core.designsystem.category.labelRes
 import com.shelfie.core.model.Screenshot
 import com.shelfie.core.model.ScreenshotAction
 import com.shelfie.core.model.ScreenshotCategory
@@ -55,11 +57,20 @@ fun ScreenshotTile(
     onAction: (ScreenshotAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val categoryLabel = stringResource(screenshot.category.labelRes)
+    // Screen readers get category, then the extracted value, then the filename —
+    // the same priority the visual tile uses.
+    val tileDescription = stringResource(
+        R.string.a11y_screenshot_tile,
+        categoryLabel,
+        screenshot.primaryValue ?: screenshot.displayName,
+    )
+
     Card(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .semantics { contentDescription = screenshot.accessibilityLabel() },
+            .semantics { contentDescription = tileDescription },
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -101,7 +112,7 @@ fun ScreenshotTile(
                     .padding(8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                CategoryBadge(screenshot.category)
+                CategoryBadge(screenshot.category, categoryLabel)
 
                 screenshot.primaryValue?.let { value ->
                     Text(
@@ -125,7 +136,7 @@ fun ScreenshotTile(
 }
 
 @Composable
-private fun CategoryBadge(category: ScreenshotCategory) {
+private fun CategoryBadge(category: ScreenshotCategory, label: String) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -143,17 +154,10 @@ private fun CategoryBadge(category: ScreenshotCategory) {
             modifier = Modifier.size(12.dp),
         )
         Text(
-            text = category.label,
+            text = label,
             style = MaterialTheme.typography.labelSmall,
             color = Color.White,
             maxLines = 1,
         )
     }
-}
-
-/** Screen-reader description: category, value, then date. */
-private fun Screenshot.accessibilityLabel(): String = buildString {
-    append(category.label)
-    primaryValue?.let { append(", $it") }
-    append(", $displayName")
 }

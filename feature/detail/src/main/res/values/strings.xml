@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="detail_change_category">Change</string>
+    <string name="detail_detected">Detected</string>
+    <string name="detail_text_heading">Text in this screenshot</string>
+    <string name="detail_no_text">No text was recognised in this screenshot.</string>
+    <string name="detail_delete">Delete</string>
+</resources>

@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.shelfie.android.application)
     alias(libs.plugins.shelfie.android.compose)
     alias(libs.plugins.shelfie.android.hilt)
+    alias(libs.plugins.baselineprofile)
 }
 
 android {
@@ -37,6 +38,12 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.splashscreen)
+
+    // Applies the Baseline Profile at install time on API 28+.
+    implementation(libs.androidx.profileinstaller)
+
+    // Produces the profile consumed by the release build.
+    baselineProfile(projects.benchmark)
 
     // Required so @HiltWorker index workers can be constructed by WorkManager.
     implementation(libs.androidx.work.runtime)

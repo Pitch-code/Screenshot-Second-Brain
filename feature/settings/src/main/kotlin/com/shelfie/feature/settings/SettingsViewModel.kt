@@ -15,6 +15,7 @@ import com.shelfie.core.media.ScreenshotDeleter
 import com.shelfie.core.media.ScreenshotRepository
 import com.shelfie.core.model.MediaAccess
 import dagger.hilt.android.lifecycle.HiltViewModel
+import com.shelfie.core.designsystem.component.UiMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -34,15 +35,18 @@ class SettingsViewModel @Inject constructor(
     private val scheduler: IndexScheduler,
 ) : ViewModel() {
 
-    private val message = MutableStateFlow<String?>(null)
+    private val message = MutableStateFlow<UiMessage?>(null)
+
+    /** Play's own error text, which arrives already localised. */
+    private val failureText = MutableStateFlow<String?>(null)
 
     val state: StateFlow<SettingsUiState> = combine(
         repository.observeRules(),
         quota.state,
         billing.billingState,
         preferences.useDynamicColor,
-        message,
-    ) { rules, quotaState, billingState, dynamicColor, msg ->
+        combine(message, failureText) { m, f -> m to f },
+    ) { rules, quotaState, billingState, dynamicColor, (msg, failure) ->
         SettingsUiState(
             rules = rules,
             quota = quotaState,
@@ -50,6 +54,7 @@ class SettingsViewModel @Inject constructor(
             useDynamicColor = dynamicColor,
             access = repository.currentAccess(),
             message = msg,
+            failureText = failure,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -72,18 +77,24 @@ class SettingsViewModel @Inject constructor(
                     val released = quota.releaseAll()
                     scheduler.scheduleAll()
                     message.value = if (released > 0) {
-                        "Unlocked. Re-indexing $released older screenshots."
+                        UiMessage.Plural(
+                            R.plurals.settings_purchase_reindexing,
+                            released,
+                            listOf(released),
+                        )
                     } else {
-                        "Unlocked. Thank you."
+                        UiMessage.Text(R.string.settings_purchase_unlocked_message)
                     }
                 }
 
                 PurchaseResult.Pending ->
-                    message.value = "Payment pending. The unlock applies once it clears."
+                    message.value = UiMessage.Text(R.string.settings_purchase_pending)
 
                 PurchaseResult.Cancelled -> Unit
 
-                is PurchaseResult.Failed -> message.value = result.message
+                is PurchaseResult.Failed ->
+                    // Play supplies this text already localised.
+                    failureText.value = result.message
             }
         }
     }
@@ -100,7 +111,7 @@ class SettingsViewModel @Inject constructor(
         if (keyword.isBlank()) return
         viewModelScope.launch {
             repository.addRule(keyword, category)
-            message.value = "Rule saved. New screenshots will use it."
+            message.value = UiMessage.Text(R.string.settings_rule_saved)
         }
     }
 
@@ -109,6 +120,7 @@ class SettingsViewModel @Inject constructor(
 
     fun onMessageShown() {
         message.update { null }
+        failureText.update { null }
     }
 }
 
@@ -118,5 +130,6 @@ data class SettingsUiState(
     val billing: BillingState = BillingState.Connecting,
     val useDynamicColor: Boolean = true,
     val access: MediaAccess = MediaAccess.DENIED,
-    val message: String? = null,
+    val message: UiMessage? = null,
+    val failureText: String? = null,
 )

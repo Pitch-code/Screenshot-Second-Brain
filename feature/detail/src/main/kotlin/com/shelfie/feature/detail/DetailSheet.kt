@@ -29,13 +29,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.shelfie.feature.detail.R
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.shelfie.core.designsystem.action.ScreenshotActionLauncher
 import com.shelfie.core.designsystem.category.icon
-import com.shelfie.core.designsystem.category.label
+import com.shelfie.core.designsystem.category.labelRes
 import com.shelfie.core.designsystem.component.DetailActionChip
 import com.shelfie.core.designsystem.component.EntityChip
 import com.shelfie.core.model.ScreenshotAction
@@ -103,13 +105,15 @@ fun DetailSheet(
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = screenshot.category.label,
+                    text = stringResource(screenshot.category.labelRes),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
                 // Full picker lands with Settings in Phase 5; the sheet already
                 // owns the interaction point.
-                TextButton(onClick = { /* category picker: Phase 5 */ }) { Text("Change") }
+                TextButton(onClick = { /* category picker: later phase */ }) {
+                    Text(stringResource(R.string.detail_change_category))
+                }
             }
 
             // Primary actions.
@@ -156,7 +160,7 @@ fun DetailSheet(
                 entities.passwords.take(1).forEach { add(it) }
             }
             if (chips.isNotEmpty()) {
-                Text("Detected", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.detail_detected), style = MaterialTheme.typography.labelLarge)
                 Row(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -170,11 +174,14 @@ fun DetailSheet(
             HorizontalDivider()
 
             // Recognised text, selectable so any part can be copied.
-            Text("Text in this screenshot", style = MaterialTheme.typography.labelLarge)
+            Text(
+                text = stringResource(R.string.detail_text_heading),
+                style = MaterialTheme.typography.labelLarge,
+            )
             SelectionContainer {
                 Text(
                     text = state.text?.takeIf { it.isNotBlank() }
-                        ?: "No text was recognised in this screenshot.",
+                        ?: stringResource(R.string.detail_no_text),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -185,7 +192,10 @@ fun DetailSheet(
             // Destructive action, kept well away from the primary ones.
             TextButton(onClick = { /* delete flow: Phase 4 */ }) {
                 Icon(Icons.Outlined.Delete, contentDescription = null)
-                Text("  Delete", color = MaterialTheme.colorScheme.error)
+                Text(
+                    text = "  " + stringResource(R.string.detail_delete),
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
         }
     }

@@ -47,6 +47,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.shelfie.core.designsystem.component.EmptyState
 import com.shelfie.core.designsystem.component.SelectableThumbnail
 import com.shelfie.core.model.ByteFormat
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.shelfie.core.designsystem.component.resolve
 
 @Composable
 fun CleanupScreen(
@@ -68,9 +71,10 @@ fun CleanupScreen(
         }
     }
 
-    LaunchedEffect(state.lastMessage) {
-        state.lastMessage?.let { message ->
-            snackbarHostState.showSnackbar(message)
+    val resolvedMessage = state.lastMessage?.resolve()
+    LaunchedEffect(resolvedMessage) {
+        resolvedMessage?.let {
+            snackbarHostState.showSnackbar(it)
             viewModel.onMessageShown()
         }
     }
@@ -98,9 +102,8 @@ fun CleanupScreen(
 
             state.report.isEmpty -> EmptyState(
                 icon = Icons.Outlined.AutoAwesome,
-                title = "Nothing to clean up",
-                description = "No duplicates, no unreadable captures, nothing gathering " +
-                    "dust. Check back after a few hundred more screenshots.",
+                title = stringResource(R.string.cleanup_empty_title),
+                description = stringResource(R.string.cleanup_empty_body),
             )
 
             else -> Overview(state = state, onOpen = viewModel::onCategoryOpened)
@@ -128,14 +131,13 @@ private fun Overview(state: CleanupUiState, onOpen: (CleanupGroup) -> Unit) {
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = "could be freed up",
+                    text = stringResource(R.string.cleanup_freeable),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (!state.canDeleteFiles) {
                     Text(
-                        text = "On this version of Android, Shelfie can remove these from " +
-                            "its own list but cannot delete the files themselves.",
+                        text = stringResource(R.string.cleanup_no_delete_warning),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(top = 4.dp),
@@ -147,10 +149,17 @@ private fun Overview(state: CleanupUiState, onOpen: (CleanupGroup) -> Unit) {
         item {
             CleanupCard(
                 icon = Icons.Outlined.ContentCopy,
-                title = "Duplicates",
-                subtitle = "${state.report.duplicateCount} extra copies · " +
+                title = stringResource(R.string.cleanup_duplicates_title),
+                subtitle = stringResource(
+                    R.string.cleanup_subtitle_format,
+                    pluralStringResource(
+                        R.plurals.cleanup_duplicates_count,
+                        state.report.duplicateCount,
+                        state.report.duplicateCount,
+                    ),
                     ByteFormat.format(state.report.duplicateBytes),
-                detail = "One copy of each is always kept.",
+                ),
+                detail = stringResource(R.string.cleanup_duplicates_detail),
                 enabled = state.report.duplicateCount > 0,
                 onClick = { onOpen(CleanupGroup.DUPLICATES) },
             )
@@ -158,10 +167,17 @@ private fun Overview(state: CleanupUiState, onOpen: (CleanupGroup) -> Unit) {
         item {
             CleanupCard(
                 icon = Icons.Outlined.BlurOn,
-                title = "Blurry or unreadable",
-                subtitle = "${state.report.blurry.size} screenshots · " +
+                title = stringResource(R.string.cleanup_blurry_title),
+                subtitle = stringResource(
+                    R.string.cleanup_subtitle_format,
+                    pluralStringResource(
+                        R.plurals.cleanup_screenshot_count,
+                        state.report.blurry.size,
+                        state.report.blurry.size,
+                    ),
                     ByteFormat.format(state.report.blurryBytes),
-                detail = "No readable text was found in these.",
+                ),
+                detail = stringResource(R.string.cleanup_blurry_detail),
                 enabled = state.report.blurry.isNotEmpty(),
                 onClick = { onOpen(CleanupGroup.BLURRY) },
             )
@@ -169,10 +185,17 @@ private fun Overview(state: CleanupUiState, onOpen: (CleanupGroup) -> Unit) {
         item {
             CleanupCard(
                 icon = Icons.Outlined.HistoryToggleOff,
-                title = "Older than 6 months",
-                subtitle = "${state.report.oldAndUnopened.size} screenshots · " +
+                title = stringResource(R.string.cleanup_old_title),
+                subtitle = stringResource(
+                    R.string.cleanup_subtitle_format,
+                    pluralStringResource(
+                        R.plurals.cleanup_screenshot_count,
+                        state.report.oldAndUnopened.size,
+                        state.report.oldAndUnopened.size,
+                    ),
                     ByteFormat.format(state.report.oldBytes),
-                detail = "Still searchable until you delete them.",
+                ),
+                detail = stringResource(R.string.cleanup_old_detail),
                 enabled = state.report.oldAndUnopened.isNotEmpty(),
                 onClick = { onOpen(CleanupGroup.OLD) },
             )
@@ -251,7 +274,7 @@ private fun GroupDetail(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) { Text("Back") }
+            TextButton(onClick = onBack) { Text(stringResource(R.string.cleanup_back)) }
             Box(modifier = Modifier.weight(1f))
             TextButton(
                 onClick = {
@@ -259,7 +282,15 @@ private fun GroupDetail(
                     else onSelectAll(items.map { it.id })
                 },
             ) {
-                Text(if (state.selectedIds.size == items.size) "Clear" else "Select all")
+                Text(
+                    stringResource(
+                        if (state.selectedIds.size == items.size) {
+                            R.string.cleanup_clear
+                        } else {
+                            R.string.cleanup_select_all
+                        },
+                    ),
+                )
             }
         }
 
@@ -286,8 +317,12 @@ private fun GroupDetail(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                text = "${state.selectedIds.size} selected · " +
-                    "${ByteFormat.format(selectedBytes)} to free",
+                text = pluralStringResource(
+                    R.plurals.cleanup_selected_summary,
+                    state.selectedIds.size,
+                    state.selectedIds.size,
+                    ByteFormat.format(selectedBytes),
+                ),
                 style = MaterialTheme.typography.bodyLarge,
             )
             Button(
@@ -296,13 +331,13 @@ private fun GroupDetail(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(Icons.Outlined.CleaningServices, contentDescription = null)
-                Text("  Delete selected")
+                Text("  " + stringResource(R.string.cleanup_delete_selected))
             }
             OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
-                Text("Cancel")
+                Text(stringResource(R.string.cleanup_cancel))
             }
             Text(
-                text = "Deleted screenshots stay recoverable in Shelfie for 30 days.",
+                text = stringResource(R.string.cleanup_recovery_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

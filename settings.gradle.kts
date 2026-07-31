@@ -27,6 +27,7 @@ rootProject.name = "Shelfie"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 include(":app")
+include(":benchmark")
 
 include(":core:model")
 include(":core:database")

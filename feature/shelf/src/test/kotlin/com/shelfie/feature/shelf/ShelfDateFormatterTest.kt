@@ -14,28 +14,30 @@ class ShelfDateFormatterTest {
         date.atStartOfDay(zone).toEpochSecond() + 3600
 
     @Test
-    fun `today is labelled Today`() {
-        assertThat(ShelfDateFormatter.label(epochOf(today), zone, today)).isEqualTo("Today")
+    fun `today is labelled as the Today type rather than English text`() {
+        assertThat(ShelfDateFormatter.label(epochOf(today), zone, today)).isEqualTo(DateLabel.Today)
     }
 
     @Test
     fun `yesterday is labelled Yesterday`() {
         val yesterday = today.minusDays(1)
         assertThat(ShelfDateFormatter.label(epochOf(yesterday), zone, today))
-            .isEqualTo("Yesterday")
+            .isEqualTo(DateLabel.Yesterday)
     }
 
     @Test
     fun `earlier this year omits the year`() {
         val label = ShelfDateFormatter.label(epochOf(LocalDate.of(2026, 3, 4)), zone, today)
-        assertThat(label).contains("4")
-        assertThat(label).doesNotContain("2026")
+        assertThat(label).isInstanceOf(DateLabel.Formatted::class.java)
+        val text = (label as DateLabel.Formatted).text
+        assertThat(text).contains("4")
+        assertThat(text).doesNotContain("2026")
     }
 
     @Test
     fun `a previous year includes the year`() {
         val label = ShelfDateFormatter.label(epochOf(LocalDate.of(2025, 3, 4)), zone, today)
-        assertThat(label).contains("2025")
+        assertThat((label as DateLabel.Formatted).text).contains("2025")
     }
 
     @Test

@@ -14,6 +14,8 @@ Android app that makes every screenshot on your phone searchable and actionable,
 | [`docs/04-architecture-and-performance.md`](docs/04-architecture-and-performance.md) | Stack, module map, three-tier indexing pipeline, performance budgets, 12-item crash checklist |
 | [`docs/05-roadmap-and-tasks.md`](docs/05-roadmap-and-tasks.md) | 8 phases, 40 tasks with explicit ownership, gates, timeline, critical path |
 | [`docs/06-play-store-compliance.md`](docs/06-play-store-compliance.md) | Deadlines, the photo-permission declaration, Data Safety answers, pre-submission checklist |
+| [`docs/08-run-on-device.md`](docs/08-run-on-device.md) | **Start here to actually run it.** Build, install, and a priority-ordered list of what to test first |
+| [`docs/07-localisation.md`](docs/07-localisation.md) | Localisation status, why translations are not machine-generated, and how to add a language |
 | [`legal/privacy-policy.md`](legal/privacy-policy.md) | Publishable policy template *(needs legal review)* |
 | [`store/listing-copy.md`](store/listing-copy.md) | Title, descriptions, screenshot sequence, ASO targets |
 
@@ -41,16 +43,17 @@ Android app that makes every screenshot on your phone searchable and actionable,
 
 ## Build status
 
-**Phases 0–5 complete and verified building:** foundation, indexing engine, Shelf/Search/Detail UI, permissions with Limited Mode, Cleanup with widget/tile/share, and billing with Settings.
+**Phases 0–6 complete and verified building:** foundation, indexing engine, Shelf/Search/Detail UI, permissions with Limited Mode, Cleanup with widget/tile/share, billing with Settings, and the hardening pass.
 
 | Check | Result |
 |---|---|
 | `:app:assembleDebug` | passing |
 | `:app:assembleRelease` (R8 full mode + resource shrinking) | passing |
 | `:app:bundleRelease` (AAB) | passing |
-| `lintVitalRelease` | passing, 0 errors |
+| `lintRelease` (full, with `HardcodedText` as an error) | **0 errors**, 3 informational warnings |
 | Unit tests | **144 passing**, 0 failures |
 | Download size, arm64-v8a | **7.3 MB** (budget 15 MB) |
+| Hardcoded UI strings | **0** — all 130 extracted to resources |
 | Room migration v1→v2 | auto-generated, verified additive |
 | Download size, armeabi-v7a | **6.4 MB** |
 | `WRITE_EXTERNAL_STORAGE` | absent — deletion uses `createDeleteRequest` |
@@ -72,13 +75,25 @@ Test breakdown: `:core:classify` 59, `:core:model` 44, `:core:media` 14, `:core:
 
 ### Building locally
 
+Requires **JDK 21**, Android SDK platform **android-37.0** and build-tools **37.0.0**.
+
 ```bash
-echo "sdk.dir=/path/to/android-sdk" > local.properties
-./gradlew :app:assembleDebug        # debug APK
+echo "sdk.dir=/absolute/path/to/Android/sdk" > local.properties
+./gradlew :app:assembleDebug        # debug APK (~64MB, universal, signed)
 ./gradlew test                      # all unit tests
-./gradlew :app:assembleRelease      # R8 + lint vital
-./gradlew :app:bundleRelease        # AAB for Play
+./gradlew :app:assembleRelease      # R8 + lint
+./gradlew :app:bundleRelease        # AAB for Play (~7.3MB delivered)
 ```
+
+Install on a connected phone:
+
+```bash
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+Debug builds install as **`com.shelfie.app.debug`**. Full instructions and a
+priority-ordered test plan are in
+[`docs/08-run-on-device.md`](docs/08-run-on-device.md).
 
 ### Verifying the privacy claim
 
@@ -201,6 +216,30 @@ either way.
 - Settings: access status, purchase, rule editor, dynamic-colour toggle wired
   through the theme, and data export via the system document picker (so no storage
   permission is needed).
+
+**Phase 6 — hardening**
+- `:benchmark` module with macrobenchmarks for **cold start** and **shelf scroll**,
+  plus a **Baseline Profile generator**. All wired and task-discoverable
+  (`generateReleaseBaselineProfile`), but they require a device to run.
+- **Localisation extraction: all 130 strings moved to resources, zero hardcoded UI
+  text**, enforced by lint. Adding a language now needs no code changes.
+  Translations themselves are deliberately not machine-generated — see
+  `docs/07-localisation.md` for why.
+- Date grouping is a `DateLabel` **type** resolved by the UI, not pre-baked English.
+  `Locale.getDefault()` is read per call so changing language at runtime works.
+- ViewModels emit `UiMessage` resource references instead of display strings, since
+  a string built in a ViewModel cannot be localised.
+- **Lint hardened and all findings fixed**: `HardcodedText`, `ContentDescription`
+  and accessibility checks promoted to errors, `checkDependencies` on. Went from
+  3 errors + 22 warnings to 0 errors + 3 informational.
+- Real bugs lint surfaced and fixed: `ListenableWorker.Result` was being
+  constructed outside a Worker (restricted API), a deprecated `TileService` call, a
+  widget tint that would not render, and cached `Locale` in date formatters.
+- Accessibility: content descriptions on every icon-only control, selection state
+  conveyed by icon as well as colour, and screen-reader labels that follow the
+  visual priority order.
+- **StrictMode in debug builds** to catch main-thread disk I/O and leaked
+  closeables — the two failure modes this app is most exposed to.
 
 ### Not built yet
 

@@ -17,6 +17,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.shelfie.core.designsystem.R
 import com.shelfie.core.model.MediaAccess
 
 /**
@@ -56,31 +59,38 @@ fun LimitedModeBanner(
                     modifier = Modifier.size(18.dp),
                 )
                 Text(
-                    text = when (access) {
-                        MediaAccess.PARTIAL -> "Limited Mode"
-                        else -> "Limited Mode"
-                    },
+                    text = stringResource(R.string.limited_mode_title),
                     style = MaterialTheme.typography.labelLarge,
                 )
             }
 
             Text(
                 text = when {
-                    visibleCount == 0 ->
-                        "Shelfie can only see screenshots you choose. Add some to get started."
+                    visibleCount == 0 -> stringResource(R.string.limited_mode_empty)
 
-                    access == MediaAccess.PARTIAL ->
-                        "Shelfie can see $visibleCount screenshots you selected."
+                    // "selected" for the system's partial grant, "picked" for
+                    // images handed over through the photo picker: different
+                    // mechanisms, so different wording.
+                    access == MediaAccess.PARTIAL -> pluralStringResource(
+                        R.plurals.limited_mode_selected,
+                        visibleCount,
+                        visibleCount,
+                    )
 
-                    else ->
-                        "Shelfie can see $visibleCount screenshots you picked."
+                    else -> pluralStringResource(
+                        R.plurals.limited_mode_picked,
+                        visibleCount,
+                        visibleCount,
+                    )
                 },
                 style = MaterialTheme.typography.bodyMedium,
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(onClick = onAddMore) { Text("Add more") }
-                TextButton(onClick = onGrantFullAccess) { Text("Allow all") }
+                TextButton(onClick = onAddMore) { Text(stringResource(R.string.limited_mode_add_more)) }
+                TextButton(onClick = onGrantFullAccess) {
+                    Text(stringResource(R.string.limited_mode_allow_all))
+                }
             }
         }
     }

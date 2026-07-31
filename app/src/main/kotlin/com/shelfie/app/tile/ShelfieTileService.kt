@@ -5,7 +5,6 @@ import android.content.Intent
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
-import androidx.annotation.RequiresApi
 import com.shelfie.app.MainActivity
 
 /**
@@ -14,7 +13,6 @@ import com.shelfie.app.MainActivity
  * The cheapest possible re-entry point — two swipes from anywhere, including the
  * lock screen shade, with no notification spent and no home-screen space used.
  */
-@RequiresApi(Build.VERSION_CODES.N)
 class ShelfieTileService : TileService() {
 
     override fun onStartListening() {
@@ -45,7 +43,9 @@ class ShelfieTileService : TileService() {
                 ),
             )
         } else {
-            @Suppress("DEPRECATION")
+            // No PendingIntent overload exists below API 34, so the deprecated
+            // call is the only option there.
+            @Suppress("DEPRECATION", "StartActivityAndCollapseDeprecated")
             startActivityAndCollapse(intent)
         }
     }
