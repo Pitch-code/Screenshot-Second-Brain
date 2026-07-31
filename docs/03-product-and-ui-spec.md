@@ -89,12 +89,14 @@ Single button: `Show me`
 > **Everything happens on your phone.**
 > Shelfie reads the text in your screenshots so you can search them. That reading happens here, on this device.
 >
-> **Shelfie has no internet permission.** It physically cannot upload anything. You can verify that in Settings → Apps → Shelfie → Permissions.
+> **Shelfie has no internet permission.** Android will not let it open a network connection, so it physically cannot upload anything.
 
 Button: `Continue`
 Secondary text link: `Read the privacy policy`
 
-*Why:* the strongest asset we have, stated before we ask for anything. Naming the verification path converts a claim into a checkable fact.
+*Why:* the strongest asset we have, stated before we ask for anything.
+
+*Do not* promise users they can confirm this in Android's permission settings — that screen only lists runtime permissions, so `INTERNET` never appears there regardless. The absence is genuine and verifiable with `dumpsys`, but not through system settings.
 
 **Screen 3 — permission rationale, then the system dialog**
 > **Shelfie needs to see your screenshots**
