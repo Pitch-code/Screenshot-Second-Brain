@@ -2,6 +2,7 @@ package com.shelfie.core.media
 
 import com.shelfie.core.model.MediaAccess
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
@@ -58,7 +59,12 @@ class ImmediateIndexer @Inject constructor(
     private suspend fun runImmediateTier() {
         // NonCancellable so a fast navigation away doesn't leave rows stuck in
         // IN_PROGRESS with no worker owning them.
-        withContext(NonCancellable) {
+        // Dispatchers.Default because NonCancellable is a Job, not a dispatcher:
+        // without this the loop would inherit the caller's Main dispatcher.
+        withContext(NonCancellable + Dispatchers.Default) {
+            // Recover anything a previous run abandoned mid-index.
+            runCatching { repository.requeueStaleWork() }
+
             repository.discoverNewest(IndexTierPolicy.IMMEDIATE_BATCH)
 
             // Rules are read once per batch rather than per item.

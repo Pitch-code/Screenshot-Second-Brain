@@ -3,9 +3,9 @@ package com.shelfie.core.ocr
 /**
  * Outcome of reading one image.
  *
- * Failures are modelled explicitly rather than thrown, because indexing runs
- * over thousands of files in a background worker and a single unreadable image
- * must never take down the batch.
+ * Failures are modelled explicitly rather than thrown, because indexing runs over
+ * thousands of files in a background worker and a single unreadable image must
+ * never take down the batch.
  */
 sealed interface OcrResult {
 
@@ -17,6 +17,13 @@ sealed interface OcrResult {
     data class Failure(
         val reason: OcrFailure,
         val cause: Throwable? = null,
+        /**
+         * Human-readable detail, persisted so a failure is diagnosable after the
+         * fact. Without it, a systematic OCR failure is invisible: every
+         * screenshot simply shows "no text recognised" with no way to tell
+         * whether decoding, the model, or permissions were at fault.
+         */
+        val detail: String? = null,
     ) : OcrResult
 }
 
@@ -30,7 +37,7 @@ enum class OcrFailure {
     /** Media permission was revoked while indexing was in flight. */
     PERMISSION_DENIED,
 
-    /** ML Kit itself failed. Retryable. */
+    /** ML Kit itself failed, or timed out. Retryable. */
     RECOGNITION_FAILED,
 
     /** Image is unusable, e.g. zero-sized. */

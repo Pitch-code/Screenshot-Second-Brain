@@ -100,6 +100,16 @@ data class ScreenshotEntity(
     /** Path to a durable downscaled copy, for picker-imported screenshots. */
     @ColumnInfo(name = "local_thumbnail_path")
     val localThumbnailPath: String? = null,
+
+    /**
+     * Why the last indexing attempt failed. Added in schema v3.
+     *
+     * Without this, a systematic OCR failure is invisible: every screenshot just
+     * shows "no text recognised" and there is no way to tell whether decoding,
+     * the model, or permissions were at fault.
+     */
+    @ColumnInfo(name = "last_error")
+    val lastError: String? = null,
 )
 
 fun ScreenshotEntity.toDomain(): Screenshot = Screenshot(
