@@ -50,6 +50,34 @@ interface ScreenshotDao {
         )
     }
 
+    // -------------------------------------------------------------- diagnostics
+
+    /**
+     * Row counts per index state.
+     *
+     * This is the single most useful diagnostic in the app: the distribution alone
+     * identifies the failure class without any logging. All PENDING means the
+     * pipeline never ran; all FAILED points at the recogniser; all SKIPPED points
+     * at image decoding; all INDEXED with no text means OCR returned nothing.
+     */
+    @Query(
+        """
+        SELECT index_state AS state, COUNT(*) AS count FROM screenshots
+        WHERE is_deleted = 0
+        GROUP BY index_state
+        """,
+    )
+    fun observeStateCounts(): Flow<List<IndexStateCount>>
+
+    @Query(
+        """
+        SELECT last_error FROM screenshots
+        WHERE last_error IS NOT NULL
+        ORDER BY id DESC LIMIT 1
+        """,
+    )
+    fun observeLastError(): Flow<String?>
+
     @Query(
         """
         UPDATE screenshots
@@ -69,15 +97,59 @@ interface ScreenshotDao {
         indexedAt: Long,
     )
 
+    /**
+     * Marks a row as being worked on.
+     *
+     * Deliberately does **not** touch attempt_count. Counting an attempt at the
+     * start meant every app launch burned one, so after three launches an item
+     * became permanently ineligible for indexing without a single real failure
+     * having occurred.
+     */
+    @Query("UPDATE screenshots SET index_state = 'IN_PROGRESS' WHERE id = :id")
+    suspend fun markStarted(id: Long)
+
+    /** Returns one row to the queue without consuming a retry attempt. */
+    @Query("UPDATE screenshots SET index_state = 'PENDING' WHERE id = :id")
+    suspend fun requeue(id: Long)
+
+    /**
+     * Requeues everything that previously failed, clearing the attempt counter so
+     * the retry limit does not immediately block it again.
+     */
+    @Query(
+        """
+        UPDATE screenshots
+        SET index_state = 'PENDING', attempt_count = 0
+        WHERE index_state IN ('FAILED', 'SKIPPED')
+        """,
+    )
+    suspend fun requeueFailed(): Int
+
+    /** Records a diagnostic message without changing state or attempt count. */
+    @Query("UPDATE screenshots SET last_error = :error WHERE id = :id")
+    suspend fun setLastError(id: Long, error: String?)
+
+    /** Records a failed attempt, with the reason, and increments the counter. */
     @Query(
         """
         UPDATE screenshots
         SET index_state = :state,
-            attempt_count = attempt_count + 1
+            attempt_count = attempt_count + 1,
+            last_error = :error
         WHERE id = :id
         """,
     )
-    suspend fun markAttempt(id: Long, state: IndexState)
+    suspend fun markFailed(id: Long, state: IndexState, error: String?)
+
+    /**
+     * Returns rows abandoned mid-index to the queue.
+     *
+     * A row left IN_PROGRESS by a crash, a hang, or the process being killed was
+     * previously orphaned forever, because the work queue only looks at PENDING
+     * and FAILED. Called on every start.
+     */
+    @Query("UPDATE screenshots SET index_state = 'PENDING' WHERE index_state = 'IN_PROGRESS'")
+    suspend fun requeueStaleInProgress(): Int
 
     /**
      * Applies a manual re-categorisation. Confidence is forced to 1.0 because a
@@ -337,6 +409,12 @@ interface ScreenshotDao {
     @Query("SELECT COUNT(*) FROM screenshots WHERE source = 'PICKER' AND is_deleted = 0")
     fun observePickedCount(): Flow<Int>
 }
+
+/** Row count for one index state, used by the diagnostics panel. */
+data class IndexStateCount(
+    val state: IndexState,
+    val count: Int,
+)
 
 /** One row of the plain-text data export. */
 data class ExportRow(

@@ -6,6 +6,7 @@ import androidx.paging.PagingData
 import androidx.paging.map
 import com.shelfie.core.classify.UserRule
 import com.shelfie.core.database.dao.CategoryCount
+import com.shelfie.core.database.dao.IndexStateCount
 import com.shelfie.core.database.dao.ScreenshotDao
 import com.shelfie.core.database.entity.ScreenshotEntity
 import com.shelfie.core.database.entity.toDomain
@@ -154,6 +155,26 @@ class ScreenshotRepository @Inject constructor(
     }
 
     fun observeCategoryCounts(): Flow<List<CategoryCount>> = dao.observeCategoryCounts()
+
+    /**
+     * Diagnostics.
+     *
+     * The state distribution alone identifies a systematic indexing failure
+     * without any logging, which matters because this app ships with no crash
+     * reporting or analytics of any kind.
+     */
+    fun observeStateCounts(): Flow<List<IndexStateCount>> = dao.observeStateCounts()
+
+    fun observeLastError(): Flow<String?> = dao.observeLastError()
+
+    /**
+     * Returns rows abandoned mid-index to the queue. Called on every start, so a
+     * crash or hang cannot orphan a screenshot permanently.
+     */
+    suspend fun requeueStaleWork(): Int = dao.requeueStaleInProgress()
+
+    /** Requeues failed and skipped rows, e.g. after a fix or a permission change. */
+    suspend fun requeueFailed(): Int = dao.requeueFailed()
 
     /** How many screenshots Limited Mode can currently see. */
     fun observePickedCount(): Flow<Int> = dao.observePickedCount()

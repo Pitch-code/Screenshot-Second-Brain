@@ -1,6 +1,5 @@
 package com.shelfie.core.media
 
-import android.net.Uri
 import androidx.core.net.toUri
 import com.shelfie.core.classify.ScreenshotClassifier
 import com.shelfie.core.classify.UserRule
@@ -17,9 +16,9 @@ import javax.inject.Singleton
 /**
  * Indexes one screenshot: read text, classify it, persist the result.
  *
- * Single-item granularity on purpose. Every tier of the scheduler reuses this,
- * and because each item commits independently, killing the process mid-batch
- * loses at most one screenshot's work rather than the whole batch.
+ * Single-item granularity on purpose. Every tier of the scheduler reuses this, and
+ * because each item commits independently, killing the process mid-batch loses at
+ * most one screenshot's work rather than the whole batch.
  */
 @Singleton
 class ScreenshotIndexer @Inject constructor(
@@ -38,7 +37,9 @@ class ScreenshotIndexer @Inject constructor(
         rules: List<UserRule> = emptyList(),
         nowSeconds: Long = System.currentTimeMillis() / 1000,
     ): IndexOutcome {
-        dao.markAttempt(entity.id, IndexState.IN_PROGRESS)
+        // Marks work in progress without consuming a retry attempt. Attempts are
+        // counted only on real failures.
+        dao.markStarted(entity.id)
 
         val uri = entity.uri.toUri()
 
@@ -64,29 +65,44 @@ class ScreenshotIndexer @Inject constructor(
                     primaryValue = classification.primaryValue,
                     indexedAt = nowSeconds,
                 )
+
+                // Recognition succeeding with no text is a real outcome worth
+                // recording — it distinguishes "the model ran and found nothing"
+                // from "the model never ran", which look identical in the UI.
+                if (result.text.isBlank()) {
+                    dao.setLastError(entity.id, "Recognised 0 text blocks")
+                }
+
                 IndexOutcome.Indexed
             }
 
-            is OcrResult.Failure -> when (result.reason) {
-                OcrFailure.FILE_MISSING -> {
-                    // The file is gone. Drop the row rather than retrying forever.
-                    dao.softDelete(listOf(entity.id), nowSeconds)
-                    IndexOutcome.Gone
-                }
+            is OcrResult.Failure -> {
+                val detail = result.detail ?: result.cause?.message ?: result.reason.name
 
-                OcrFailure.PERMISSION_DENIED -> {
-                    dao.markAttempt(entity.id, IndexState.PENDING)
-                    IndexOutcome.AccessLost
-                }
+                when (result.reason) {
+                    OcrFailure.FILE_MISSING -> {
+                        // The file is gone. Drop the row rather than retrying forever.
+                        dao.softDelete(listOf(entity.id), nowSeconds)
+                        IndexOutcome.Gone
+                    }
 
-                OcrFailure.DECODE_FAILED, OcrFailure.UNSUPPORTED -> {
-                    dao.markAttempt(entity.id, IndexState.SKIPPED)
-                    IndexOutcome.Skipped
-                }
+                    OcrFailure.PERMISSION_DENIED -> {
+                        // Not the screenshot's fault, so no attempt is consumed:
+                        // it must be retried once access is restored.
+                        dao.setLastError(entity.id, detail)
+                        dao.requeue(entity.id)
+                        IndexOutcome.AccessLost
+                    }
 
-                OcrFailure.RECOGNITION_FAILED -> {
-                    dao.markAttempt(entity.id, IndexState.FAILED)
-                    IndexOutcome.Retryable
+                    OcrFailure.DECODE_FAILED, OcrFailure.UNSUPPORTED -> {
+                        dao.markFailed(entity.id, IndexState.SKIPPED, detail)
+                        IndexOutcome.Skipped
+                    }
+
+                    OcrFailure.RECOGNITION_FAILED -> {
+                        dao.markFailed(entity.id, IndexState.FAILED, detail)
+                        IndexOutcome.Retryable
+                    }
                 }
             }
         }
@@ -107,8 +123,8 @@ enum class IndexOutcome {
     Gone,
 
     /**
-     * Media permission was lost mid-batch. Callers should stop immediately
-     * rather than burning attempts on every remaining row.
+     * Media permission was lost mid-batch. Callers should stop immediately rather
+     * than burning attempts on every remaining row.
      */
     AccessLost,
 }

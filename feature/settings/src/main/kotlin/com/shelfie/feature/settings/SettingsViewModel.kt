@@ -7,6 +7,7 @@ import com.shelfie.core.billing.BillingState
 import com.shelfie.core.billing.PurchaseResult
 import com.shelfie.core.billing.ShelfieBilling
 import com.shelfie.core.classify.UserRule
+import com.shelfie.core.database.dao.IndexStateCount
 import com.shelfie.core.datastore.ShelfiePreferences
 import com.shelfie.core.media.IndexScheduler
 import com.shelfie.core.media.IndexingQuota
@@ -46,7 +47,19 @@ class SettingsViewModel @Inject constructor(
         billing.billingState,
         preferences.useDynamicColor,
         combine(message, failureText) { m, f -> m to f },
-    ) { rules, quotaState, billingState, dynamicColor, (msg, failure) ->
+        combine(
+            repository.observeStateCounts(),
+            repository.observeLastError(),
+        ) { counts, error -> counts to error },
+    ) { values ->
+        @Suppress("UNCHECKED_CAST")
+        val rules = values[0] as List<UserRule>
+        val quotaState = values[1] as QuotaState
+        val billingState = values[2] as BillingState
+        val dynamicColor = values[3] as Boolean
+        val (msg, failure) = values[4] as Pair<UiMessage?, String?>
+        val (counts, lastError) = values[5] as Pair<List<IndexStateCount>, String?>
+
         SettingsUiState(
             rules = rules,
             quota = quotaState,
@@ -55,6 +68,8 @@ class SettingsViewModel @Inject constructor(
             access = repository.currentAccess(),
             message = msg,
             failureText = failure,
+            stateCounts = counts,
+            lastError = lastError,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -118,6 +133,25 @@ class SettingsViewModel @Inject constructor(
     /** Plain-text export of the index, written by the caller to a chosen file. */
     suspend fun buildExport(): String = repository.exportIndex()
 
+    /** Requeues everything that failed, for after a fix or a permission change. */
+    fun onRetryFailed() {
+        viewModelScope.launch {
+            val requeued = repository.requeueFailed()
+            message.value = UiMessage.Text(R.string.settings_diag_retry_done, listOf(requeued))
+        }
+    }
+
+    /** Plain-text diagnostics, for pasting into a bug report. */
+    fun diagnosticsText(): String = with(state.value) {
+        buildString {
+            appendLine("Shelfie diagnostics")
+            appendLine("access=$access")
+            appendLine("indexed=${quota.indexed} heldBack=${quota.heldBack}")
+            stateCounts.forEach { appendLine("${it.state}=${it.count}") }
+            appendLine("lastError=${lastError ?: "none"}")
+        }
+    }
+
     fun onMessageShown() {
         message.update { null }
         failureText.update { null }
@@ -132,4 +166,6 @@ data class SettingsUiState(
     val access: MediaAccess = MediaAccess.DENIED,
     val message: UiMessage? = null,
     val failureText: String? = null,
+    val stateCounts: List<IndexStateCount> = emptyList(),
+    val lastError: String? = null,
 )

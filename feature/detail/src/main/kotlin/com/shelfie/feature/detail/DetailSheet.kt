@@ -1,5 +1,9 @@
 package com.shelfie.feature.detail
 
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import com.shelfie.core.model.ScreenshotCategory
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -24,7 +28,9 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -56,6 +62,7 @@ fun DetailSheet(
     LaunchedEffect(screenshotId) { viewModel.load(screenshotId) }
 
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var showCategoryPicker by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
 
     val context = LocalContext.current
@@ -76,6 +83,25 @@ fun DetailSheet(
 
         val screenshot = state.screenshot!!
         val entities = state.entities
+
+        if (showCategoryPicker) {
+            CategoryPickerDialog(
+                current = screenshot.category,
+                // Offered because the moment someone notices a wrong category is
+                // the only moment they are motivated to fix it for good.
+                ruleKeyword = screenshot.primaryValue?.takeIf { it.length in 3..30 },
+                onDismiss = { showCategoryPicker = false },
+                onPick = { category, alsoCreateRule ->
+                    val keyword = screenshot.primaryValue
+                    if (alsoCreateRule && keyword != null) {
+                        viewModel.onCreateRule(keyword, category)
+                    } else {
+                        viewModel.onCategoryChanged(category)
+                    }
+                    showCategoryPicker = false
+                },
+            )
+        }
 
         Column(
             modifier = Modifier
@@ -109,9 +135,7 @@ fun DetailSheet(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
-                // Full picker lands with Settings in Phase 5; the sheet already
-                // owns the interaction point.
-                TextButton(onClick = { /* category picker: later phase */ }) {
+                TextButton(onClick = { showCategoryPicker = true }) {
                     Text(stringResource(R.string.detail_change_category))
                 }
             }
@@ -199,4 +223,84 @@ fun DetailSheet(
             }
         }
     }
+}
+
+/**
+ * Category picker.
+ *
+ * Also offers to turn the correction into a standing rule. The most substantive
+ * complaint about every competing app is that preset categories do not match what
+ * people actually screenshot, so one correction here should fix every future
+ * screenshot containing the same term.
+ */
+@Composable
+private fun CategoryPickerDialog(
+    current: ScreenshotCategory,
+    ruleKeyword: String?,
+    onDismiss: () -> Unit,
+    onPick: (ScreenshotCategory, Boolean) -> Unit,
+) {
+    var createRule by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.detail_pick_category)) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                ScreenshotCategory.entries.forEach { category ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onPick(category, createRule) }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Icon(
+                            imageVector = category.icon,
+                            contentDescription = null,
+                            tint = if (category == current) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                        Text(
+                            text = stringResource(category.labelRes),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (category == current) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                        )
+                    }
+                }
+
+                if (ruleKeyword != null) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { createRule = !createRule }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Checkbox(checked = createRule, onCheckedChange = { createRule = it })
+                        Text(
+                            text = stringResource(R.string.detail_rule_hint, ruleKeyword),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.detail_cancel)) }
+        },
+    )
 }

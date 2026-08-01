@@ -32,10 +32,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
 import com.shelfie.feature.settings.R
@@ -63,6 +67,16 @@ fun SettingsScreen(
     val exportFilename = stringResource(R.string.settings_export_filename)
     val exportSaved = stringResource(R.string.settings_export_saved)
     val exportFailed = stringResource(R.string.settings_export_failed)
+    val clipboard = LocalClipboardManager.current
+    val diagCopied = stringResource(R.string.settings_diag_copied)
+    var copyRequested by remember { mutableStateOf(false) }
+
+    LaunchedEffect(copyRequested) {
+        if (copyRequested) {
+            snackbarHostState.showSnackbar(diagCopied)
+            copyRequested = false
+        }
+    }
 
     // Export via the system document picker: the user chooses where the file
     // lands, so no storage permission is needed.
@@ -209,6 +223,55 @@ fun SettingsScreen(
                         }
                     },
                 )
+            }
+
+            // Diagnostics sit above About because they are the reason someone
+            // scrolls this far when something is wrong.
+            item { SectionHeader(stringResource(R.string.settings_section_diagnostics)) }
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.settings_diag_indexing)) },
+                    supportingContent = {
+                        Column {
+                            if (state.stateCounts.isEmpty()) {
+                                Text(stringResource(R.string.settings_diag_no_error))
+                            } else {
+                                state.stateCounts.forEach { entry ->
+                                    Text(
+                                        stringResource(
+                                            R.string.settings_diag_state_row,
+                                            entry.state.name,
+                                            entry.count,
+                                        ),
+                                    )
+                                }
+                            }
+                        }
+                    },
+                )
+            }
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.settings_diag_last_error)) },
+                    supportingContent = {
+                        Text(state.lastError ?: stringResource(R.string.settings_diag_no_error))
+                    },
+                )
+            }
+            item {
+                Row {
+                    TextButton(onClick = viewModel::onRetryFailed) {
+                        Text(stringResource(R.string.settings_diag_retry))
+                    }
+                    TextButton(
+                        onClick = {
+                            clipboard.setText(AnnotatedString(viewModel.diagnosticsText()))
+                            copyRequested = true
+                        },
+                    ) {
+                        Text(stringResource(R.string.settings_diag_copy))
+                    }
+                }
             }
 
             item { SectionHeader(stringResource(R.string.settings_section_about)) }
