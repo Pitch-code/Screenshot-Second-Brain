@@ -27,7 +27,7 @@ class RecentIndexWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        repository.discoverNew()
+        repository.discoverAll()
         return when (
             indexBatch(
                 repository = repository,
@@ -65,7 +65,7 @@ class BacklogIndexWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        repository.discoverNew()
+        repository.discoverAll()
 
         val outcome = indexBatch(
             repository = repository,

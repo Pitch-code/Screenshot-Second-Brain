@@ -207,6 +207,32 @@ class ScreenshotRepository @Inject constructor(
     }
 
     /**
+     * Discovers the entire library, ignoring the watermark.
+     *
+     * The watermark-based [discoverNew] can only ever find screenshots *newer*
+     * than what is already stored. Since the first pass deliberately seeds the
+     * newest batch, the watermark immediately jumps to the newest screenshot on
+     * the device and every later watermark scan matches nothing — leaving the
+     * whole backlog permanently undiscovered.
+     *
+     * This is a cursor walk with no image work, so it is cheap enough to run on
+     * every background pass.
+     */
+    suspend fun discoverAll(): Int {
+        if (!accessChecker.canReadAnyMedia()) return 0
+
+        val found = mediaStore.queryScreenshotsSince(sinceDateAddedSeconds = 0, limit = 0)
+        if (found.isEmpty()) return 0
+
+        dao.upsertAll(found.map { it.toPendingEntity() })
+        found.maxOfOrNull { it.dateAdded }?.let { preferences.advanceWatermark(it) }
+        return found.size
+    }
+
+    /** Records a diagnostic message against one screenshot. */
+    suspend fun recordError(id: Long, message: String) = dao.setLastError(id, message)
+
+    /**
      * Seeds the very first batch: the newest [limit] screenshots regardless of
      * watermark, so the shelf has content within seconds of first launch.
      */
@@ -230,7 +256,9 @@ class ScreenshotRepository @Inject constructor(
     suspend fun reconcile(nowSeconds: Long = System.currentTimeMillis() / 1000): ReconcileReport {
         if (!accessChecker.canReadAnyMedia()) return ReconcileReport.Skipped
 
-        val discovered = discoverNew()
+        // Full scan, not watermark-based: this is the safety net that finds
+        // anything earlier passes missed.
+        val discovered = discoverAll()
 
         val liveIds = mediaStore.queryAllImageIds()
         val pruned = if (liveIds.isNotEmpty()) {

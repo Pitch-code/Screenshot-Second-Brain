@@ -8,6 +8,8 @@ import androidx.paging.cachedIn
 import androidx.paging.insertSeparators
 import androidx.paging.map
 import com.shelfie.core.database.dao.CategoryCount
+import com.shelfie.core.database.dao.IndexStateCount
+import com.shelfie.core.model.IndexState
 import com.shelfie.core.media.ImmediateIndexer
 import com.shelfie.core.media.PickerImporter
 import com.shelfie.core.media.ScreenshotRepository
@@ -53,8 +55,13 @@ class ShelfViewModel @Inject constructor(
         repository.observeCategoryCounts(),
         combine(selectedCategory, statusDismissed, isImporting) { a, b, c -> Triple(a, b, c) },
         repository.observePickedCount(),
-        accessRefresh,
-    ) { progress, categories, (selected, dismissed, importing), pickedCount, _ ->
+        combine(
+            repository.observeStateCounts(),
+            repository.observeLastError(),
+            accessRefresh,
+        ) { counts, error, _ -> counts to error },
+    ) { progress, categories, (selected, dismissed, importing), pickedCount, diagnostics ->
+        val (stateCounts, lastError) = diagnostics
         ShelfUiState(
             progress = progress,
             categories = categories,
@@ -63,6 +70,8 @@ class ShelfViewModel @Inject constructor(
             isImporting = importing,
             pickedCount = pickedCount,
             access = repository.currentAccess(),
+            stateCounts = stateCounts,
+            lastError = lastError,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -112,6 +121,14 @@ class ShelfViewModel @Inject constructor(
         immediateIndexer.warmUp(viewModelScope)
     }
 
+    /** Requeues everything that failed and kicks the pipeline again. */
+    fun onRetryIndexing() {
+        viewModelScope.launch {
+            runCatching { repository.requeueFailed() }
+            immediateIndexer.retry(viewModelScope)
+        }
+    }
+
     fun onCategorySelected(category: ScreenshotCategory?) {
         selectedCategory.value = category
     }
@@ -150,8 +167,25 @@ data class ShelfUiState(
     val isImporting: Boolean = false,
     val pickedCount: Int = 0,
     val access: MediaAccess = MediaAccess.DENIED,
+    val stateCounts: List<IndexStateCount> = emptyList(),
+    val lastError: String? = null,
 ) {
     val isIndexing: Boolean get() = !progress.isComplete
+
+    /**
+     * True when screenshots were found but none could be read.
+     *
+     * The distinction that matters: plenty of rows exist, yet zero reached the
+     * indexed state and nothing is still queued as in-progress.
+     */
+    val hasIndexingProblem: Boolean
+        get() = progress.total > 0 &&
+            progress.indexed == 0 &&
+            stateCounts.any { it.state == IndexState.FAILED || it.state == IndexState.SKIPPED }
+
+    /** Compact, screenshot-friendly state breakdown. */
+    val stateSummary: String
+        get() = stateCounts.joinToString("  ") { "${it.state.name}=${it.count}" }
     val showStatusStrip: Boolean get() = isIndexing && !statusDismissed
 
     /** True when the shelf is genuinely empty rather than merely still indexing. */

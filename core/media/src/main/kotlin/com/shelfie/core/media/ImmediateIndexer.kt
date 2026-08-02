@@ -56,6 +56,13 @@ class ImmediateIndexer @Inject constructor(
         scheduler.scheduleAll()
     }
 
+    /** Explicit user-triggered retry, ignoring the once-per-process guard. */
+    fun retry(scope: CoroutineScope): Job = scope.launch {
+        if (repository.currentAccess() == MediaAccess.DENIED) return@launch
+        mutex.withLock { runImmediateTier() }
+        scheduler.scheduleAll()
+    }
+
     private suspend fun runImmediateTier() {
         // NonCancellable so a fast navigation away doesn't leave rows stuck in
         // IN_PROGRESS with no worker owning them.
@@ -65,6 +72,7 @@ class ImmediateIndexer @Inject constructor(
             // Recover anything a previous run abandoned mid-index.
             runCatching { repository.requeueStaleWork() }
 
+            // Newest first so the shelf fills immediately...
             repository.discoverNewest(IndexTierPolicy.IMMEDIATE_BATCH)
 
             // Rules are read once per batch rather than per item.
@@ -72,9 +80,25 @@ class ImmediateIndexer @Inject constructor(
 
             val pending = repository.nextPending(IndexTierPolicy.IMMEDIATE_BATCH)
             for (entity in pending) {
-                val outcome = runCatching { indexer.index(entity, rules) }.getOrNull()
+                val outcome = runCatching { indexer.index(entity, rules) }
+                    .onFailure { error ->
+                        // Previously swallowed. An exception thrown *after*
+                        // recognition — while saving, for instance — left no
+                        // trace at all, which made the failure undiagnosable.
+                        runCatching {
+                            repository.recordError(
+                                entity.id,
+                                "index() threw ${error.javaClass.simpleName}: ${error.message}",
+                            )
+                        }
+                    }
+                    .getOrNull()
                 if (outcome == IndexOutcome.AccessLost) break
             }
+
+            // ...then discover the rest of the library so the background tiers
+            // have something to work through.
+            runCatching { repository.discoverAll() }
 
             // Roll anything beyond the free window out of the search index.
             runCatching { quota.enforce() }

@@ -56,4 +56,11 @@
     <string name="copied">Copied</string>
     <string name="nothing_to_copy">Nothing to copy here</string>
 
+    <!-- Surfaced on the shelf, not in Settings: with no crash reporting by
+         design, a systematic indexing failure is otherwise invisible. -->
+    <string name="index_problem_title">Couldn\'t read your screenshots</string>
+    <string name="index_problem_body">The screenshots were found, but no text could be read from them. Details below — please share this with support.</string>
+    <string name="index_problem_no_error">no error recorded</string>
+    <string name="index_problem_retry">Try again</string>
+
 </resources>
