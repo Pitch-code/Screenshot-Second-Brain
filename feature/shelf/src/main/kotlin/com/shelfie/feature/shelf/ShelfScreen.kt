@@ -39,6 +39,7 @@ import com.shelfie.core.designsystem.action.ActionResult
 import com.shelfie.core.designsystem.action.ScreenshotActionLauncher
 import com.shelfie.core.designsystem.component.CategoryFilterRow
 import com.shelfie.core.designsystem.component.EmptyState
+import com.shelfie.core.designsystem.component.IndexProblemCard
 import com.shelfie.core.designsystem.component.IndexStatusStrip
 import com.shelfie.core.designsystem.component.LimitedModeBanner
 import com.shelfie.core.designsystem.component.ScreenshotTile
@@ -100,6 +101,17 @@ fun ShelfScreen(
                 },
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             )
+
+            // Placed above everything, because if this is showing then nothing
+            // else on the screen is working.
+            if (state.hasIndexingProblem) {
+                IndexProblemCard(
+                    stateSummary = state.stateSummary,
+                    lastError = state.lastError,
+                    onRetry = viewModel::onRetryIndexing,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+            }
 
             if (state.showStatusStrip) {
                 IndexStatusStrip(
