@@ -5,12 +5,18 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.RawQuery
 import androidx.room.Transaction
 import androidx.room.Upsert
+import androidx.sqlite.db.SupportSQLiteQuery
+import com.shelfie.core.database.ShelfQuery
+import com.shelfie.core.database.entity.FolderEntity
 import com.shelfie.core.database.entity.ScreenshotEntity
 import com.shelfie.core.database.entity.ScreenshotTextEntity
 import com.shelfie.core.model.IndexState
 import com.shelfie.core.model.ScreenshotCategory
+import com.shelfie.core.model.ShelfFilter
+import com.shelfie.core.model.ShelfSortOrder
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -200,24 +206,28 @@ interface ScreenshotDao {
 
     // ----------------------------------------------------------------- reads
 
-    /** The shelf feed: newest first, always. */
-    @Query(
-        """
-        SELECT * FROM screenshots
-        WHERE is_deleted = 0
-        ORDER BY date_added DESC, id DESC
-        """,
-    )
-    fun pagedShelf(): PagingSource<Int, ScreenshotEntity>
+    /**
+     * The shelf feed, for any combination of filter and sort order.
+     *
+     * A raw query rather than eight near-identical `@Query` methods: SQLite cannot
+     * parameterise ORDER BY, so four sort orders across three filter shapes would
+     * otherwise mean a dozen hand-maintained copies of the same SELECT. The SQL is
+     * assembled by [ShelfQuery] from closed enums only — no user input reaches it,
+     * and filter values are bound as arguments.
+     */
+    @RawQuery(observedEntities = [ScreenshotEntity::class])
+    fun pagedShelfRaw(query: SupportSQLiteQuery): PagingSource<Int, ScreenshotEntity>
 
-    @Query(
-        """
-        SELECT * FROM screenshots
-        WHERE is_deleted = 0 AND category = :category
-        ORDER BY date_added DESC, id DESC
-        """,
-    )
-    fun pagedByCategory(category: ScreenshotCategory): PagingSource<Int, ScreenshotEntity>
+    /**
+     * Typed entry point for the shelf feed.
+     *
+     * Exists so `SupportSQLiteQuery` never escapes this module — callers ask in
+     * terms of a filter and a sort order, not SQL.
+     */
+    fun pagedShelf(
+        filter: ShelfFilter,
+        sort: ShelfSortOrder,
+    ): PagingSource<Int, ScreenshotEntity> = pagedShelfRaw(ShelfQuery.shelf(filter, sort))
 
     /**
      * Full-text search. Joins the FTS table on rowid, then orders by recency so
@@ -250,7 +260,10 @@ interface ScreenshotDao {
         LIMIT :limit
         """,
     )
-    suspend fun nextPending(limit: Int, maxAttempts: Int = 3): List<ScreenshotEntity>
+    suspend fun nextPending(
+        limit: Int,
+        maxAttempts: Int = MAX_INDEX_ATTEMPTS,
+    ): List<ScreenshotEntity>
 
     @Query("SELECT COUNT(*) FROM screenshots WHERE is_deleted = 0")
     fun observeTotalCount(): Flow<Int>
@@ -258,16 +271,96 @@ interface ScreenshotDao {
     @Query("SELECT COUNT(*) FROM screenshots WHERE index_state = 'INDEXED' AND is_deleted = 0")
     fun observeIndexedCount(): Flow<Int>
 
+    /**
+     * Rows that can still change state.
+     *
+     * Mirrors [nextPending]'s eligibility rules exactly, because this is what
+     * decides whether the shelf's progress banner has any reason to be on screen.
+     * Counting *all* rows instead meant the banner stayed up forever for free
+     * users, whose held-back rows can never reach INDEXED.
+     */
+    @Query(
+        """
+        SELECT COUNT(*) FROM screenshots
+        WHERE is_deleted = 0
+          AND (
+            index_state IN ('PENDING', 'IN_PROGRESS')
+            OR (index_state = 'FAILED' AND attempt_count < :maxAttempts)
+          )
+        """,
+    )
+    fun observeOutstandingCount(maxAttempts: Int = MAX_INDEX_ATTEMPTS): Flow<Int>
+
     @Query(
         """
         SELECT category, COUNT(*) AS count FROM screenshots
-        WHERE is_deleted = 0 AND index_state = 'INDEXED'
+        WHERE is_deleted = 0 AND index_state = 'INDEXED' AND folder_id IS NULL
         GROUP BY category
         HAVING count >= :minimumMatches
         ORDER BY count DESC
         """,
     )
     fun observeCategoryCounts(minimumMatches: Int = 3): Flow<List<CategoryCount>>
+
+    // ----------------------------------------------------------------- folders
+
+    @Query("SELECT * FROM folders ORDER BY name COLLATE NOCASE ASC")
+    fun observeFolders(): Flow<List<FolderEntity>>
+
+    /**
+     * Returns the new row id, or -1 when a folder with this name already exists.
+     *
+     * IGNORE rather than REPLACE: replacing would allocate a new id and orphan
+     * every screenshot already filed under the old one.
+     */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertFolder(folder: FolderEntity): Long
+
+    @Query("SELECT * FROM folders WHERE name_key = :nameKey LIMIT 1")
+    suspend fun folderByNameKey(nameKey: String): FolderEntity?
+
+    @Query("UPDATE screenshots SET folder_id = :folderId WHERE id = :id")
+    suspend fun setFolder(id: Long, folderId: Long?)
+
+    /**
+     * Counts per folder, including empty folders.
+     *
+     * Unlike categories there is no minimum: the user made this folder on purpose,
+     * so hiding it until it reaches a threshold would look like the app lost it.
+     */
+    @Query(
+        """
+        SELECT f.id AS folderId,
+               f.name AS name,
+               f.icon AS icon,
+               COUNT(s.id) AS count
+        FROM folders AS f
+        LEFT JOIN screenshots AS s
+          ON s.folder_id = f.id AND s.is_deleted = 0
+        GROUP BY f.id
+        ORDER BY f.name COLLATE NOCASE ASC
+        """,
+    )
+    fun observeFolderCounts(): Flow<List<FolderCount>>
+
+    @Query("DELETE FROM folders WHERE id = :id")
+    suspend fun deleteFolderRow(id: Long)
+
+    @Query("UPDATE screenshots SET folder_id = NULL WHERE folder_id = :id")
+    suspend fun clearFolderAssignments(id: Long)
+
+    /**
+     * Deletes a folder and returns its screenshots to their automatic category.
+     *
+     * Transactional and in this order so a crash can never leave rows pointing at
+     * a folder that no longer exists, which would make them invisible: they would
+     * be excluded from their category as "filed" while belonging to nothing.
+     */
+    @Transaction
+    suspend fun deleteFolder(id: Long) {
+        clearFolderAssignments(id)
+        deleteFolderRow(id)
+    }
 
     @Query("SELECT * FROM screenshots WHERE id = :id")
     fun observeById(id: Long): Flow<ScreenshotEntity?>
@@ -320,7 +413,9 @@ interface ScreenshotDao {
     @Query("UPDATE screenshots SET index_state = 'PENDING' WHERE index_state = 'QUOTA_HELD'")
     suspend fun releaseQuotaHolds(): Int
 
-    @Query("SELECT COUNT(*) FROM screenshots WHERE index_state = 'QUOTA_HELD'")
+    // is_deleted filter matters: without it, deleting a held screenshot left it
+    // counted in the upgrade prompt, offering to unlock rows that no longer exist.
+    @Query("SELECT COUNT(*) FROM screenshots WHERE index_state = 'QUOTA_HELD' AND is_deleted = 0")
     fun observeQuotaHeldCount(): Flow<Int>
 
     /** Drops the searchable text for rows rolled out of the free window. */
@@ -410,6 +505,14 @@ interface ScreenshotDao {
     fun observePickedCount(): Flow<Int>
 }
 
+/**
+ * Retry budget per screenshot.
+ *
+ * Shared by the work queue and the outstanding-work count so the banner can never
+ * disagree with the queue about whether a row still has a chance of being read.
+ */
+const val MAX_INDEX_ATTEMPTS = 3
+
 /** Row count for one index state, used by the diagnostics panel. */
 data class IndexStateCount(
     val state: IndexState,
@@ -428,5 +531,13 @@ data class ExportRow(
 /** Backs the category chips; only categories with enough matches are shown. */
 data class CategoryCount(
     val category: ScreenshotCategory,
+    val count: Int,
+)
+
+/** Backs the folder chips. Unlike categories, zero-count folders are still shown. */
+data class FolderCount(
+    val folderId: Long,
+    val name: String,
+    val icon: String,
     val count: Int,
 )

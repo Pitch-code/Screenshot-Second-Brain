@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,6 +45,8 @@ import coil3.compose.AsyncImage
 import com.shelfie.core.designsystem.action.ScreenshotActionLauncher
 import com.shelfie.core.designsystem.category.icon
 import com.shelfie.core.designsystem.category.labelRes
+import com.shelfie.core.designsystem.component.FolderCreateDialog
+import com.shelfie.core.model.Folder
 import com.shelfie.core.designsystem.component.DetailActionChip
 import com.shelfie.core.designsystem.component.EntityChip
 import com.shelfie.core.model.ScreenshotAction
@@ -63,6 +66,7 @@ fun DetailSheet(
 
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showCategoryPicker by remember { mutableStateOf(false) }
+    var showFolderCreate by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
 
     val context = LocalContext.current
@@ -87,6 +91,8 @@ fun DetailSheet(
         if (showCategoryPicker) {
             CategoryPickerDialog(
                 current = screenshot.category,
+                currentFolderId = screenshot.folderId,
+                folders = state.folders,
                 // Offered because the moment someone notices a wrong category is
                 // the only moment they are motivated to fix it for good.
                 ruleKeyword = screenshot.primaryValue?.takeIf { it.length in 3..30 },
@@ -99,6 +105,26 @@ fun DetailSheet(
                         viewModel.onCategoryChanged(category)
                     }
                     showCategoryPicker = false
+                },
+                onPickFolder = { folder ->
+                    viewModel.onFolderChanged(folder.id)
+                    showCategoryPicker = false
+                },
+                onCreateFolder = {
+                    // Swap dialogs rather than stacking them: two AlertDialogs at
+                    // once leaves the lower one visible behind the scrim.
+                    showCategoryPicker = false
+                    showFolderCreate = true
+                },
+            )
+        }
+
+        if (showFolderCreate) {
+            FolderCreateDialog(
+                onDismiss = { showFolderCreate = false },
+                onCreate = { name, icon ->
+                    viewModel.onCreateFolderAndFile(name, icon)
+                    showFolderCreate = false
                 },
             )
         }
@@ -125,13 +151,16 @@ fun DetailSheet(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
+                // Shows the folder when filed, so the move is visibly reflected
+                // here and not only on the shelf.
+                val filedIn = state.folder
                 Icon(
-                    imageVector = screenshot.category.icon,
+                    imageVector = filedIn?.icon?.icon ?: screenshot.category.icon,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = stringResource(screenshot.category.labelRes),
+                    text = filedIn?.name ?: stringResource(screenshot.category.labelRes),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
@@ -236,9 +265,13 @@ fun DetailSheet(
 @Composable
 private fun CategoryPickerDialog(
     current: ScreenshotCategory,
+    currentFolderId: Long?,
+    folders: List<Folder>,
     ruleKeyword: String?,
     onDismiss: () -> Unit,
     onPick: (ScreenshotCategory, Boolean) -> Unit,
+    onPickFolder: (Folder) -> Unit,
+    onCreateFolder: () -> Unit,
 ) {
     var createRule by remember { mutableStateOf(false) }
 
@@ -250,6 +283,63 @@ private fun CategoryPickerDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
+                // Folders lead, because a user who has made one is telling us their
+                // own filing beats the app's category guesses.
+                folders.forEach { folder ->
+                    val isCurrent = folder.id == currentFolderId
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onPickFolder(folder) }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Icon(
+                            imageVector = folder.icon.icon,
+                            contentDescription = null,
+                            tint = if (isCurrent) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                        Text(
+                            text = folder.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (isCurrent) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                        )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onCreateFolder)
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.CreateNewFolder,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = stringResource(
+                            com.shelfie.core.designsystem.R.string.folder_new,
+                        ),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
                 ScreenshotCategory.entries.forEach { category ->
                     Row(
                         modifier = Modifier
@@ -259,10 +349,14 @@ private fun CategoryPickerDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
+                        // Only "current" when nothing has been filed: a screenshot
+                        // in a folder still has a category underneath, and
+                        // highlighting both would suggest it lives in two places.
+                        val isCurrent = category == current && currentFolderId == null
                         Icon(
                             imageVector = category.icon,
                             contentDescription = null,
-                            tint = if (category == current) {
+                            tint = if (isCurrent) {
                                 MaterialTheme.colorScheme.primary
                             } else {
                                 MaterialTheme.colorScheme.onSurfaceVariant
@@ -271,7 +365,7 @@ private fun CategoryPickerDialog(
                         Text(
                             text = stringResource(category.labelRes),
                             style = MaterialTheme.typography.bodyLarge,
-                            color = if (category == current) {
+                            color = if (isCurrent) {
                                 MaterialTheme.colorScheme.primary
                             } else {
                                 MaterialTheme.colorScheme.onSurface

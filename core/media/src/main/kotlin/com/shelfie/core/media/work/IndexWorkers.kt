@@ -5,8 +5,10 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.shelfie.core.media.IndexOutcome
+import com.shelfie.core.media.IndexScheduler
 import com.shelfie.core.media.IndexTierPolicy
 import com.shelfie.core.media.IndexingQuota
+import com.shelfie.core.media.ReconcileReport
 import com.shelfie.core.media.ScreenshotIndexer
 import com.shelfie.core.media.ScreenshotRepository
 import dagger.assisted.Assisted
@@ -93,12 +95,23 @@ class ReconcileWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
     private val repository: ScreenshotRepository,
+    private val scheduler: IndexScheduler,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
         return runCatching { repository.reconcile() }
             .fold(
-                onSuccess = { Result.success() },
+                onSuccess = { report ->
+                    // Reconcile only *discovers*; it never indexes. Without this
+                    // hand-off, a screenshot taken while the app was in the
+                    // background was inserted as PENDING and then sat there until
+                    // the user happened to reopen the shelf, because nothing else
+                    // re-enqueued the indexing tiers.
+                    if (report is ReconcileReport.Completed && report.discovered > 0) {
+                        scheduler.scheduleAll()
+                    }
+                    Result.success()
+                },
                 onFailure = { Result.retry() },
             )
     }

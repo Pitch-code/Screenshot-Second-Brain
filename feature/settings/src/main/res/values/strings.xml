@@ -4,7 +4,11 @@
     <string name="settings_section_full">Shelfie Full</string>
     <string name="settings_section_access">Access</string>
     <string name="settings_section_appearance">Appearance</string>
-    <string name="settings_section_rules">My sorting rules</string>
+    <!-- Deliberately not "My sorting rules". That heading collided with sort
+         order — people looked here for "newest first" and found keyword rules
+         instead. The sort control now lives on the shelf, next to the grid it
+         reorders. -->
+    <string name="settings_section_rules">Auto-filing rules</string>
     <string name="settings_section_data">Your data</string>
     <string name="settings_section_about">About</string>
 
@@ -43,7 +47,7 @@
     <string name="settings_dynamic_color_detail">Uses Android\'s dynamic colour on Android 12 and newer.</string>
 
     <!-- Rules -->
-    <string name="settings_rules_empty">No rules yet. When Shelfie files something in the wrong place, open it and tap Change — the rule is created there.</string>
+    <string name="settings_rules_empty">No rules yet. These decide which category Shelfie picks automatically — they do not change the order screenshots appear in. When something lands in the wrong place, open it and tap Change.</string>
     <string name="settings_rule_keyword">\"%1$s\"</string>
     <string name="settings_rule_target">goes to %1$s</string>
     <string name="settings_rule_delete">Delete rule</string>

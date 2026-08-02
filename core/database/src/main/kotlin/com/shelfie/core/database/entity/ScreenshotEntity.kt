@@ -24,6 +24,9 @@ import com.shelfie.core.model.ScreenshotSource
         Index(value = ["index_state"]),
         Index(value = ["category"]),
         Index(value = ["is_deleted"]),
+        // Added in v4 so sorting by size does not full-scan plus temp-sort.
+        Index(value = ["size_bytes"]),
+        Index(value = ["folder_id"]),
     ],
 )
 data class ScreenshotEntity(
@@ -110,6 +113,16 @@ data class ScreenshotEntity(
      */
     @ColumnInfo(name = "last_error")
     val lastError: String? = null,
+
+    /**
+     * The user-created folder this screenshot was filed into, if any. Schema v4.
+     *
+     * Deliberately not a foreign key with a cascade: deleting a folder must return
+     * its screenshots to their automatic category, never delete them. The repository
+     * clears this column explicitly instead.
+     */
+    @ColumnInfo(name = "folder_id")
+    val folderId: Long? = null,
 )
 
 fun ScreenshotEntity.toDomain(): Screenshot = Screenshot(
@@ -129,4 +142,5 @@ fun ScreenshotEntity.toDomain(): Screenshot = Screenshot(
     isDeleted = isDeleted,
     source = source,
     localThumbnailPath = localThumbnailPath,
+    folderId = folderId,
 )
