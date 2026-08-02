@@ -20,6 +20,7 @@ import com.shelfie.core.model.FolderWithCount
 import com.shelfie.core.model.IndexProgress
 import com.shelfie.core.model.IndexTier
 import com.shelfie.core.model.MediaAccess
+import com.shelfie.core.model.MediaFolder
 import com.shelfie.core.model.Screenshot
 import com.shelfie.core.model.ScreenshotCategory
 import com.shelfie.core.model.SearchQuery
@@ -27,6 +28,7 @@ import com.shelfie.core.model.ShelfFilter
 import com.shelfie.core.model.ShelfSortOrder
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -278,7 +280,7 @@ class ScreenshotRepository @Inject constructor(
         if (!accessChecker.canReadAnyMedia()) return 0
 
         val watermark = currentWatermark()
-        val found = mediaStore.queryScreenshotsSince(watermark, limit)
+        val found = mediaStore.queryScreenshotsSince(watermark, limit, chosenFolders())
         if (found.isEmpty()) return 0
 
         dao.upsertAll(found.map { it.toPendingEntity() })
@@ -305,12 +307,44 @@ class ScreenshotRepository @Inject constructor(
     suspend fun discoverAll(): Int {
         if (!accessChecker.canReadAnyMedia()) return 0
 
-        val found = mediaStore.queryScreenshotsSince(sinceDateAddedSeconds = 0, limit = 0)
+        val found = mediaStore.queryScreenshotsSince(
+            sinceDateAddedSeconds = 0,
+            limit = 0,
+            includeFolders = chosenFolders(),
+        )
         if (found.isEmpty()) return 0
 
         dao.upsertAll(found.map { it.toPendingEntity() })
         found.maxOfOrNull { it.dateAdded }?.let { preferences.advanceWatermark(it) }
         return found.size
+    }
+
+    // ------------------------------------------------------------ folder choice
+
+    /**
+     * Folders the user has opted into, or an empty set.
+     *
+     * Read on each discovery pass rather than cached, so ticking a folder takes
+     * effect on the next scan without needing a restart.
+     */
+    private suspend fun chosenFolders(): Set<String> =
+        runCatching { preferences.extraFolders.first() }.getOrDefault(emptySet())
+
+    /** Every image folder on the device, with counts. Backs the folder picker. */
+    suspend fun availableFolders(): List<MediaFolder> =
+        runCatching { mediaStore.queryFolders() }.getOrDefault(emptyList())
+
+    fun observeChosenFolders(): Flow<Set<String>> = preferences.extraFolders
+
+    /**
+     * Saves the folder choice and rediscovers immediately.
+     *
+     * The rediscovery matters: without it, newly included folders would only appear
+     * after some later background pass, and the setting would look broken.
+     */
+    suspend fun setChosenFolders(folderKeys: Set<String>) {
+        preferences.setExtraFolders(folderKeys)
+        runCatching { discoverAll() }
     }
 
     /** Records a diagnostic message against one screenshot. */
@@ -345,7 +379,7 @@ class ScreenshotRepository @Inject constructor(
     suspend fun discoverNewest(limit: Int): Int {
         if (!accessChecker.canReadAnyMedia()) return 0
 
-        val found = mediaStore.queryNewest(limit)
+        val found = mediaStore.queryNewest(limit, chosenFolders())
         if (found.isEmpty()) return 0
 
         dao.upsertAll(found.map { it.toPendingEntity() })

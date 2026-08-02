@@ -9,6 +9,7 @@ import android.provider.MediaStore
 import android.util.DisplayMetrics
 import android.view.WindowManager
 import com.shelfie.core.model.MediaAccess
+import com.shelfie.core.model.MediaFolder
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -38,6 +39,10 @@ class MediaStoreScreenshotSource @Inject constructor(
         add(MediaStore.Images.Media.SIZE)
         add(MediaStore.Images.Media.WIDTH)
         add(MediaStore.Images.Media.HEIGHT)
+        // Folder name, used for the opt-in folder picker. Chosen over RELATIVE_PATH
+        // as the key because it exists on every supported API level and reads the
+        // same way to a person as it does in a stored preference.
+        add(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             add(MediaStore.Images.Media.RELATIVE_PATH)
         } else {
@@ -58,6 +63,7 @@ class MediaStoreScreenshotSource @Inject constructor(
     suspend fun queryScreenshotsSince(
         sinceDateAddedSeconds: Long,
         limit: Int = 0,
+        includeFolders: Set<String> = emptySet(),
     ): List<MediaStoreScreenshot> = withContext(Dispatchers.IO) {
         if (accessChecker.current() == MediaAccess.DENIED) return@withContext emptyList()
 
@@ -71,7 +77,7 @@ class MediaStoreScreenshotSource @Inject constructor(
 
         runCatching {
             contentResolver.query(collection, projection, selection, selectionArgs, sortOrder)
-                ?.use { cursor -> cursor.readScreenshots(limit) }
+                ?.use { cursor -> cursor.readScreenshots(limit, includeFolders) }
                 ?: emptyList()
         }.getOrElse { error ->
             // Permission revoked mid-query, or an OEM provider misbehaving.
@@ -80,8 +86,53 @@ class MediaStoreScreenshotSource @Inject constructor(
     }
 
     /** Newest [limit] screenshots regardless of watermark. Drives Tier 1. */
-    suspend fun queryNewest(limit: Int): List<MediaStoreScreenshot> =
-        queryScreenshotsSince(sinceDateAddedSeconds = 0, limit = limit)
+    suspend fun queryNewest(
+        limit: Int,
+        includeFolders: Set<String> = emptySet(),
+    ): List<MediaStoreScreenshot> = queryScreenshotsSince(
+        sinceDateAddedSeconds = 0,
+        limit = limit,
+        includeFolders = includeFolders,
+    )
+
+    /**
+     * Every image folder on the device, with how many images each holds.
+     *
+     * Backs the folder picker. Counts every image rather than only likely
+     * screenshots, because the number that matters when deciding whether to tick
+     * "Camera" is how much work it implies — and that is the total.
+     *
+     * Projection is deliberately just the bucket name: this walks the whole image
+     * table, so pulling any other column would be wasted allocation per row.
+     */
+    suspend fun queryFolders(): List<MediaFolder> = withContext(Dispatchers.IO) {
+        if (accessChecker.current() == MediaAccess.DENIED) return@withContext emptyList()
+
+        runCatching {
+            contentResolver.query(
+                collection,
+                arrayOf(MediaStore.Images.Media.BUCKET_DISPLAY_NAME),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                val bucketColumn =
+                    cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
+
+                val counts = mutableMapOf<String, Int>()
+                while (cursor.moveToNext()) {
+                    val name = cursor.getStringOrEmpty(bucketColumn).ifBlank { continue }
+                    counts[name] = (counts[name] ?: 0) + 1
+                }
+
+                counts.map { (name, count) -> MediaFolder(name = name, imageCount = count) }
+                    // Largest first: the folders worth a decision are the big ones.
+                    .sortedByDescending { it.imageCount }
+            } ?: emptyList()
+        }.getOrElse { error ->
+            if (error is SecurityException) emptyList() else throw error
+        }
+    }
 
     /**
      * Every image id currently present, used to prune rows whose file was
@@ -108,7 +159,11 @@ class MediaStoreScreenshotSource @Inject constructor(
         }
     }
 
-    private fun Cursor.readScreenshots(limit: Int): List<MediaStoreScreenshot> {
+    private fun Cursor.readScreenshots(
+        limit: Int,
+        includeFolders: Set<String>,
+    ): List<MediaStoreScreenshot> {
+        val bucketColumn = getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
         val idColumn = getColumnIndexOrThrow(MediaStore.Images.Media._ID)
         val nameColumn = getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
         val dateColumn = getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
@@ -133,7 +188,15 @@ class MediaStoreScreenshotSource @Inject constructor(
             val width = getInt(widthColumn)
             val height = getInt(heightColumn)
 
-            val isScreenshot = ScreenshotHeuristics.isLikelyScreenshot(
+            // Opt-in folders are purely additive to the heuristics, never a
+            // replacement. That keeps default behaviour byte-identical when nothing
+            // is chosen, and means ticking a folder can only ever add screenshots,
+            // never silently stop finding ones that were already being found.
+            val folder = getStringOrEmpty(bucketColumn)
+            val isChosenFolder = includeFolders.isNotEmpty() &&
+                MediaFolder.normaliseKey(folder) in includeFolders
+
+            val include = isChosenFolder || ScreenshotHeuristics.isLikelyScreenshot(
                 relativePath = rawPath,
                 displayName = name,
                 imageWidth = width,
@@ -141,7 +204,7 @@ class MediaStoreScreenshotSource @Inject constructor(
                 displayWidth = displayWidth,
                 displayHeight = displayHeight,
             )
-            if (!isScreenshot) continue
+            if (!include) continue
 
             val id = getLong(idColumn)
             results += MediaStoreScreenshot(
