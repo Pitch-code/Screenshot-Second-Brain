@@ -75,7 +75,20 @@
     <string name="settings_export_filename">shelfie-export.txt</string>
 
     <string name="settings_privacy_title">Privacy policy</string>
-    <string name="settings_privacy_detail">Shelfie has no internet permission. It cannot upload your screenshots.</string>
+    <!--
+      Scoped to screenshots deliberately, rather than to "no network at all".
+
+      What matters to a user is that their screenshots, and the text found inside
+      them, never leave the phone. That is true today and would remain true even if a
+      free tier later carried adverts, because adverts do not touch screenshot
+      content. The stronger "no internet permission" claim is kept as a separate line
+      so that, if it ever stops being true, it can be deleted on its own without
+      rewriting a promise that is still being kept.
+    -->
+    <string name="settings_privacy_detail">Your screenshots, and the text found inside them, never leave this phone. There is no account, and nothing is uploaded.</string>
+
+    <!-- DELETE THIS ONE LINE if the app ever declares the INTERNET permission. -->
+    <string name="settings_privacy_no_network">Shelfie does not have permission to use the internet, so it cannot send anything anywhere.</string>
     <string name="settings_privacy_cta">Read</string>
 
     <string name="settings_about_title">Shelfie</string>

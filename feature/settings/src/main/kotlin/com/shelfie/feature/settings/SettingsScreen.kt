@@ -281,9 +281,13 @@ fun SettingsScreen(
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.settings_privacy_title)) },
                     supportingContent = {
-                        Text(
-                            stringResource(R.string.settings_privacy_detail),
-                        )
+                        Column {
+                            Text(stringResource(R.string.settings_privacy_detail))
+                            Text(
+                                text = stringResource(R.string.settings_privacy_no_network),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     },
                     trailingContent = {
                         TextButton(onClick = { context.openPrivacyPolicy() }) {
@@ -556,7 +560,17 @@ private fun android.content.Context.openPlayStoreReviews() {
 }
 
 /** Replace with the hosted policy URL before release. */
-private const val PRIVACY_POLICY_URL = "https://shelfie.app/privacy"
+/**
+ * The hosted privacy policy.
+ *
+ * Served by GitHub Pages from `docs/privacy.html` in this repository, so the policy
+ * lives alongside the code it describes — a claim about what the app does and the
+ * code that does it cannot then drift apart unnoticed.
+ *
+ * Play will not review a listing without a reachable policy URL.
+ */
+private const val PRIVACY_POLICY_URL =
+    "https://pitch-code.github.io/Screenshot-Second-Brain/privacy.html"
 
 /**
  * The release application id, which is what Play knows about.
