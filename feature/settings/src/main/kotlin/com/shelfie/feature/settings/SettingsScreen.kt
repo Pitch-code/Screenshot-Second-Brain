@@ -19,6 +19,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.StarBorder
 import com.shelfie.core.model.IndexState
@@ -78,6 +79,20 @@ fun SettingsScreen(
     val diagCopied = stringResource(R.string.settings_diag_copied)
     var copyRequested by remember { mutableStateOf(false) }
     var diagnosticsExpanded by remember { mutableStateOf(false) }
+    var showFolderPicker by remember { mutableStateOf(false) }
+    val folderPicker by viewModel.folderPickerState.collectAsStateWithLifecycle()
+
+    if (showFolderPicker) {
+        FolderChoiceDialog(
+            folders = folderPicker.available,
+            initiallySelected = folderPicker.chosen,
+            onDismiss = { showFolderPicker = false },
+            onSave = { chosen ->
+                viewModel.onFoldersChosen(chosen)
+                showFolderPicker = false
+            },
+        )
+    }
 
     LaunchedEffect(copyRequested) {
         if (copyRequested) {
@@ -148,6 +163,59 @@ fun SettingsScreen(
                     trailingContent = {
                         TextButton(onClick = { context.openAppSettings() }) {
                             Text(stringResource(R.string.settings_change))
+                        }
+                    },
+                )
+            }
+
+            // Deliberately near the top, next to Access: "what can Shelfie see" and
+            // "where does it look" are the same question in a user's head.
+            item { SectionHeader(stringResource(R.string.settings_section_folders)) }
+            item {
+                val unlocked = state.quota.isUnlimited || state.billing is BillingState.Owned
+                val chosenCount = folderPicker.chosen.size
+
+                ListItem(
+                    leadingContent = {
+                        Icon(Icons.Outlined.FolderOpen, contentDescription = null)
+                    },
+                    headlineContent = { Text(stringResource(R.string.settings_folders_manage)) },
+                    supportingContent = {
+                        Column {
+                            Text(
+                                if (chosenCount == 0) {
+                                    stringResource(R.string.settings_folders_none_chosen)
+                                } else {
+                                    pluralStringResource(
+                                        R.plurals.settings_folders_chosen,
+                                        chosenCount,
+                                        chosenCount,
+                                    )
+                                },
+                            )
+                            Text(
+                                text = stringResource(R.string.settings_folders_detail),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            if (!unlocked) {
+                                Text(
+                                    text = stringResource(R.string.settings_folders_locked),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                    },
+                    trailingContent = {
+                        TextButton(
+                            enabled = unlocked,
+                            onClick = {
+                                viewModel.onLoadFolders()
+                                showFolderPicker = true
+                            },
+                        ) {
+                            Text(stringResource(R.string.settings_folders_manage))
                         }
                     },
                 )

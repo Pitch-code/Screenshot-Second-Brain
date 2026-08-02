@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.shelfie.core.model.ShelfSortOrder
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -47,6 +48,17 @@ class ShelfiePreferences @Inject constructor(
     val shelfSortOrder: Flow<ShelfSortOrder> =
         dataStore.data.map { ShelfSortOrder.fromNameOrDefault(it[KEY_SHELF_SORT]) }
 
+    /**
+     * Folders the user has opted into beyond the automatic screenshot detection,
+     * stored as lower-cased folder names.
+     *
+     * Empty by default, which means "only what looks like a screenshot". Because the
+     * discovery filter treats this set as additive, an empty set reproduces the
+     * original behaviour exactly.
+     */
+    val extraFolders: Flow<Set<String>> =
+        dataStore.data.map { it[KEY_EXTRA_FOLDERS] ?: emptySet() }
+
     /** Advances the watermark; never moves backwards. */
     suspend fun advanceWatermark(dateAddedSeconds: Long) {
         dataStore.edit { prefs ->
@@ -78,6 +90,10 @@ class ShelfiePreferences @Inject constructor(
         dataStore.edit { it[KEY_SHELF_SORT] = order.name }
     }
 
+    suspend fun setExtraFolders(folderKeys: Set<String>) {
+        dataStore.edit { it[KEY_EXTRA_FOLDERS] = folderKeys }
+    }
+
     suspend fun setLastReconcileAt(epochSeconds: Long) {
         dataStore.edit { it[KEY_LAST_RECONCILE] = epochSeconds }
     }
@@ -89,5 +105,6 @@ class ShelfiePreferences @Inject constructor(
         val KEY_LAST_RECONCILE = longPreferencesKey("last_reconcile_seconds")
         val KEY_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
         val KEY_SHELF_SORT = stringPreferencesKey("shelf_sort_order")
+        val KEY_EXTRA_FOLDERS = stringSetPreferencesKey("extra_indexed_folders")
     }
 }

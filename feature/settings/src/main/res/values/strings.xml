@@ -4,6 +4,27 @@
     <string name="settings_section_full">Shelfie Full</string>
     <string name="settings_section_access">Access</string>
     <string name="settings_section_appearance">Appearance</string>
+
+    <!-- Opt-in folder scanning. No extra permission is involved: the app already
+         queries every image on the device and simply discards non-screenshots. -->
+    <string name="settings_section_folders">Where to look</string>
+    <string name="settings_folders_detail">Shelfie finds screenshots automatically. Tick a folder to search everything in it too — WhatsApp, Telegram, Downloads.</string>
+    <string name="settings_folders_locked">Choosing extra folders is part of the full version.</string>
+    <plurals name="settings_folders_count">
+        <item quantity="one">%d image</item>
+        <item quantity="other">%d images</item>
+    </plurals>
+    <string name="settings_folders_empty">No image folders found yet.</string>
+    <!-- Shown against large folders, because ticking one is hours of background work. -->
+    <string name="settings_folders_large_warning">Large folder — reading it will take a while and is mostly photos.</string>
+    <string name="settings_folders_manage">Choose folders</string>
+    <string name="settings_folders_saved">Saved. Shelfie is reading the folders you chose.</string>
+    <plurals name="settings_folders_chosen">
+        <item quantity="one">%d folder chosen</item>
+        <item quantity="other">%d folders chosen</item>
+    </plurals>
+    <string name="settings_folders_none_chosen">Screenshots only</string>
+    <string name="settings_folders_save">Save</string>
     <!-- Deliberately not "My sorting rules". That heading collided with sort
          order — people looked here for "newest first" and found keyword rules
          instead. The sort control now lives on the shelf, next to the grid it

@@ -15,6 +15,7 @@ import com.shelfie.core.media.QuotaState
 import com.shelfie.core.media.ScreenshotDeleter
 import com.shelfie.core.media.ScreenshotRepository
 import com.shelfie.core.model.FolderWithCount
+import com.shelfie.core.model.MediaFolder
 import com.shelfie.core.model.MediaAccess
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.shelfie.core.designsystem.component.UiMessage
@@ -165,6 +166,41 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { repository.deleteFolder(id) }
     }
 
+    // ------------------------------------------------------- folder scanning
+
+    private val availableFolders = MutableStateFlow<List<MediaFolder>>(emptyList())
+
+    /**
+     * Loaded on demand rather than kept in the UI state.
+     *
+     * Listing folders walks the entire image table, so doing it eagerly would cost
+     * every user a full scan just for opening Settings.
+     */
+    fun onLoadFolders() {
+        viewModelScope.launch {
+            availableFolders.value = repository.availableFolders()
+        }
+    }
+
+    fun onFoldersChosen(folderKeys: Set<String>) {
+        viewModelScope.launch {
+            repository.setChosenFolders(folderKeys)
+            scheduler.scheduleAll()
+            message.value = UiMessage.Text(R.string.settings_folders_saved)
+        }
+    }
+
+    val folderPickerState: StateFlow<FolderPickerState> = combine(
+        availableFolders,
+        repository.observeChosenFolders(),
+    ) { available, chosen ->
+        FolderPickerState(available = available, chosen = chosen)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = FolderPickerState(),
+    )
+
     fun onAddRule(keyword: String, category: com.shelfie.core.model.ScreenshotCategory) {
         if (keyword.isBlank()) return
         viewModelScope.launch {
@@ -200,6 +236,11 @@ class SettingsViewModel @Inject constructor(
         failureText.update { null }
     }
 }
+
+data class FolderPickerState(
+    val available: List<MediaFolder> = emptyList(),
+    val chosen: Set<String> = emptySet(),
+)
 
 data class SettingsUiState(
     val rules: List<UserRule> = emptyList(),
