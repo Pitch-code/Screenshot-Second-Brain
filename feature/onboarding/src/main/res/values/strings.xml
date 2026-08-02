@@ -10,7 +10,9 @@
     <!-- Step 2: trust, deliberately before any system dialog. -->
     <string name="onboarding_trust_title">Everything happens on your phone.</string>
     <string name="onboarding_trust_body">Shelfie reads the text in your screenshots so you can search them. That reading happens here, on this device.</string>
-    <string name="onboarding_trust_detail">Shelfie has no internet permission. Android will not let it open a network connection, so it physically cannot upload anything. There is no account and no sign-up.</string>
+    <!-- Leads with the screenshot-scoped promise, which survives any later change to
+         network usage, then states the stronger verifiable fact separately. -->
+    <string name="onboarding_trust_detail">Your screenshots, and the text found inside them, stay on this phone. Nothing is uploaded, nothing is shared, and no one else can see them. There is no account and no sign-up.\n\nShelfie does not even have permission to use the internet, so it cannot send anything anywhere.</string>
     <string name="onboarding_trust_cta">Continue</string>
 
     <!-- Step 3: rationale, then the system permission dialog. -->
