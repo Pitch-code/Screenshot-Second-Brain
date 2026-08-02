@@ -146,11 +146,13 @@ class ScreenshotRepository @Inject constructor(
     fun observeProgress(): Flow<IndexProgress> = combine(
         dao.observeTotalCount(),
         dao.observeIndexedCount(),
-    ) { total, indexed ->
+        dao.observeOutstandingCount(),
+    ) { total, indexed, outstanding ->
         IndexProgress(
             indexed = indexed,
             total = total,
-            tier = if (indexed >= total) IndexTier.IDLE else IndexTier.BACKLOG,
+            outstanding = outstanding,
+            tier = if (outstanding <= 0) IndexTier.IDLE else IndexTier.BACKLOG,
         )
     }
 

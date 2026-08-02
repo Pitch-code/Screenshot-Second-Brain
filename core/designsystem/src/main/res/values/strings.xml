@@ -24,11 +24,16 @@
     <string name="action_copy_text">Copy text</string>
     <string name="action_share">Share</string>
 
-    <!-- Indexing status. Informational, never blocking. -->
-    <string name="index_status_title">Indexing older screenshots</string>
+    <!-- Indexing status. Informational, never blocking.
+
+         The detail line deliberately does NOT promise "the rest finish while
+         charging". That claim was shown unconditionally, including to free users
+         whose remaining screenshots were held back by the tier limit and would
+         never be read no matter how long the phone charged. -->
+    <string name="index_status_title">Reading your screenshots</string>
     <plurals name="index_status_detail">
-        <item quantity="one">%1$d of %2$d done · the rest finish while charging</item>
-        <item quantity="other">%1$d of %2$d done · the rest finish while charging</item>
+        <item quantity="one">%1$d of %2$d read · the rest continue in the background</item>
+        <item quantity="other">%1$d of %2$d read · the rest continue in the background</item>
     </plurals>
     <string name="index_status_hide">Hide indexing status</string>
 

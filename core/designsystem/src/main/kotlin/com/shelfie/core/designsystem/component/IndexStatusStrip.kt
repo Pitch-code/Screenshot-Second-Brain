@@ -60,7 +60,10 @@ fun IndexStatusStrip(
                             text = pluralStringResource(
                                 R.plurals.index_status_detail,
                                 progress.total,
-                                progress.indexed,
+                                // settled, not indexed: held-back and unreadable
+                                // rows are finished with, so counting only indexed
+                                // rows made the number stall short of the total.
+                                progress.settled,
                                 progress.total,
                             ),
                             style = MaterialTheme.typography.bodySmall,

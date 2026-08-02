@@ -1,5 +1,7 @@
 package com.shelfie.core.media
 
+import com.shelfie.core.database.dao.MAX_INDEX_ATTEMPTS
+
 /**
  * Batch sizes for the three-tier indexing model.
  *
@@ -29,8 +31,20 @@ object IndexTierPolicy {
      */
     const val BACKLOG_CHUNK = 50
 
-    /** Give up on an item after this many failed attempts. */
-    const val MAX_ATTEMPTS = 3
+    /**
+     * Small batch read when the shelf resumes, so a screenshot taken while the
+     * app was backgrounded shows up promptly without making resume feel heavy.
+     */
+    const val CATCH_UP_BATCH = 12
+
+    /**
+     * Give up on an item after this many failed attempts.
+     *
+     * Aliases the database-layer constant rather than restating it: the work
+     * queue and the progress banner must agree on what "still retryable" means,
+     * or the banner can hang open on rows the queue has already abandoned.
+     */
+    const val MAX_ATTEMPTS = MAX_INDEX_ATTEMPTS
 
     /** Periodic safety-net reconcile interval. */
     const val RECONCILE_INTERVAL_HOURS = 6L

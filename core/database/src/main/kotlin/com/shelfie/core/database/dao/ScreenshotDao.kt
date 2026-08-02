@@ -250,13 +250,36 @@ interface ScreenshotDao {
         LIMIT :limit
         """,
     )
-    suspend fun nextPending(limit: Int, maxAttempts: Int = 3): List<ScreenshotEntity>
+    suspend fun nextPending(
+        limit: Int,
+        maxAttempts: Int = MAX_INDEX_ATTEMPTS,
+    ): List<ScreenshotEntity>
 
     @Query("SELECT COUNT(*) FROM screenshots WHERE is_deleted = 0")
     fun observeTotalCount(): Flow<Int>
 
     @Query("SELECT COUNT(*) FROM screenshots WHERE index_state = 'INDEXED' AND is_deleted = 0")
     fun observeIndexedCount(): Flow<Int>
+
+    /**
+     * Rows that can still change state.
+     *
+     * Mirrors [nextPending]'s eligibility rules exactly, because this is what
+     * decides whether the shelf's progress banner has any reason to be on screen.
+     * Counting *all* rows instead meant the banner stayed up forever for free
+     * users, whose held-back rows can never reach INDEXED.
+     */
+    @Query(
+        """
+        SELECT COUNT(*) FROM screenshots
+        WHERE is_deleted = 0
+          AND (
+            index_state IN ('PENDING', 'IN_PROGRESS')
+            OR (index_state = 'FAILED' AND attempt_count < :maxAttempts)
+          )
+        """,
+    )
+    fun observeOutstandingCount(maxAttempts: Int = MAX_INDEX_ATTEMPTS): Flow<Int>
 
     @Query(
         """
@@ -320,7 +343,9 @@ interface ScreenshotDao {
     @Query("UPDATE screenshots SET index_state = 'PENDING' WHERE index_state = 'QUOTA_HELD'")
     suspend fun releaseQuotaHolds(): Int
 
-    @Query("SELECT COUNT(*) FROM screenshots WHERE index_state = 'QUOTA_HELD'")
+    // is_deleted filter matters: without it, deleting a held screenshot left it
+    // counted in the upgrade prompt, offering to unlock rows that no longer exist.
+    @Query("SELECT COUNT(*) FROM screenshots WHERE index_state = 'QUOTA_HELD' AND is_deleted = 0")
     fun observeQuotaHeldCount(): Flow<Int>
 
     /** Drops the searchable text for rows rolled out of the free window. */
@@ -409,6 +434,14 @@ interface ScreenshotDao {
     @Query("SELECT COUNT(*) FROM screenshots WHERE source = 'PICKER' AND is_deleted = 0")
     fun observePickedCount(): Flow<Int>
 }
+
+/**
+ * Retry budget per screenshot.
+ *
+ * Shared by the work queue and the outstanding-work count so the banner can never
+ * disagree with the queue about whether a row still has a chance of being read.
+ */
+const val MAX_INDEX_ATTEMPTS = 3
 
 /** Row count for one index state, used by the diagnostics panel. */
 data class IndexStateCount(

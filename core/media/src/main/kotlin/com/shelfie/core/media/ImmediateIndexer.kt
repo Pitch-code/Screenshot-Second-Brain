@@ -36,11 +36,16 @@ class ImmediateIndexer @Inject constructor(
     private var hasRunThisProcess = false
 
     /**
-     * Runs the immediate tier, then schedules Tiers 2 and 3.
+     * Runs the immediate tier on first entry, and a cheap catch-up pass on every
+     * entry after that.
      *
-     * Safe to call on every shelf entry — it no-ops after the first successful
-     * run in this process, and the background tiers use unique work so
-     * re-scheduling is idempotent.
+     * The catch-up matters more than it looks. This used to do nothing at all
+     * after its first run in the process, and the MediaStore observer is only
+     * registered while the activity is visible. So a screenshot taken with
+     * Shelfie backgrounded — but its process still alive — was picked up by
+     * nothing: the observer was unregistered, the immediate tier was fused off,
+     * and Tier 2 had already completed. Returning to the shelf appeared to do
+     * nothing because it genuinely did nothing.
      */
     fun warmUp(scope: CoroutineScope): Job = scope.launch {
         if (repository.currentAccess() == MediaAccess.DENIED) return@launch
@@ -49,6 +54,8 @@ class ImmediateIndexer @Inject constructor(
             if (!hasRunThisProcess) {
                 hasRunThisProcess = true
                 runImmediateTier()
+            } else {
+                runCatchUp()
             }
         }
 
@@ -61,6 +68,36 @@ class ImmediateIndexer @Inject constructor(
         if (repository.currentAccess() == MediaAccess.DENIED) return@launch
         mutex.withLock { runImmediateTier() }
         scheduler.scheduleAll()
+    }
+
+    /**
+     * Cheap pass for returning to the shelf: pick up anything new and read a
+     * small batch of it.
+     *
+     * Bounded by [IndexTierPolicy.CATCH_UP_BATCH] rather than the full immediate
+     * batch, because this runs every time the screen resumes and must never feel
+     * like work. Anything it does not reach is left to the background tiers.
+     */
+    private suspend fun runCatchUp() {
+        withContext(NonCancellable + Dispatchers.Default) {
+            // A previous run may have been killed mid-index.
+            runCatching { repository.requeueStaleWork() }
+
+            runCatching { repository.discoverNew() }
+
+            val rules = runCatching { repository.currentRules() }.getOrDefault(emptyList())
+
+            val pending = runCatching {
+                repository.nextPending(IndexTierPolicy.CATCH_UP_BATCH)
+            }.getOrDefault(emptyList())
+
+            for (entity in pending) {
+                val outcome = runCatching { indexer.index(entity, rules) }.getOrNull()
+                if (outcome == IndexOutcome.AccessLost) break
+            }
+
+            runCatching { quota.enforce() }
+        }
     }
 
     private suspend fun runImmediateTier() {

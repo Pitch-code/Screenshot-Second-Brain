@@ -67,11 +67,13 @@ class ScreenshotContentObserver @Inject constructor(
             // Serialised so a burst of callbacks for one file does not start
             // several overlapping scans.
             mutex.withLock {
-                val discovered = runCatching { repository.discoverNew() }.getOrDefault(0)
-                if (discovered <= 0) return@withLock
+                runCatching { repository.discoverNew() }
 
-                // Index the handful that just arrived straight away — this is
-                // what makes a screenshot searchable within seconds of capture.
+                // Deliberately no early return when nothing new was discovered.
+                // It used to bail out in that case, which meant a change event
+                // for an already-known row never drained rows still sitting in
+                // PENDING — so a screenshot could be discovered and then wait
+                // indefinitely for a worker to notice it.
                 val pending = runCatching {
                     repository.nextPending(MAX_IMMEDIATE_ON_CHANGE)
                 }.getOrDefault(emptyList())

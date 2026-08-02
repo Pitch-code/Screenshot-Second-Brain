@@ -61,7 +61,11 @@ class MediaStoreScreenshotSource @Inject constructor(
     ): List<MediaStoreScreenshot> = withContext(Dispatchers.IO) {
         if (accessChecker.current() == MediaAccess.DENIED) return@withContext emptyList()
 
-        val selection = "${MediaStore.Images.Media.DATE_ADDED} > ?"
+        // >= rather than >: DATE_ADDED has one-second resolution, so a screenshot
+        // captured in the same second as the newest one already known would be
+        // invisible to every future watermark scan. Re-finding the boundary row is
+        // harmless — upsert of an already-known media id is a no-op.
+        val selection = "${MediaStore.Images.Media.DATE_ADDED} >= ?"
         val selectionArgs = arrayOf(sinceDateAddedSeconds.toString())
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
 
