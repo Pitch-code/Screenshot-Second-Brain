@@ -15,8 +15,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.StarBorder
+import com.shelfie.core.model.IndexState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -72,6 +77,7 @@ fun SettingsScreen(
     val clipboard = LocalClipboardManager.current
     val diagCopied = stringResource(R.string.settings_diag_copied)
     var copyRequested by remember { mutableStateOf(false) }
+    var diagnosticsExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(copyRequested) {
         if (copyRequested) {
@@ -287,6 +293,24 @@ fun SettingsScreen(
                 )
             }
 
+            // Restoration already happens automatically on every launch; this is the
+            // recovery path for a failed check, a signed-out Play Store, or the
+            // common case of having bought on a different Google account.
+            item {
+                ListItem(
+                    leadingContent = {
+                        Icon(Icons.Outlined.Restore, contentDescription = null)
+                    },
+                    headlineContent = { Text(stringResource(R.string.settings_restore_title)) },
+                    supportingContent = { Text(stringResource(R.string.settings_restore_detail)) },
+                    trailingContent = {
+                        TextButton(onClick = viewModel::onRestorePurchase) {
+                            Text(stringResource(R.string.settings_restore_cta))
+                        }
+                    },
+                )
+            }
+
             item {
                 ListItem(
                     leadingContent = {
@@ -302,51 +326,72 @@ fun SettingsScreen(
                 )
             }
 
-            // Diagnostics sit above About because they are the reason someone
-            // scrolls this far when something is wrong.
-            item { SectionHeader(stringResource(R.string.settings_section_diagnostics)) }
+            /*
+             * Collapsed by default, and phrased as a question rather than as
+             * "Diagnostics / Last error".
+             *
+             * The old version put raw state names and a stack-trace-ish error string
+             * on screen permanently. That was invaluable while chasing a silent OCR
+             * failure — the app carries no crash reporting by design, so an
+             * unreported failure is an invisible one — but for someone whose app is
+             * working it reads as "something is broken and you cannot tell what".
+             * The information is kept; it just no longer greets everybody.
+             */
             item {
                 ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_diag_indexing)) },
-                    supportingContent = {
-                        Column {
-                            if (state.stateCounts.isEmpty()) {
-                                Text(stringResource(R.string.settings_diag_no_error))
+                    modifier = Modifier.clickable { diagnosticsExpanded = !diagnosticsExpanded },
+                    headlineContent = {
+                        Text(stringResource(R.string.settings_diag_section))
+                    },
+                    supportingContent = { Text(state.healthSummary()) },
+                    trailingContent = {
+                        Icon(
+                            imageVector = if (diagnosticsExpanded) {
+                                Icons.Outlined.ExpandLess
                             } else {
-                                state.stateCounts.forEach { entry ->
+                                Icons.Outlined.ExpandMore
+                            },
+                            contentDescription = null,
+                        )
+                    },
+                )
+            }
+
+            if (diagnosticsExpanded) {
+                item {
+                    ListItem(
+                        headlineContent = {
+                            Text(stringResource(R.string.settings_diag_technical))
+                        },
+                        supportingContent = {
+                            Column {
+                                Text(state.stateCounts.joinToString("  ") { "${it.state.name}=${it.count}" })
+                                state.lastError?.let { error ->
                                     Text(
-                                        stringResource(
-                                            R.string.settings_diag_state_row,
-                                            entry.state.name,
-                                            entry.count,
+                                        text = stringResource(
+                                            R.string.settings_diag_last_error_value,
+                                            error,
                                         ),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             }
-                        }
-                    },
-                )
-            }
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_diag_last_error)) },
-                    supportingContent = {
-                        Text(state.lastError ?: stringResource(R.string.settings_diag_no_error))
-                    },
-                )
-            }
-            item {
-                Row {
-                    TextButton(onClick = viewModel::onRetryFailed) {
-                        Text(stringResource(R.string.settings_diag_retry))
-                    }
-                    TextButton(
-                        onClick = {
-                            clipboard.setText(AnnotatedString(viewModel.diagnosticsText()))
-                            copyRequested = true
                         },
-                    ) {
-                        Text(stringResource(R.string.settings_diag_copy))
+                    )
+                }
+                item {
+                    Row {
+                        TextButton(onClick = viewModel::onRetryFailed) {
+                            Text(stringResource(R.string.settings_diag_retry))
+                        }
+                        TextButton(
+                            onClick = {
+                                clipboard.setText(AnnotatedString(viewModel.diagnosticsText()))
+                                copyRequested = true
+                            },
+                        ) {
+                            Text(stringResource(R.string.settings_diag_copy))
+                        }
                     }
                 }
             }
@@ -520,3 +565,42 @@ private const val PRIVACY_POLICY_URL = "https://shelfie.app/privacy"
  * to the real listing instead of to a package Play has never heard of.
  */
 private const val PLAY_PACKAGE_NAME = "com.shelfie.app"
+
+
+/**
+ * Plain-language health line, shown collapsed above the technical details.
+ *
+ * Deliberately says what the numbers *mean*. "QUOTA_HELD: 6" is accurate and
+ * useless to the person reading it; "6 held back by the free limit" tells them both
+ * what happened and what would change it. Terminal states are only mentioned when
+ * they are non-zero, so a healthy app reads as one short reassuring sentence.
+ */
+@Composable
+private fun SettingsUiState.healthSummary(): String {
+    fun countOf(vararg states: IndexState) =
+        stateCounts.filter { it.state in states }.sumOf { it.count }
+
+    val searchable = countOf(IndexState.INDEXED)
+    val working = countOf(IndexState.PENDING, IndexState.IN_PROGRESS, IndexState.FAILED)
+    val held = countOf(IndexState.QUOTA_HELD)
+    val unreadable = countOf(IndexState.SKIPPED)
+
+    if (searchable == 0 && working == 0 && held == 0 && unreadable == 0) {
+        return stringResource(R.string.settings_health_nothing)
+    }
+
+    val parts = buildList {
+        add(pluralStringResource(R.plurals.settings_health_searchable, searchable, searchable))
+        if (working > 0) {
+            add(pluralStringResource(R.plurals.settings_health_reading, working, working))
+        }
+        if (held > 0) {
+            add(pluralStringResource(R.plurals.settings_health_held, held, held))
+        }
+        if (unreadable > 0) {
+            add(pluralStringResource(R.plurals.settings_health_unreadable, unreadable, unreadable))
+        }
+    }
+
+    return parts.joinToString(" · ")
+}

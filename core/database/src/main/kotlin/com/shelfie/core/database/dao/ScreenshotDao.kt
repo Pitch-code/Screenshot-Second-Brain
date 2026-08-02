@@ -91,7 +91,11 @@ interface ScreenshotDao {
             category = :category,
             category_confidence = :confidence,
             primary_value = :primaryValue,
-            indexed_at = :indexedAt
+            indexed_at = :indexedAt,
+            -- Clears any error from an earlier attempt. Without this a screenshot
+            -- that failed once and then succeeded kept its stale error forever,
+            -- and the diagnostics panel reported long-fixed problems as current.
+            last_error = NULL
         WHERE id = :id
         """,
     )

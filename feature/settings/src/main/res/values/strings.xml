@@ -16,6 +16,13 @@
     <string name="settings_rate_title">Rate Shelfie</string>
     <string name="settings_rate_detail">Opens the Play Store. Reviews help other people find the app.</string>
     <string name="settings_rate_cta">Rate</string>
+
+    <!-- Restoring a purchase. Worded to make clear no second payment happens. -->
+    <string name="settings_restore_title">Already paid?</string>
+    <string name="settings_restore_detail">Checks your Google account for an existing purchase. You will not be charged again.</string>
+    <string name="settings_restore_cta">Restore</string>
+    <string name="settings_restore_success">Purchase restored. Everything is unlocked.</string>
+    <string name="settings_restore_none">No purchase found on this Google account.</string>
     <string name="settings_section_about">About</string>
 
     <!-- Purchase -->
@@ -76,11 +83,36 @@
 
     <!-- Diagnostics. Present because the app ships with no crash reporting or
          analytics, so this panel is the only way to see what indexing is doing. -->
-    <string name="settings_section_diagnostics">Diagnostics</string>
-    <string name="settings_diag_indexing">Indexing status</string>
-    <string name="settings_diag_state_row">%1$s: %2$d</string>
-    <string name="settings_diag_last_error">Last error</string>
-    <string name="settings_diag_no_error">No errors recorded</string>
+    <!-- Diagnostics, collapsed behind a question. The heading used to be
+         "Diagnostics" with a permanently visible "Last error", which reads as a
+         fault report even when the app is perfectly healthy. -->
+    <string name="settings_diag_section">Is something not working?</string>
+    <string name="settings_diag_technical">Technical details</string>
+    <string name="settings_diag_last_error_value">Last message: %1$s</string>
+
+    <!-- Plain-language health summary, shown collapsed. -->
+    <plurals name="settings_health_searchable">
+        <item quantity="one">%d screenshot is searchable</item>
+        <item quantity="other">%d screenshots are searchable</item>
+    </plurals>
+    <plurals name="settings_health_reading">
+        <item quantity="one">%d still being read</item>
+        <item quantity="other">%d still being read</item>
+    </plurals>
+    <plurals name="settings_health_held">
+        <item quantity="one">%d held back by the free limit</item>
+        <item quantity="other">%d held back by the free limit</item>
+    </plurals>
+    <plurals name="settings_health_unreadable">
+        <item quantity="one">%d could not be read</item>
+        <item quantity="other">%d could not be read</item>
+    </plurals>
+    <string name="settings_health_nothing">Nothing indexed yet</string>
+
+    <!-- settings_section_diagnostics, settings_diag_indexing, settings_diag_state_row,
+         settings_diag_last_error and settings_diag_no_error were removed with the
+         raw always-visible diagnostics block they belonged to. -->
+
     <string name="settings_diag_copy">Copy diagnostics</string>
     <string name="settings_diag_copied">Diagnostics copied</string>
     <string name="settings_diag_retry">Retry failed screenshots</string>

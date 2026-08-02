@@ -127,6 +127,35 @@ class SettingsViewModel @Inject constructor(
     }
 
     /**
+     * Re-checks ownership with Play, and reports the outcome.
+     *
+     * Restoration already happens automatically on launch, so this is a recovery
+     * path rather than the main one: it covers a failed query, a Play Store that was
+     * signed out at start-up, and the common support case of someone having bought
+     * on a different Google account. Cheap to provide, and Play reviewers expect a
+     * one-time purchase to have a visible restore route.
+     */
+    fun onRestorePurchase() {
+        viewModelScope.launch {
+            runCatching { billing.initialise() }
+
+            val owned = quota.isUnlimited()
+            if (owned) {
+                // Held-back rows must be released here too, or a restored user is
+                // unlocked but still has an incomplete index.
+                runCatching { quota.releaseAll() }
+                scheduler.scheduleAll()
+            }
+
+            message.value = if (owned) {
+                UiMessage.Text(R.string.settings_restore_success)
+            } else {
+                UiMessage.Text(R.string.settings_restore_none)
+            }
+        }
+    }
+
+    /**
      * Deletes a folder. Its screenshots return to their automatic category.
      *
      * Offered here because otherwise a mistyped folder name would be permanent —

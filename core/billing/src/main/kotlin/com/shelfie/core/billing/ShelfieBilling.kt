@@ -120,25 +120,52 @@ class ShelfieBilling @Inject constructor(
             .setProductType(BillingClient.ProductType.INAPP)
             .build()
 
-        val purchases = CompletableDeferred<List<Purchase>>()
-        client.queryPurchasesAsync(params) { _, list ->
-            if (!purchases.isCompleted) purchases.complete(list)
+        // Result and list together. The result code used to be discarded, which
+        // meant a query that failed while *connected* — Play signed out, or
+        // mid-update — returned an empty list that read as "owns nothing" and
+        // revoked a paid entitlement.
+        val query = CompletableDeferred<Pair<QueryStatus, List<Purchase>>>()
+        client.queryPurchasesAsync(params) { result, list ->
+            val status = if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                QueryStatus.OK
+            } else {
+                QueryStatus.FAILED
+            }
+            if (!query.isCompleted) query.complete(status to list)
         }
 
-        val owned = runCatching { purchases.await() }.getOrDefault(emptyList())
-            .filter { it.purchaseState == Purchase.PurchaseState.PURCHASED }
-            .any { ShelfieProducts.FULL_VERSION in it.products }
+        // A thrown await is not evidence of anything either, so it is FAILED
+        // rather than an empty success.
+        val (status, purchases) = runCatching { query.await() }
+            .getOrDefault(QueryStatus.FAILED to emptyList())
 
-        preferences.setFullVersion(owned)
-        if (owned) {
-            _billingState.value = BillingState.Owned
-            // Acknowledge anything Play reports as unacknowledged: an
-            // unacknowledged purchase is auto-refunded after three days.
-            runCatching { purchases.await() }.getOrDefault(emptyList())
-                .filter { !it.isAcknowledged }
-                .forEach { acknowledge(it) }
+        val snapshots = purchases.map { it.toSnapshot() }
+
+        when (EntitlementResolver.resolve(status, snapshots)) {
+            EntitlementVerdict.OWNED -> {
+                preferences.setFullVersion(true)
+                _billingState.value = BillingState.Owned
+
+                EntitlementResolver.needingAcknowledgement(snapshots)
+                    .forEach { snapshot ->
+                        purchases.firstOrNull { it.purchaseToken == snapshot.token }
+                            ?.let { acknowledge(it) }
+                    }
+            }
+
+            EntitlementVerdict.NOT_OWNED -> preferences.setFullVersion(false)
+
+            // Cache deliberately untouched.
+            EntitlementVerdict.UNKNOWN -> Unit
         }
     }
+
+    private fun Purchase.toSnapshot() = PurchaseSnapshot(
+        productIds = products,
+        isPurchased = purchaseState == Purchase.PurchaseState.PURCHASED,
+        isAcknowledged = isAcknowledged,
+        token = purchaseToken,
+    )
 
     private suspend fun loadProductDetails() {
         if (_billingState.value is BillingState.Owned) return
@@ -191,6 +218,16 @@ class ShelfieBilling @Inject constructor(
         val launch = client.launchBillingFlow(activity, params)
         if (launch.responseCode != BillingClient.BillingResponseCode.OK) {
             pendingPurchase = null
+
+            // ITEM_ALREADY_OWNED arriving here rather than through the listener is
+            // the ordinary reinstall path: Play knows about the purchase, this
+            // install does not. Reporting it as a failure would tell a paying user
+            // their purchase failed and invite them to pay again.
+            if (launch.responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
+                refreshPurchases()
+                return PurchaseResult.AlreadyOwned
+            }
+
             return PurchaseResult.Failed(
                 launch.debugMessage.ifBlank { "Could not start the purchase" },
             )

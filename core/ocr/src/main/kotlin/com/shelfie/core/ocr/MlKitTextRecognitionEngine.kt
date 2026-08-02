@@ -6,6 +6,7 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -74,6 +75,21 @@ class MlKitTextRecognitionEngine @Inject constructor(
                 cause = e,
                 detail = "Timed out after ${RECOGNITION_TIMEOUT_MILLIS}ms",
             )
+        } catch (e: CancellationException) {
+            // Cancellation is not a failure, and must not be reported as one.
+            //
+            // CancellationException is an Exception, so the generic catch below
+            // used to swallow it: navigating away mid-recognition marked the
+            // screenshot FAILED *and consumed a retry attempt*. Three interruptions
+            // and a perfectly readable screenshot became permanently ineligible for
+            // indexing, with "JobCancellationException: Job was cancelled" as the
+            // only trace. Rethrowing also restores structured concurrency, which
+            // requires cancellation to propagate. The row is left IN_PROGRESS and
+            // requeued on the next start, costing no attempt.
+            //
+            // Ordered after TimeoutCancellationException on purpose: a timeout *is*
+            // a genuine failure, and it is a subclass of this.
+            throw e
         } catch (e: FileNotFoundException) {
             // The user deleted the file elsewhere; the MediaStore row is stale.
             OcrResult.Failure(OcrFailure.FILE_MISSING, e, e.message)
