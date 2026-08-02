@@ -1,6 +1,7 @@
 package com.shelfie.core.media
 
 import com.shelfie.core.model.MediaAccess
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -106,7 +107,13 @@ class ImmediateIndexer @Inject constructor(
                     // Previously swallowed outright, which made a broken watermark
                     // indistinguishable from "nothing new" — no log, no state, no
                     // way to tell. Surfaced on the diagnostics card instead.
-                    runCatching { repository.recordGlobalError("Discovery failed: ${error.message}") }
+                    // Cancellation excluded: it means the user left, not that
+                    // anything went wrong.
+                    if (error !is CancellationException) {
+                        runCatching {
+                            repository.recordGlobalError("Discovery failed: ${error.message}")
+                        }
+                    }
                 }
                 .getOrDefault(0)
 
@@ -156,11 +163,15 @@ class ImmediateIndexer @Inject constructor(
                         // Previously swallowed. An exception thrown *after*
                         // recognition — while saving, for instance — left no
                         // trace at all, which made the failure undiagnosable.
-                        runCatching {
-                            repository.recordError(
-                                entity.id,
-                                "index() threw ${error.javaClass.simpleName}: ${error.message}",
-                            )
+                        // Cancellation is excluded: it means the user left, not
+                        // that anything went wrong.
+                        if (error !is CancellationException) {
+                            runCatching {
+                                repository.recordError(
+                                    entity.id,
+                                    "index() threw ${error.javaClass.simpleName}: ${error.message}",
+                                )
+                            }
                         }
                     }
                     .getOrNull()
