@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.shelfie.core.billing.BillingState
+import com.shelfie.core.designsystem.category.icon
 import com.shelfie.core.designsystem.category.labelRes
 import com.shelfie.core.media.IndexingQuota
 import com.shelfie.core.designsystem.component.resolve
@@ -158,6 +159,66 @@ fun SettingsScreen(
                     },
                 )
             }
+
+            item {
+                SectionHeader(
+                    stringResource(com.shelfie.core.designsystem.R.string.folder_section),
+                )
+            }
+            if (state.folders.isEmpty()) {
+                item {
+                    Text(
+                        text = stringResource(
+                            com.shelfie.core.designsystem.R.string.folder_section_empty,
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                }
+            } else {
+                items(items = state.folders, key = { it.folder.id }) { entry ->
+                    ListItem(
+                        leadingContent = {
+                            Icon(entry.folder.icon.icon, contentDescription = null)
+                        },
+                        headlineContent = { Text(entry.folder.name) },
+                        supportingContent = {
+                            Text(
+                                pluralStringResource(
+                                    com.shelfie.core.designsystem.R.plurals.folder_item_count,
+                                    entry.count,
+                                    entry.count,
+                                ),
+                            )
+                        },
+                        trailingContent = {
+                            IconButton(onClick = { viewModel.onDeleteFolder(entry.folder.id) }) {
+                                Icon(
+                                    Icons.Outlined.Delete,
+                                    contentDescription = stringResource(
+                                        com.shelfie.core.designsystem.R.string.folder_delete,
+                                    ),
+                                )
+                            }
+                        },
+                    )
+                }
+                item {
+                    // Spelled out because "delete folder" reads as though the
+                    // screenshots inside go with it.
+                    Text(
+                        text = stringResource(
+                            com.shelfie.core.designsystem.R.string.folder_delete_explainer,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                }
+            }
+
+            item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) }
 
             item { SectionHeader(stringResource(R.string.settings_section_rules)) }
             if (state.rules.isEmpty()) {

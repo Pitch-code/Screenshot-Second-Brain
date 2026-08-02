@@ -26,6 +26,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
@@ -35,9 +36,9 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.shelfie.core.designsystem.category.icon
 import com.shelfie.core.designsystem.category.labelRes
+import com.shelfie.core.model.Folder
 import com.shelfie.core.model.Screenshot
 import com.shelfie.core.model.ScreenshotAction
-import com.shelfie.core.model.ScreenshotCategory
 
 /**
  * One screenshot on the shelf.
@@ -56,13 +57,24 @@ fun ScreenshotTile(
     onClick: () -> Unit,
     onAction: (ScreenshotAction) -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * The folder this screenshot was filed into, when it has one.
+     *
+     * Takes precedence over the category badge: the user's own filing decision must
+     * outrank the classifier's guess, otherwise moving something to a folder looks
+     * like it did nothing.
+     */
+    folder: Folder? = null,
 ) {
     val categoryLabel = stringResource(screenshot.category.labelRes)
-    // Screen readers get category, then the extracted value, then the filename —
+    val badgeLabel = folder?.name ?: categoryLabel
+    val badgeIcon = folder?.icon?.icon ?: screenshot.category.icon
+
+    // Screen readers get the badge, then the extracted value, then the filename —
     // the same priority the visual tile uses.
     val tileDescription = stringResource(
         R.string.a11y_screenshot_tile,
-        categoryLabel,
+        badgeLabel,
         screenshot.primaryValue ?: screenshot.displayName,
     )
 
@@ -112,7 +124,7 @@ fun ScreenshotTile(
                     .padding(8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                CategoryBadge(screenshot.category, categoryLabel)
+                ShelfBadge(icon = badgeIcon, label = badgeLabel)
 
                 screenshot.primaryValue?.let { value ->
                     Text(
@@ -136,7 +148,7 @@ fun ScreenshotTile(
 }
 
 @Composable
-private fun CategoryBadge(category: ScreenshotCategory, label: String) {
+private fun ShelfBadge(icon: ImageVector, label: String) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -148,7 +160,7 @@ private fun CategoryBadge(category: ScreenshotCategory, label: String) {
             .padding(horizontal = 6.dp, vertical = 3.dp),
     ) {
         Icon(
-            imageVector = category.icon,
+            imageVector = icon,
             contentDescription = null,
             tint = Color.White,
             modifier = Modifier.size(12.dp),

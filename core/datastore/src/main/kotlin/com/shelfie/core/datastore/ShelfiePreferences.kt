@@ -5,6 +5,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import com.shelfie.core.model.ShelfSortOrder
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -38,6 +40,13 @@ class ShelfiePreferences @Inject constructor(
     val useDynamicColor: Flow<Boolean> =
         dataStore.data.map { it[KEY_DYNAMIC_COLOR] ?: true }
 
+    /**
+     * Grid ordering. Stored by enum name, and an unrecognised value falls back to
+     * the default rather than throwing, so a downgrade cannot crash the shelf.
+     */
+    val shelfSortOrder: Flow<ShelfSortOrder> =
+        dataStore.data.map { ShelfSortOrder.fromNameOrDefault(it[KEY_SHELF_SORT]) }
+
     /** Advances the watermark; never moves backwards. */
     suspend fun advanceWatermark(dateAddedSeconds: Long) {
         dataStore.edit { prefs ->
@@ -65,6 +74,10 @@ class ShelfiePreferences @Inject constructor(
         dataStore.edit { it[KEY_DYNAMIC_COLOR] = enabled }
     }
 
+    suspend fun setShelfSortOrder(order: ShelfSortOrder) {
+        dataStore.edit { it[KEY_SHELF_SORT] = order.name }
+    }
+
     suspend fun setLastReconcileAt(epochSeconds: Long) {
         dataStore.edit { it[KEY_LAST_RECONCILE] = epochSeconds }
     }
@@ -75,5 +88,6 @@ class ShelfiePreferences @Inject constructor(
         val KEY_FULL_VERSION = booleanPreferencesKey("full_version_purchased")
         val KEY_LAST_RECONCILE = longPreferencesKey("last_reconcile_seconds")
         val KEY_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
+        val KEY_SHELF_SORT = stringPreferencesKey("shelf_sort_order")
     }
 }

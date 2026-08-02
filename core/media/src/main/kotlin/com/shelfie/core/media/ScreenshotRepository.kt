@@ -6,18 +6,25 @@ import androidx.paging.PagingData
 import androidx.paging.map
 import com.shelfie.core.classify.UserRule
 import com.shelfie.core.database.dao.CategoryCount
+import com.shelfie.core.database.dao.FolderCount
 import com.shelfie.core.database.dao.IndexStateCount
 import com.shelfie.core.database.dao.ScreenshotDao
 import com.shelfie.core.database.entity.ScreenshotEntity
+import com.shelfie.core.database.entity.newFolderEntity
 import com.shelfie.core.database.entity.toDomain
 import com.shelfie.core.datastore.ShelfiePreferences
 import com.shelfie.core.datastore.UserRuleStore
+import com.shelfie.core.model.Folder
+import com.shelfie.core.model.FolderIcon
+import com.shelfie.core.model.FolderWithCount
 import com.shelfie.core.model.IndexProgress
 import com.shelfie.core.model.IndexTier
 import com.shelfie.core.model.MediaAccess
 import com.shelfie.core.model.Screenshot
 import com.shelfie.core.model.ScreenshotCategory
 import com.shelfie.core.model.SearchQuery
+import com.shelfie.core.model.ShelfFilter
+import com.shelfie.core.model.ShelfSortOrder
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -44,11 +51,11 @@ class ScreenshotRepository @Inject constructor(
 
     // ------------------------------------------------------------------ paging
 
-    /** The shelf feed: newest first, always. */
-    fun pagedShelf(): Flow<PagingData<Screenshot>> = pager { dao.pagedShelf() }
-
-    fun pagedByCategory(category: ScreenshotCategory): Flow<PagingData<Screenshot>> =
-        pager { dao.pagedByCategory(category) }
+    /** The shelf feed for a given filter and ordering. */
+    fun pagedShelf(
+        filter: ShelfFilter = ShelfFilter.All,
+        sort: ShelfSortOrder = ShelfSortOrder.Default,
+    ): Flow<PagingData<Screenshot>> = pager { dao.pagedShelf(filter, sort) }
 
     /**
      * Full-text search. Returns null when [rawQuery] has no usable tokens, so
@@ -81,9 +88,72 @@ class ScreenshotRepository @Inject constructor(
     /** The recognised text, for the detail sheet. */
     suspend fun textFor(id: Long): String? = dao.textFor(id)
 
-    /** Applies a manual re-categorisation. */
-    suspend fun setCategory(id: Long, category: ScreenshotCategory) =
+    /**
+     * Applies a manual re-categorisation.
+     *
+     * Also clears any folder, because picking an automatic category is the user
+     * saying "this belongs there instead" — leaving it filed would make the choice
+     * appear to have been ignored, since folders take precedence in the UI.
+     */
+    suspend fun setCategory(id: Long, category: ScreenshotCategory) {
         dao.setCategory(id, category)
+        dao.setFolder(id, null)
+    }
+
+    // ----------------------------------------------------------------- folders
+
+    fun observeFolders(): Flow<List<Folder>> =
+        dao.observeFolders().map { rows -> rows.map { it.toDomain() } }
+
+    /**
+     * Folders with how many screenshots each holds.
+     *
+     * Mapped to the domain type here so the database row shape stays inside the
+     * data layer and callers never touch [FolderCount].
+     */
+    fun observeFolderCounts(): Flow<List<FolderWithCount>> =
+        dao.observeFolderCounts().map { rows ->
+            rows.map { row ->
+                FolderWithCount(
+                    folder = Folder(
+                        id = row.folderId,
+                        name = row.name,
+                        icon = FolderIcon.fromNameOrDefault(row.icon),
+                    ),
+                    count = row.count,
+                )
+            }
+        }
+
+    /**
+     * Creates a folder, or returns the existing one with the same name.
+     *
+     * Idempotent by design: a double tap on "Create" must not produce two folders
+     * that look identical. Uniqueness is enforced by the database's `name_key`
+     * index, so this cannot race — the INSERT is ignored and the existing row is
+     * read back.
+     */
+    suspend fun createFolder(
+        rawName: String,
+        icon: FolderIcon = FolderIcon.FOLDER,
+        nowSeconds: Long = System.currentTimeMillis() / 1000,
+    ): Folder? {
+        if (!Folder.isValidName(rawName)) return null
+
+        val entity = newFolderEntity(rawName, icon, nowSeconds)
+        val id = dao.insertFolder(entity)
+
+        // -1 means the unique index rejected it: a folder with this name is already
+        // there, which is a success from the user's point of view.
+        val row = if (id == -1L) dao.folderByNameKey(entity.nameKey) else entity.copy(id = id)
+        return row?.toDomain()
+    }
+
+    /** Files a screenshot into a folder, or clears it when [folderId] is null. */
+    suspend fun setFolder(id: Long, folderId: Long?) = dao.setFolder(id, folderId)
+
+    /** Deletes a folder; its screenshots return to their automatic category. */
+    suspend fun deleteFolder(id: Long) = dao.deleteFolder(id)
 
     // ------------------------------------------------------------------- rules
 

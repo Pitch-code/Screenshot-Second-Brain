@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.shelfie.core.classify.EntityExtractor
 import com.shelfie.core.classify.ExtractedEntities
 import com.shelfie.core.media.ScreenshotRepository
+import com.shelfie.core.model.Folder
+import com.shelfie.core.model.FolderIcon
 import com.shelfie.core.model.Screenshot
 import com.shelfie.core.model.ScreenshotCategory
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,7 +42,11 @@ class DetailViewModel @Inject constructor(
             if (id == null) {
                 flowOf(DetailUiState(isLoading = true))
             } else {
-                combine(repository.observeScreenshot(id), text) { screenshot, recognisedText ->
+                combine(
+                    repository.observeScreenshot(id),
+                    text,
+                    repository.observeFolders(),
+                ) { screenshot, recognisedText, folders ->
                     DetailUiState(
                         screenshot = screenshot,
                         text = recognisedText,
@@ -49,6 +55,7 @@ class DetailViewModel @Inject constructor(
                         // benefits every existing screenshot with no migration.
                         entities = recognisedText?.let(EntityExtractor::extract)
                             ?: ExtractedEntities.Empty,
+                        folders = folders,
                         isLoading = screenshot == null,
                     )
                 }
@@ -73,6 +80,27 @@ class DetailViewModel @Inject constructor(
         viewModelScope.launch { repository.setCategory(id, category) }
     }
 
+    /** Files this screenshot into an existing folder, or unfiles it when null. */
+    fun onFolderChanged(folderId: Long?) {
+        val id = screenshotId.value ?: return
+        viewModelScope.launch { repository.setFolder(id, folderId) }
+    }
+
+    /**
+     * Creates a folder and immediately files this screenshot into it.
+     *
+     * One step rather than two, because the user only reached this dialog in order
+     * to move *this* screenshot — creating an empty folder and leaving them to move
+     * it themselves would be a pointless extra tap.
+     */
+    fun onCreateFolderAndFile(name: String, icon: FolderIcon) {
+        val id = screenshotId.value ?: return
+        viewModelScope.launch {
+            val folder = repository.createFolder(name, icon) ?: return@launch
+            repository.setFolder(id, folder.id)
+        }
+    }
+
     /**
      * Creates a standing rule from this screenshot.
      *
@@ -93,5 +121,10 @@ data class DetailUiState(
     val screenshot: Screenshot? = null,
     val text: String? = null,
     val entities: ExtractedEntities = ExtractedEntities.Empty,
+    val folders: List<Folder> = emptyList(),
     val isLoading: Boolean = false,
-)
+) {
+    /** The folder this screenshot is filed in, if any. */
+    val folder: Folder?
+        get() = screenshot?.folderId?.let { id -> folders.firstOrNull { it.id == id } }
+}

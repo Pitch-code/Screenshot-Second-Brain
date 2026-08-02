@@ -37,7 +37,13 @@ data class Screenshot(
      * would render as blank boxes on the next launch.
      */
     val localThumbnailPath: String? = null,
+
+    /** The user-created folder this was filed into, if any. */
+    val folderId: Long? = null,
 ) {
+    /** True when the user has filed this deliberately, overriding the classifier. */
+    val isFiled: Boolean get() = folderId != null
+
     val aspectRatio: Float
         get() = if (height == 0) 1f else width.toFloat() / height.toFloat()
 

@@ -14,6 +14,7 @@ import com.shelfie.core.media.IndexingQuota
 import com.shelfie.core.media.QuotaState
 import com.shelfie.core.media.ScreenshotDeleter
 import com.shelfie.core.media.ScreenshotRepository
+import com.shelfie.core.model.FolderWithCount
 import com.shelfie.core.model.MediaAccess
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.shelfie.core.designsystem.component.UiMessage
@@ -51,6 +52,7 @@ class SettingsViewModel @Inject constructor(
             repository.observeStateCounts(),
             repository.observeLastError(),
         ) { counts, error -> counts to error },
+        repository.observeFolderCounts(),
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         val rules = values[0] as List<UserRule>
@@ -59,9 +61,11 @@ class SettingsViewModel @Inject constructor(
         val dynamicColor = values[3] as Boolean
         val (msg, failure) = values[4] as Pair<UiMessage?, String?>
         val (counts, lastError) = values[5] as Pair<List<IndexStateCount>, String?>
+        val folders = values[6] as List<FolderWithCount>
 
         SettingsUiState(
             rules = rules,
+            folders = folders,
             quota = quotaState,
             billing = billingState,
             useDynamicColor = dynamicColor,
@@ -122,6 +126,16 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { repository.removeRule(id) }
     }
 
+    /**
+     * Deletes a folder. Its screenshots return to their automatic category.
+     *
+     * Offered here because otherwise a mistyped folder name would be permanent —
+     * the create flow lives in the detail sheet and has no edit path.
+     */
+    fun onDeleteFolder(id: Long) {
+        viewModelScope.launch { repository.deleteFolder(id) }
+    }
+
     fun onAddRule(keyword: String, category: com.shelfie.core.model.ScreenshotCategory) {
         if (keyword.isBlank()) return
         viewModelScope.launch {
@@ -160,6 +174,7 @@ class SettingsViewModel @Inject constructor(
 
 data class SettingsUiState(
     val rules: List<UserRule> = emptyList(),
+    val folders: List<FolderWithCount> = emptyList(),
     val quota: QuotaState = QuotaState(),
     val billing: BillingState = BillingState.Connecting,
     val useDynamicColor: Boolean = true,

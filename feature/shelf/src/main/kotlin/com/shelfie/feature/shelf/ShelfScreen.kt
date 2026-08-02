@@ -37,12 +37,13 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import com.shelfie.core.designsystem.action.ActionResult
 import com.shelfie.core.designsystem.action.ScreenshotActionLauncher
-import com.shelfie.core.designsystem.component.CategoryFilterRow
 import com.shelfie.core.designsystem.component.EmptyState
 import com.shelfie.core.designsystem.component.IndexProblemCard
 import com.shelfie.core.designsystem.component.IndexStatusStrip
 import com.shelfie.core.designsystem.component.LimitedModeBanner
 import com.shelfie.core.designsystem.component.ScreenshotTile
+import com.shelfie.core.designsystem.component.ShelfFilterRow
+import com.shelfie.core.model.Folder
 import com.shelfie.core.model.Screenshot
 import com.shelfie.core.model.ScreenshotAction
 import kotlinx.coroutines.launch
@@ -121,13 +122,16 @@ fun ShelfScreen(
                 )
             }
 
-            if (state.categories.isNotEmpty()) {
-                CategoryFilterRow(
-                    counts = state.categories.map { it.category to it.count },
-                    selected = state.selectedCategory,
-                    onSelect = viewModel::onCategorySelected,
-                )
-            }
+            // Always rendered, unlike the old category-only row: the sort control
+            // lives here, and it must stay reachable even before enough
+            // screenshots exist for any category chip to qualify.
+            ShelfFilterRow(
+                chips = state.chips,
+                selected = state.selectedFilter,
+                sort = state.sortOrder,
+                onSelect = viewModel::onFilterSelected,
+                onSortChange = viewModel::onSortSelected,
+            )
 
             when {
                 state.isEmpty && state.access.isLimited -> EmptyState(
@@ -147,6 +151,7 @@ fun ShelfScreen(
                 else -> ShelfGrid(
                     items = items,
                     onScreenshotClick = onScreenshotClick,
+                    folderFor = viewModel::folderFor,
                     onAction = { screenshot, action ->
                         scope.launch {
                             val ctx = viewModel.actionContext(screenshot.id)
@@ -174,6 +179,7 @@ fun ShelfScreen(
 private fun ShelfGrid(
     items: LazyPagingItems<ShelfListItem>,
     onScreenshotClick: (Long) -> Unit,
+    folderFor: (Screenshot) -> Folder?,
     onAction: (Screenshot, ScreenshotAction) -> Unit,
 ) {
     LazyVerticalGrid(
@@ -211,6 +217,7 @@ private fun ShelfGrid(
                     screenshot = item.screenshot,
                     onClick = { onScreenshotClick(item.screenshot.id) },
                     onAction = { action -> onAction(item.screenshot, action) },
+                    folder = folderFor(item.screenshot),
                 )
 
                 null -> Box(modifier = Modifier.fillMaxWidth())
