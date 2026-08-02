@@ -12,6 +12,7 @@ import com.shelfie.core.datastore.ShelfiePreferences
 import com.shelfie.core.designsystem.component.ShelfChip
 import com.shelfie.core.media.ImmediateIndexer
 import com.shelfie.core.media.PickerImporter
+import com.shelfie.core.media.RescanResult
 import com.shelfie.core.media.ScreenshotRepository
 import com.shelfie.core.model.Folder
 import com.shelfie.core.model.IndexProgress
@@ -44,9 +45,10 @@ class ShelfViewModel @Inject constructor(
     private val preferences: ShelfiePreferences,
 ) : ViewModel() {
 
-    private val selectedFilter = MutableStateFlow<ShelfFilter>(ShelfFilter.All)
     private val statusDismissed = MutableStateFlow(false)
     private val isImporting = MutableStateFlow(false)
+    private val isRefreshing = MutableStateFlow(false)
+    private val refreshResult = MutableStateFlow<RescanResult?>(null)
 
     /**
      * Access is re-read on every refresh rather than cached.
@@ -87,44 +89,29 @@ class ShelfViewModel @Inject constructor(
 
     val uiState: StateFlow<ShelfUiState> = combine(
         repository.observeProgress(),
+        combine(statusDismissed, isImporting) { dismissed, importing -> dismissed to importing },
         combine(
-            repository.observeCategoryCounts(),
-            repository.observeFolderCounts(),
-        ) { categories, folders ->
-            // Folders first: the user's own filing outranks the app's guesses.
-            val folderChips = folders.map { entry ->
-                ShelfChip(
-                    filter = ShelfFilter.InFolder(entry.folder.id),
-                    count = entry.count,
-                    folder = entry.folder,
-                )
-            }
-            val categoryChips = categories.map { entry ->
-                ShelfChip(
-                    filter = ShelfFilter.Category(entry.category),
-                    count = entry.count,
-                    category = entry.category,
-                )
-            }
-            folderChips + categoryChips
-        },
-        combine(selectedFilter, statusDismissed, isImporting) { a, b, c -> Triple(a, b, c) },
-        repository.observePickedCount(),
+            isRefreshing,
+            refreshResult,
+            repository.observePickedCount(),
+        ) { refreshing, result, picked -> Triple(refreshing, result, picked) },
         combine(
             repository.observeStateCounts(),
             repository.observeLastError(),
             accessRefresh,
             sortOrder,
         ) { counts, error, _, sort -> Triple(counts, error, sort) },
-    ) { progress, chips, (selected, dismissed, importing), pickedCount, diagnostics ->
+    ) { progress, flags, refresh, diagnostics ->
+        val (dismissed, importing) = flags
         val (stateCounts, lastError, sort) = diagnostics
+        val (refreshing, result, pickedCount) = refresh
         ShelfUiState(
             progress = progress,
-            chips = chips,
-            selectedFilter = selected,
             sortOrder = sort,
             statusDismissed = dismissed,
             isImporting = importing,
+            isRefreshing = refreshing,
+            refreshResult = result,
             pickedCount = pickedCount,
             access = repository.currentAccess(),
             stateCounts = stateCounts,
@@ -145,10 +132,11 @@ class ShelfViewModel @Inject constructor(
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     val items: Flow<PagingData<ShelfListItem>> =
-        combine(selectedFilter, sortOrder) { filter, sort -> filter to sort }
-            .distinctUntilChanged()
-            .flatMapLatest { (filter, sort) ->
-                repository.pagedShelf(filter, sort)
+        sortOrder
+            .flatMapLatest { sort ->
+                // Always everything. Filtering by folder or category is the Find
+                // tab's job now, so the shelf stays a single honest chronology.
+                repository.pagedShelf(ShelfFilter.All, sort)
                     .map { paging -> paging.map<Screenshot, ShelfListItem> { ShelfListItem.Item(it) } }
                     .map { paging ->
                         // Date headers only make sense in date order. Under a size
@@ -192,12 +180,30 @@ class ShelfViewModel @Inject constructor(
         }
     }
 
-    fun onFilterSelected(filter: ShelfFilter) {
-        selectedFilter.value = filter
-    }
-
     fun onSortSelected(order: ShelfSortOrder) {
         viewModelScope.launch { preferences.setShelfSortOrder(order) }
+    }
+
+    /**
+     * Manual rescan.
+     *
+     * Reports the outcome rather than just spinning, because "I pressed refresh and
+     * nothing visibly happened" is indistinguishable from "refresh is broken" — and
+     * that ambiguity is what made the missing-screenshots bug so hard to pin down.
+     */
+    fun onRefresh() {
+        if (isRefreshing.value) return
+
+        isRefreshing.value = true
+        viewModelScope.launch {
+            val result = immediateIndexer.refreshNow()
+            isRefreshing.value = false
+            refreshResult.value = result
+        }
+    }
+
+    fun onRefreshMessageShown() {
+        refreshResult.value = null
     }
 
     fun onStatusDismissed() {
@@ -232,11 +238,11 @@ data class ActionContext(val fullText: String?)
 
 data class ShelfUiState(
     val progress: IndexProgress = IndexProgress.Complete,
-    val chips: List<ShelfChip> = emptyList(),
-    val selectedFilter: ShelfFilter = ShelfFilter.All,
     val sortOrder: ShelfSortOrder = ShelfSortOrder.Default,
     val statusDismissed: Boolean = false,
     val isImporting: Boolean = false,
+    val isRefreshing: Boolean = false,
+    val refreshResult: RescanResult? = null,
     val pickedCount: Int = 0,
     val access: MediaAccess = MediaAccess.DENIED,
     val stateCounts: List<IndexStateCount> = emptyList(),

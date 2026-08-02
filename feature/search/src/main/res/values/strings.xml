@@ -7,6 +7,13 @@
     <string name="search_idle_title">Search your screenshots</string>
     <string name="search_idle_body">Type an amount, a name, a code, a booking ID — anything you remember seeing.</string>
 
+    <!-- Browsing folders and categories, which now live on this tab. -->
+    <string name="find_section_folders">Your folders</string>
+    <string name="find_section_categories">Sorted automatically</string>
+    <string name="find_back">Back to all folders</string>
+    <string name="find_folder_empty_title">Nothing in here yet</string>
+    <string name="find_folder_empty_body">Open a screenshot and tap Change to move it into this folder.</string>
+
     <string name="search_no_results_title">No matches for \"%1$s\"</string>
     <string name="search_no_results_body">Older screenshots finish indexing while your phone is idle and charging, so try again later if it was a while ago.</string>
 

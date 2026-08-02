@@ -10,6 +10,12 @@
          reorders. -->
     <string name="settings_section_rules">Auto-filing rules</string>
     <string name="settings_section_data">Your data</string>
+
+    <!-- Rating. Wording avoids begging and avoids implying a rating is required
+         for anything; the app is fully functional either way. -->
+    <string name="settings_rate_title">Rate Shelfie</string>
+    <string name="settings_rate_detail">Opens the Play Store. Reviews help other people find the app.</string>
+    <string name="settings_rate_cta">Rate</string>
     <string name="settings_section_about">About</string>
 
     <!-- Purchase -->

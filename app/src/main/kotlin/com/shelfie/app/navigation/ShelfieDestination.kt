@@ -28,9 +28,17 @@ enum class ShelfieDestination(
         selectedIcon = Icons.Filled.PhotoLibrary,
         unselectedIcon = Icons.Outlined.PhotoLibrary,
     ),
+    /**
+     * Labelled "Find" rather than "Search" because the tab now does both: browse
+     * your folders and the automatic categories, or search inside the text. "Search"
+     * described only half of it, and left folders looking like they belonged on the
+     * shelf.
+     *
+     * The route string stays "search" so no saved navigation state breaks.
+     */
     SEARCH(
         route = "search",
-        label = "Search",
+        label = "Find",
         selectedIcon = Icons.Filled.Search,
         unselectedIcon = Icons.Outlined.Search,
     ),

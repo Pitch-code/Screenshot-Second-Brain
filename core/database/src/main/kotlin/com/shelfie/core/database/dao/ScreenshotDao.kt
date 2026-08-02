@@ -268,6 +268,10 @@ interface ScreenshotDao {
     @Query("SELECT COUNT(*) FROM screenshots WHERE is_deleted = 0")
     fun observeTotalCount(): Flow<Int>
 
+    /** One-shot equivalent, for measuring what a rescan actually added. */
+    @Query("SELECT COUNT(*) FROM screenshots WHERE is_deleted = 0")
+    suspend fun totalCount(): Int
+
     @Query("SELECT COUNT(*) FROM screenshots WHERE index_state = 'INDEXED' AND is_deleted = 0")
     fun observeIndexedCount(): Flow<Int>
 
@@ -493,6 +497,10 @@ interface ScreenshotDao {
 
     @Query("SELECT MAX(date_added) FROM screenshots WHERE source = 'MEDIA_STORE'")
     suspend fun newestDateAdded(): Long?
+
+    /** Somewhere to hang a pipeline-level diagnostic message. */
+    @Query("SELECT id FROM screenshots ORDER BY id DESC LIMIT 1")
+    suspend fun newestRowId(): Long?
 
     @Query("SELECT media_store_id FROM screenshots WHERE source = 'MEDIA_STORE'")
     suspend fun allMediaStoreIds(): List<Long>

@@ -13,13 +13,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -42,10 +50,12 @@ import com.shelfie.core.designsystem.component.IndexProblemCard
 import com.shelfie.core.designsystem.component.IndexStatusStrip
 import com.shelfie.core.designsystem.component.LimitedModeBanner
 import com.shelfie.core.designsystem.component.ScreenshotTile
-import com.shelfie.core.designsystem.component.ShelfFilterRow
+import com.shelfie.core.designsystem.component.SortMenuButton
+import com.shelfie.core.media.RescanResult
 import com.shelfie.core.model.Folder
 import com.shelfie.core.model.Screenshot
 import com.shelfie.core.model.ScreenshotAction
+import com.shelfie.core.model.ShelfSortOrder
 import kotlinx.coroutines.launch
 
 @Composable
@@ -75,6 +85,33 @@ fun ShelfScreen(
     val pickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(MAX_PICK),
     ) { uris -> viewModel.onImagesPicked(uris) }
+
+    // A refresh that reports nothing is indistinguishable from a broken one, so
+    // the outcome is always announced — including "no new screenshots".
+    val rescanFoundNone = stringResource(R.string.shelf_refresh_none)
+    val rescanNoAccess = stringResource(R.string.shelf_refresh_no_access)
+    val refreshResult = state.refreshResult
+    LaunchedEffect(refreshResult) {
+        val message = when (refreshResult) {
+            null -> null
+            is RescanResult.NoAccess -> rescanNoAccess
+            is RescanResult.Failed -> refreshResult.reason
+            is RescanResult.Completed ->
+                if (refreshResult.added > 0) {
+                    context.resources.getQuantityString(
+                        R.plurals.shelf_refresh_found,
+                        refreshResult.added,
+                        refreshResult.added,
+                    )
+                } else {
+                    rescanFoundNone
+                }
+        }
+        if (message != null) {
+            snackbarHostState.showSnackbar(message)
+            viewModel.onRefreshMessageShown()
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
@@ -122,15 +159,14 @@ fun ShelfScreen(
                 )
             }
 
-            // Always rendered, unlike the old category-only row: the sort control
-            // lives here, and it must stay reachable even before enough
-            // screenshots exist for any category chip to qualify.
-            ShelfFilterRow(
-                chips = state.chips,
-                selected = state.selectedFilter,
+            // Folder and category chips moved to the Find tab. The shelf is now
+            // purely "everything, newest first", so all this row carries is the
+            // ordering control and a manual rescan.
+            ShelfToolbar(
                 sort = state.sortOrder,
-                onSelect = viewModel::onFilterSelected,
+                isRefreshing = state.isRefreshing,
                 onSortChange = viewModel::onSortSelected,
+                onRefresh = viewModel::onRefresh,
             )
 
             when {
@@ -260,4 +296,51 @@ private fun DateLabel.resolve(): String = when (this) {
     DateLabel.Today -> stringResource(R.string.shelf_date_today)
     DateLabel.Yesterday -> stringResource(R.string.shelf_date_yesterday)
     is DateLabel.Formatted -> text
+}
+
+
+/**
+ * Sort control plus a manual rescan.
+ *
+ * The rescan button is deliberately always visible rather than appearing only when
+ * something looks wrong. The previous design gated its only retry affordance behind
+ * "nothing has ever been indexed", which meant a working library missing a single
+ * new screenshot offered the user no way to do anything about it.
+ */
+@Composable
+private fun ShelfToolbar(
+    sort: ShelfSortOrder,
+    isRefreshing: Boolean,
+    onSortChange: (ShelfSortOrder) -> Unit,
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.End,
+    ) {
+        Spacer(modifier = Modifier.weight(1f))
+
+        if (isRefreshing) {
+            // Occupies the same slot as the button so the row does not reflow.
+            Box(
+                modifier = Modifier.size(48.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            }
+        } else {
+            IconButton(onClick = onRefresh) {
+                Icon(
+                    imageVector = Icons.Outlined.Refresh,
+                    contentDescription = stringResource(R.string.shelf_refresh),
+                )
+            }
+        }
+
+        SortMenuButton(sort = sort, onSortChange = onSortChange)
+    }
 }

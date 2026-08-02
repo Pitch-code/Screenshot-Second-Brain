@@ -1,6 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
+    <!-- Manual rescan. Always available, and always reports its outcome — a
+         refresh that says nothing cannot be told apart from a broken one. -->
+    <string name="shelf_refresh">Check for new screenshots</string>
+    <plurals name="shelf_refresh_found">
+        <item quantity="one">Found %d new screenshot</item>
+        <item quantity="other">Found %d new screenshots</item>
+    </plurals>
+    <string name="shelf_refresh_none">No new screenshots found</string>
+    <string name="shelf_refresh_no_access">Shelfie cannot read your screenshots. Check permissions in Settings.</string>
+
     <string name="shelf_limited_empty_title">Pick a few screenshots</string>
     <string name="shelf_limited_empty_body">Shelfie will read them and make them searchable. Everything works the same in Limited Mode.</string>
     <string name="shelf_limited_empty_cta">Choose screenshots</string>

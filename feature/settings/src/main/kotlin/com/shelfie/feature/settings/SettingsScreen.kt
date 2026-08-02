@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -286,6 +287,21 @@ fun SettingsScreen(
                 )
             }
 
+            item {
+                ListItem(
+                    leadingContent = {
+                        Icon(Icons.Outlined.StarBorder, contentDescription = null)
+                    },
+                    headlineContent = { Text(stringResource(R.string.settings_rate_title)) },
+                    supportingContent = { Text(stringResource(R.string.settings_rate_detail)) },
+                    trailingContent = {
+                        TextButton(onClick = { context.openPlayStoreReviews() }) {
+                            Text(stringResource(R.string.settings_rate_cta))
+                        }
+                    },
+                )
+            }
+
             // Diagnostics sit above About because they are the reason someone
             // scrolls this far when something is wrong.
             item { SectionHeader(stringResource(R.string.settings_section_diagnostics)) }
@@ -460,5 +476,47 @@ private fun android.content.Context.openPrivacyPolicy() {
     }
 }
 
+/**
+ * Opens the Play Store listing on its reviews section.
+ *
+ * Two-step by necessity. `market://` hands straight to the installed Play app,
+ * which is the only way to reach the in-app rating UI; if Play is absent (an
+ * emulator, a de-Googled ROM, a sideloaded build) that intent throws, so it falls
+ * back to the web listing in a browser.
+ *
+ * `showAllReviews=true` is what lands on the ratings section rather than the top of
+ * the listing.
+ *
+ * Note this always targets [PLAY_PACKAGE_NAME], never the running package: debug
+ * builds are `com.shelfie.app.debug`, which is not on Play, so using
+ * `packageName` here would reliably open a "not found" page during development.
+ *
+ * Shelfie still holds no INTERNET permission. Launching an intent is not
+ * networking — whichever app handles it does its own.
+ */
+private fun android.content.Context.openPlayStoreReviews() {
+    val marketIntent = Intent(
+        Intent.ACTION_VIEW,
+        "market://details?id=$PLAY_PACKAGE_NAME&showAllReviews=true".toUri(),
+    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+    val webIntent = Intent(
+        Intent.ACTION_VIEW,
+        "https://play.google.com/store/apps/details?id=$PLAY_PACKAGE_NAME&showAllReviews=true"
+            .toUri(),
+    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+    runCatching { startActivity(marketIntent) }
+        .recoverCatching { startActivity(webIntent) }
+}
+
 /** Replace with the hosted policy URL before release. */
 private const val PRIVACY_POLICY_URL = "https://shelfie.app/privacy"
+
+/**
+ * The release application id, which is what Play knows about.
+ *
+ * Deliberately a constant rather than `context.packageName`, so debug builds link
+ * to the real listing instead of to a package Play has never heard of.
+ */
+private const val PLAY_PACKAGE_NAME = "com.shelfie.app"

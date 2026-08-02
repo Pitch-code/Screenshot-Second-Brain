@@ -248,6 +248,18 @@ class ScreenshotRepository @Inject constructor(
     /** Requeues failed and skipped rows, e.g. after a fix or a permission change. */
     suspend fun requeueFailed(): Int = dao.requeueFailed()
 
+    /**
+     * Records a pipeline-level error not attributable to one screenshot.
+     *
+     * Attached to the newest row so the existing diagnostics card surfaces it. The
+     * app ships with no crash reporting by design, so an error with nowhere to go
+     * is an error the user can never report and I can never see.
+     */
+    suspend fun recordGlobalError(message: String) {
+        val newest = runCatching { dao.newestRowId() }.getOrNull() ?: return
+        runCatching { dao.setLastError(newest, message) }
+    }
+
     /** How many screenshots Limited Mode can currently see. */
     fun observePickedCount(): Flow<Int> = dao.observePickedCount()
 
@@ -305,6 +317,28 @@ class ScreenshotRepository @Inject constructor(
     suspend fun recordError(id: Long, message: String) = dao.setLastError(id, message)
 
     /**
+     * Forced rescan, for the manual refresh control.
+     *
+     * Ignores the watermark entirely and reports what it found, because the whole
+     * point of a refresh the user pressed is to bypass every optimisation that
+     * might be the reason things look stale — and then to say plainly whether it
+     * worked. Discovery failures are returned rather than swallowed.
+     */
+    suspend fun forceRescan(): RescanResult = runCatching {
+        if (!accessChecker.canReadAnyMedia()) return RescanResult.NoAccess
+
+        val before = dao.totalCount()
+        discoverAll()
+        val after = dao.totalCount()
+
+        RescanResult.Completed(added = (after - before).coerceAtLeast(0))
+    }.getOrElse { error ->
+        // Cancellation is not a failure to report; it means the screen went away.
+        if (error is kotlinx.coroutines.CancellationException) throw error
+        RescanResult.Failed(error.message ?: error::class.simpleName ?: "unknown error")
+    }
+
+    /**
      * Seeds the very first batch: the newest [limit] screenshots regardless of
      * watermark, so the shelf has content within seconds of first launch.
      */
@@ -345,8 +379,23 @@ class ScreenshotRepository @Inject constructor(
         return ReconcileReport.Completed(discovered = discovered, pruned = pruned, purged = purged)
     }
 
-    private suspend fun currentWatermark(): Long =
-        runCatching { dao.newestDateAdded() }.getOrNull() ?: 0L
+    /**
+     * Newest known MediaStore timestamp, clamped to now.
+     *
+     * The clamp is not paranoia. `date_added` is copied verbatim from the media
+     * provider, and some OEM providers (and restored or cloud-synced media) report
+     * it in milliseconds or with a timestamp in the future. A single such row makes
+     * `MAX(date_added)` astronomically large, and every later
+     * `DATE_ADDED >= watermark` scan then matches nothing — permanently, and
+     * silently. Symptom: the first launch works, and no screenshot is ever found
+     * again.
+     */
+    private suspend fun currentWatermark(
+        nowSeconds: Long = System.currentTimeMillis() / 1000,
+    ): Long {
+        val newest = runCatching { dao.newestDateAdded() }.getOrNull() ?: 0L
+        return newest.coerceIn(0L, nowSeconds)
+    }
 
     private fun MediaStoreScreenshot.toPendingEntity() = ScreenshotEntity(
         mediaStoreId = mediaStoreId,
@@ -368,4 +417,16 @@ class ScreenshotRepository @Inject constructor(
 sealed interface ReconcileReport {
     data object Skipped : ReconcileReport
     data class Completed(val discovered: Int, val pruned: Int, val purged: Int) : ReconcileReport
+}
+
+/**
+ * Outcome of a user-triggered rescan.
+ *
+ * Deliberately reports the failure text: a refresh that silently does nothing is
+ * exactly the experience this control exists to fix.
+ */
+sealed interface RescanResult {
+    data class Completed(val added: Int) : RescanResult
+    data object NoAccess : RescanResult
+    data class Failed(val reason: String) : RescanResult
 }
