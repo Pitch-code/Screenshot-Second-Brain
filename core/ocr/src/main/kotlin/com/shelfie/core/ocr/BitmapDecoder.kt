@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -40,9 +41,7 @@ class BitmapDecoder @Inject constructor(
             inPreferredConfig = Bitmap.Config.RGB_565
         }
 
-        return contentResolver.openInputStream(uri)?.use { stream ->
-            BitmapFactory.decodeStream(stream, null, options)
-        }
+        return decodeWith(uri, options)
     }
 
     /**
@@ -59,17 +58,46 @@ class BitmapDecoder @Inject constructor(
             inSampleSize = Companion.calculateInSampleSize(width, height, targetEdge)
             inPreferredConfig = Bitmap.Config.RGB_565
         }
-        return contentResolver.openInputStream(uri)?.use { stream ->
-            BitmapFactory.decodeStream(stream, null, options)
-        }
+        return decodeWith(uri, options)
     }
 
-    /** Reads dimensions without allocating pixel memory. */
+    /**
+     * Runs a real (pixel-producing) decode. Unlike [readBounds], a null result
+     * here genuinely means failure, so the stream's result is the return value.
+     */
+    private fun decodeWith(uri: Uri, options: BitmapFactory.Options): Bitmap? =
+        try {
+            contentResolver.openInputStream(uri)?.use { stream ->
+                BitmapFactory.decodeStream(stream, null, options)
+            }
+        } catch (e: IOException) {
+            null
+        } catch (e: OutOfMemoryError) {
+            // A single oversized image must not take down the whole indexing run.
+            null
+        }
+
+    /**
+     * Reads dimensions without allocating pixel memory.
+     *
+     * Note on the deliberate shape of this function: with
+     * [BitmapFactory.Options.inJustDecodeBounds] set, [BitmapFactory.decodeStream]
+     * returns null *on success* — the dimensions come back on [options], not as a
+     * bitmap. So the null check must be on the stream, never on the decode result.
+     * Collapsing this into `openInputStream(uri)?.use { decodeStream(...) } ?: return null`
+     * looks tidier and fails 100% of the time.
+     */
     fun readBounds(uri: Uri): Pair<Int, Int>? {
         val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        contentResolver.openInputStream(uri)?.use { stream ->
-            BitmapFactory.decodeStream(stream, null, options)
+
+        val stream = try {
+            contentResolver.openInputStream(uri)
+        } catch (e: IOException) {
+            // Media rows can outlive the underlying file; treat as undecodable.
+            null
         } ?: return null
+
+        stream.use { BitmapFactory.decodeStream(it, null, options) }
 
         return if (options.outWidth > 0 && options.outHeight > 0) {
             options.outWidth to options.outHeight
