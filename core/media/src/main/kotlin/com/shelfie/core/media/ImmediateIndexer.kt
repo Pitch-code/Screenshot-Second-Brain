@@ -78,26 +78,60 @@ class ImmediateIndexer @Inject constructor(
      * batch, because this runs every time the screen resumes and must never feel
      * like work. Anything it does not reach is left to the background tiers.
      */
+    /**
+     * User-pressed refresh.
+     *
+     * Bypasses [hasRunThisProcess] and the watermark, and reports back what
+     * happened. Exists because there was previously no way at all to force a
+     * rescan: the retry card is gated behind "nothing has ever indexed", so a
+     * working library with one missing screenshot had no affordance whatsoever.
+     */
+    suspend fun refreshNow(): RescanResult {
+        val result = repository.forceRescan()
+
+        if (result is RescanResult.Completed) {
+            mutex.withLock { drainPending(IndexTierPolicy.CATCH_UP_BATCH) }
+        }
+        scheduler.scheduleAll()
+        return result
+    }
+
     private suspend fun runCatchUp() {
         withContext(NonCancellable + Dispatchers.Default) {
             // A previous run may have been killed mid-index.
             runCatching { repository.requeueStaleWork() }
 
-            runCatching { repository.discoverNew() }
+            val found = runCatching { repository.discoverNew() }
+                .onFailure { error ->
+                    // Previously swallowed outright, which made a broken watermark
+                    // indistinguishable from "nothing new" — no log, no state, no
+                    // way to tell. Surfaced on the diagnostics card instead.
+                    runCatching { repository.recordGlobalError("Discovery failed: ${error.message}") }
+                }
+                .getOrDefault(0)
 
-            val rules = runCatching { repository.currentRules() }.getOrDefault(emptyList())
-
-            val pending = runCatching {
-                repository.nextPending(IndexTierPolicy.CATCH_UP_BATCH)
-            }.getOrDefault(emptyList())
-
-            for (entity in pending) {
-                val outcome = runCatching { indexer.index(entity, rules) }.getOrNull()
-                if (outcome == IndexOutcome.AccessLost) break
+            // Watermark scans can only ever look forward, so anything they miss
+            // they miss forever. A full scan costs one cursor walk with no image
+            // work, which is worth paying to avoid a permanently stuck library.
+            if (found == 0) {
+                runCatching { repository.discoverAll() }
             }
 
-            runCatching { quota.enforce() }
+            drainPending(IndexTierPolicy.CATCH_UP_BATCH)
         }
+    }
+
+    private suspend fun drainPending(limit: Int) {
+        val rules = runCatching { repository.currentRules() }.getOrDefault(emptyList())
+
+        val pending = runCatching { repository.nextPending(limit) }.getOrDefault(emptyList())
+
+        for (entity in pending) {
+            val outcome = runCatching { indexer.index(entity, rules) }.getOrNull()
+            if (outcome == IndexOutcome.AccessLost) break
+        }
+
+        runCatching { quota.enforce() }
     }
 
     private suspend fun runImmediateTier() {

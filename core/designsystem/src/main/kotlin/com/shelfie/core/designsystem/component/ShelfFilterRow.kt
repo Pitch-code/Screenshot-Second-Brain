@@ -124,8 +124,9 @@ fun ShelfFilterRow(
     }
 }
 
+/** Sort picker. Shared by the shelf toolbar and the Find tab. */
 @Composable
-private fun SortMenuButton(
+fun SortMenuButton(
     sort: ShelfSortOrder,
     onSortChange: (ShelfSortOrder) -> Unit,
 ) {
