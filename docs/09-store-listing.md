@@ -87,7 +87,7 @@ and nothing blocks you from using the app while it works.
 
 FREE, AND OPTIONAL FULL VERSION
 
-Free covers your newest 150 screenshots, and keeps working forever — no trial, no
+Free covers your newest 50 screenshots, and keeps working forever — no trial, no
 expiry, no ads.
 
 One payment unlocks:

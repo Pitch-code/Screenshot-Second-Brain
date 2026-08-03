@@ -54,6 +54,31 @@ class IndexingQuota @Inject constructor(
     }
 
     /**
+     * True when this row would be held back the moment it was recognised, so there is
+     * no point recognising it.
+     *
+     * Without this the indexer works through the entire backlog newest-first,
+     * extracting text from every screenshot and then discarding all but the newest N.
+     * On a library of a few thousand that is hours of battery spent producing nothing.
+     *
+     * The rolling window is preserved: a row newer than the current boundary still
+     * gets recognised, and displaces an older one. Only rows that are already outside
+     * the window are skipped.
+     */
+    suspend fun shouldSkipUnrecognised(dateAdded: Long): Boolean {
+        if (isUnlimited()) return false
+
+        // Room left, so nothing is being displaced.
+        if (dao.indexedCount() < FREE_INDEX_LIMIT) return false
+
+        val boundary = dao.dateAddedAtRank(FREE_INDEX_LIMIT - 1) ?: return false
+        return dateAdded < boundary
+    }
+
+    /** Marks a row as held without recognising it. */
+    suspend fun holdWithoutIndexing(id: Long) = dao.holdWithoutIndexing(id)
+
+    /**
      * Returns held-back screenshots to the queue while the window has room.
      *
      * Released rows go back to PENDING rather than straight to INDEXED, because their
@@ -102,7 +127,7 @@ class IndexingQuota @Inject constructor(
          * fit comfortably — while leaving a real reason to unlock for anyone with
          * a big backlog.
          */
-        const val FREE_INDEX_LIMIT = 150
+        const val FREE_INDEX_LIMIT = 50
     }
 }
 

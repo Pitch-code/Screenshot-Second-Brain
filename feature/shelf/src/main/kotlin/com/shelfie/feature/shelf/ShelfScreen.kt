@@ -142,6 +142,18 @@ fun ShelfScreen(
         )
     }
 
+    val upsell by viewModel.upsellPrompt.collectAsStateWithLifecycle()
+    upsell?.let { prompt ->
+        UpsellDialog(
+            foundCount = prompt.foundCount,
+            freeLimit = prompt.freeLimit,
+            onContinueFree = viewModel::onUpsellDismissed,
+            onUnlock = {
+                (context as? android.app.Activity)?.let(viewModel::onUnlockRequested)
+            },
+        )
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
 

@@ -206,7 +206,7 @@ either way.
   Store connection at all. Play stays the source of truth and refreshes the cache
   whenever reachable — which is also the restore-purchases path, requiring no user
   action.
-- Free tier is a **rolling window of the newest 150**, not a hard stop. A hard stop
+- Free tier is a **rolling window of the newest 50**, not a hard stop. A hard stop
   would silently break the app for everything taken afterwards; a rolling window
   keeps recent screenshots searchable, which is where nearly all the value is.
   Rolled-out rows keep their metadata and stay on the shelf — only the searchable

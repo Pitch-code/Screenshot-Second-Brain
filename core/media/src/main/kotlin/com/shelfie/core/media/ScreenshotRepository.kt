@@ -418,6 +418,9 @@ class ScreenshotRepository @Inject constructor(
      * Seeds the very first batch: the newest [limit] screenshots regardless of
      * watermark, so the shelf has content within seconds of first launch.
      */
+    /** How many screenshots Shelfie knows about, searchable or not. */
+    suspend fun discoveredCount(): Int = dao.discoveredCount()
+
     suspend fun discoverNewest(limit: Int): Int {
         if (!accessChecker.canReadAnyMedia()) return 0
 
