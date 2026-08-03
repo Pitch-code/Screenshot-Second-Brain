@@ -134,6 +134,13 @@ class ImmediateIndexer @Inject constructor(
         val pending = runCatching { repository.nextPending(limit) }.getOrDefault(emptyList())
 
         for (entity in pending) {
+            // Skip anything already outside the free window rather than recognising
+            // it and discarding the result a moment later.
+            if (runCatching { quota.shouldSkipUnrecognised(entity.dateAdded) }.getOrDefault(false)) {
+                runCatching { quota.holdWithoutIndexing(entity.id) }
+                continue
+            }
+
             val outcome = runCatching { indexer.index(entity, rules) }.getOrNull()
             if (outcome == IndexOutcome.AccessLost) break
         }

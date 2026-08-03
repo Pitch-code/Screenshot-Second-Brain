@@ -12,6 +12,10 @@ import com.shelfie.core.datastore.ShelfiePreferences
 import com.shelfie.core.designsystem.component.ShelfChip
 import com.shelfie.core.media.ImmediateIndexer
 import com.shelfie.core.media.PickerImporter
+import android.app.Activity
+import com.shelfie.core.billing.PurchaseResult
+import com.shelfie.core.billing.ShelfieBilling
+import com.shelfie.core.media.IndexingQuota
 import com.shelfie.core.media.RescanResult
 import com.shelfie.core.media.ScreenshotRepository
 import com.shelfie.core.model.Folder
@@ -43,6 +47,8 @@ class ShelfViewModel @Inject constructor(
     private val pickerImporter: PickerImporter,
     private val immediateIndexer: ImmediateIndexer,
     private val preferences: ShelfiePreferences,
+    private val quota: IndexingQuota,
+    private val billing: ShelfieBilling,
 ) : ViewModel() {
 
     private val statusDismissed = MutableStateFlow(false)
@@ -163,7 +169,11 @@ class ShelfViewModel @Inject constructor(
 
     init {
         // Tier 1 warm-up. Idempotent, so it no-ops after the first run.
-        immediateIndexer.warmUp(viewModelScope)
+        viewModelScope.launch {
+            immediateIndexer.warmUp(viewModelScope).join()
+            // First launch: offer the unlock once the initial scan has a real count.
+            maybeOfferUnlock()
+        }
     }
 
     /** Called when the screen resumes, to pick up permission changes made in Settings. */
@@ -199,11 +209,60 @@ class ShelfViewModel @Inject constructor(
             val result = immediateIndexer.refreshNow()
             isRefreshing.value = false
             refreshResult.value = result
+
+            // After the scan, not before: the count in the prompt has to be the one
+            // the scan just produced, or it reads as stale.
+            maybeOfferUnlock()
         }
     }
 
     fun onRefreshMessageShown() {
         refreshResult.value = null
+    }
+
+    // ---------------------------------------------------------------- upsell
+
+    private val upsell = MutableStateFlow<UpsellPrompt?>(null)
+
+    /**
+     * Decides whether to offer the unlock after a scan.
+     *
+     * Only when there is something concrete to gain: more screenshots exist than the
+     * free window can keep searchable. Someone with 30 screenshots is not missing
+     * anything and must never be asked.
+     */
+    private suspend fun maybeOfferUnlock() {
+        if (quota.isUnlimited()) return
+
+        val found = runCatching { repository.discoveredCount() }.getOrDefault(0)
+        if (found <= IndexingQuota.FREE_INDEX_LIMIT) return
+
+        upsell.value = UpsellPrompt(
+            foundCount = found,
+            freeLimit = IndexingQuota.FREE_INDEX_LIMIT,
+        )
+    }
+
+    fun onUpsellDismissed() {
+        upsell.value = null
+    }
+
+    /**
+     * Starts the purchase. Requires an Activity because Play's billing flow does.
+     *
+     * The dialog closes only on success: leaving it open after a cancelled or failed
+     * payment means the user can try again without having to trigger another scan.
+     */
+    fun onUnlockRequested(activity: Activity) {
+        viewModelScope.launch {
+            val result = runCatching { billing.purchase(activity) }.getOrNull()
+
+            if (result is PurchaseResult.Success || result is PurchaseResult.AlreadyOwned) {
+                runCatching { quota.releaseAll() }
+                immediateIndexer.retry(viewModelScope)
+                upsell.value = null
+            }
+        }
     }
 
     fun onStatusDismissed() {
@@ -225,6 +284,8 @@ class ShelfViewModel @Inject constructor(
         viewModelScope.launch { repository.setCategory(screenshotId, category) }
     }
 
+    val upsellPrompt: StateFlow<UpsellPrompt?> = upsell
+
     /** Resolves the folder badge for a tile, if the screenshot is filed. */
     fun folderFor(screenshot: Screenshot): Folder? =
         screenshot.folderId?.let { foldersById.value[it] }
@@ -235,6 +296,12 @@ class ShelfViewModel @Inject constructor(
 }
 
 data class ActionContext(val fullText: String?)
+
+/** What the upsell dialog needs to describe the trade honestly. */
+data class UpsellPrompt(
+    val foundCount: Int,
+    val freeLimit: Int,
+)
 
 data class ShelfUiState(
     val progress: IndexProgress = IndexProgress.Complete,

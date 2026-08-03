@@ -453,6 +453,37 @@ interface ScreenshotDao {
     )
     suspend fun indexedIdsBeyond(limit: Int): List<Long>
 
+    /**
+     * The [limit]th newest screenshot's timestamp, or null if there are fewer.
+     *
+     * Used to avoid recognising text that is about to be thrown away. On the free
+     * tier the window keeps only the newest N, so a pending screenshot older than
+     * this boundary would be recognised and then immediately held back — on a library
+     * of a few thousand that is hours of battery spent producing nothing.
+     */
+    @Query(
+        """
+        SELECT date_added FROM screenshots
+        WHERE is_deleted = 0 AND index_state IN ('INDEXED', 'QUOTA_HELD')
+        ORDER BY date_added DESC
+        LIMIT 1 OFFSET :limit
+        """,
+    )
+    suspend fun dateAddedAtRank(limit: Int): Long?
+
+    /**
+     * Holds a row back without recognising it.
+     *
+     * Distinct from the post-recognition path: there is no text to delete, because
+     * none was ever extracted.
+     */
+    @Query("UPDATE screenshots SET index_state = 'QUOTA_HELD' WHERE id = :id")
+    suspend fun holdWithoutIndexing(id: Long)
+
+    /** Screenshots known about but never processed, for the "found N" total. */
+    @Query("SELECT COUNT(*) FROM screenshots WHERE is_deleted = 0")
+    suspend fun discoveredCount(): Int
+
     @Query("UPDATE screenshots SET index_state = 'QUOTA_HELD' WHERE id IN (:ids)")
     suspend fun markQuotaHeld(ids: List<Long>)
 

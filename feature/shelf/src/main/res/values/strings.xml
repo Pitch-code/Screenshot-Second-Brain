@@ -13,6 +13,22 @@
         <item quantity="other">Removed %d deleted screenshots</item>
     </plurals>
     <string name="shelf_refresh_none">Nothing changed — no new or deleted screenshots</string>
+
+    <!--
+      Upsell shown after a scan finds more screenshots than the free window keeps.
+
+      Deliberately does NOT say "free trial". The free tier never expires, so calling
+      it a trial would be inaccurate, would contradict the store listing's "no trial,
+      no expiry", and is the kind of misdescribed offer Play takes a dim view of. It
+      says "free version" throughout.
+
+      It also states what the free tier still DOES rather than only what it withholds,
+      because a dialog that reads purely as a restriction gets dismissed unread.
+    -->
+    <string name="upsell_title">%1$d screenshots found</string>
+    <string name="upsell_body">The free version keeps your newest %1$d searchable — those are ready now.\n\nOne payment unlocks all %2$d, plus anything you add later, and lets you search other folders such as WhatsApp and Telegram. No subscription.</string>
+    <string name="upsell_continue_free">Continue with free version</string>
+    <string name="upsell_unlock">Unlock everything</string>
     <string name="shelf_refresh_no_access">Shelfie cannot read your screenshots. Check permissions in Settings.</string>
 
     <string name="shelf_limited_empty_title">Pick a few screenshots</string>

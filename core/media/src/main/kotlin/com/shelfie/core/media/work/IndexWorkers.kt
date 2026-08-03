@@ -145,6 +145,15 @@ private suspend fun indexBatch(
 
     var processed = 0
     for (entity in pending) {
+        // Same gate as the foreground path: recognising a screenshot that is already
+        // outside the free window only to hold it back is wasted battery, and on a
+        // large library it is hours of it.
+        if (runCatching { quota.shouldSkipUnrecognised(entity.dateAdded) }.getOrDefault(false)) {
+            runCatching { quota.holdWithoutIndexing(entity.id) }
+            processed++
+            continue
+        }
+
         val outcome = runCatching { indexer.index(entity, rules) }
             .getOrElse { return BatchOutcome.Retry }
 

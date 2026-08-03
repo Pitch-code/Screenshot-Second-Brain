@@ -11,7 +11,7 @@ package com.shelfie.core.model
  * It used to be the latter, which could never become true for a free user with
  * more screenshots than the free-tier window. `total` counts every row, while
  * `indexed` counts only fully-indexed ones — and the free tier deliberately caps
- * that at the newest 150, rolling the remainder into a held state. So a user with
+ * that at the newest few dozen, rolling the remainder into a held state. So a user with
  * 152 screenshots sat at "150 of 152 done" permanently, with a progress bar
  * frozen at 98% and a banner that could not be dismissed for good.
  *
