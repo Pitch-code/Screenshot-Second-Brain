@@ -8,7 +8,11 @@
         <item quantity="one">Found %d new screenshot</item>
         <item quantity="other">Found %d new screenshots</item>
     </plurals>
-    <string name="shelf_refresh_none">No new screenshots found</string>
+    <plurals name="shelf_refresh_removed">
+        <item quantity="one">Removed %d deleted screenshot</item>
+        <item quantity="other">Removed %d deleted screenshots</item>
+    </plurals>
+    <string name="shelf_refresh_none">Nothing changed — no new or deleted screenshots</string>
     <string name="shelf_refresh_no_access">Shelfie cannot read your screenshots. Check permissions in Settings.</string>
 
     <string name="shelf_limited_empty_title">Pick a few screenshots</string>

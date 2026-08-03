@@ -347,6 +347,39 @@ class ScreenshotRepository @Inject constructor(
         runCatching { discoverAll() }
     }
 
+    /**
+     * Removes rows whose underlying image no longer exists on the device.
+     *
+     * Compares the app's own known ids against what MediaStore still reports, rather
+     * than the other way round: the app knows about far fewer images than the device
+     * holds, so this direction binds a handful of parameters instead of tens of
+     * thousands.
+     *
+     * ### Two guards, both of which prevent deleting a user's index
+     *
+     * **Full access only.** Under Android 14's partial access, MediaStore reports
+     * only the handful of images the user hand-picked. Every other row would then
+     * look deleted, and the app would wipe an index built while full access was
+     * granted. A permission downgrade must never destroy data.
+     *
+     * **Never act on an empty result.** A `SecurityException` mid-query returns an
+     * empty set, which is indistinguishable from "the gallery is empty". Treating
+     * that as "everything was deleted" would clear the whole library on a transient
+     * failure.
+     */
+    private suspend fun pruneDeletedFiles(): Int {
+        if (accessChecker.current() != MediaAccess.FULL) return 0
+
+        val liveIds = runCatching { mediaStore.queryAllImageIds() }.getOrDefault(emptySet())
+        if (liveIds.isEmpty()) return 0
+
+        val known = runCatching { dao.allMediaStoreIds() }.getOrDefault(emptyList())
+        val missing = known.filterNot { it in liveIds }
+        if (missing.isEmpty()) return 0
+
+        return runCatching { dao.removeByMediaStoreIds(missing) }.getOrDefault(0)
+    }
+
     /** Records a diagnostic message against one screenshot. */
     suspend fun recordError(id: Long, message: String) = dao.setLastError(id, message)
 
@@ -365,7 +398,16 @@ class ScreenshotRepository @Inject constructor(
         discoverAll()
         val after = dao.totalCount()
 
-        RescanResult.Completed(added = (after - before).coerceAtLeast(0))
+        // Pruning belongs here as much as discovery does. Refresh previously only
+        // ever added, so a user who deleted screenshots from their gallery and
+        // pressed refresh saw nothing happen — the app had no way to notice a
+        // deletion outside the six-hourly reconcile.
+        val removed = pruneDeletedFiles()
+
+        RescanResult.Completed(
+            added = (after - before).coerceAtLeast(0),
+            removed = removed,
+        )
     }.getOrElse { error ->
         // Cancellation is not a failure to report; it means the screen went away.
         if (error is kotlinx.coroutines.CancellationException) throw error
@@ -400,12 +442,7 @@ class ScreenshotRepository @Inject constructor(
         // anything earlier passes missed.
         val discovered = discoverAll()
 
-        val liveIds = mediaStore.queryAllImageIds()
-        val pruned = if (liveIds.isNotEmpty()) {
-            dao.pruneMissing(liveIds.toList())
-        } else {
-            0
-        }
+        val pruned = pruneDeletedFiles()
 
         val purged = dao.purgeDeletedBefore(nowSeconds - RECOVERY_WINDOW_SECONDS)
         preferences.setLastReconcileAt(nowSeconds)
@@ -460,7 +497,7 @@ sealed interface ReconcileReport {
  * exactly the experience this control exists to fix.
  */
 sealed interface RescanResult {
-    data class Completed(val added: Int) : RescanResult
+    data class Completed(val added: Int, val removed: Int = 0) : RescanResult
     data object NoAccess : RescanResult
     data class Failed(val reason: String) : RescanResult
 }

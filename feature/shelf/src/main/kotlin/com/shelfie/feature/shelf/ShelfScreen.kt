@@ -96,16 +96,35 @@ fun ShelfScreen(
             null -> null
             is RescanResult.NoAccess -> rescanNoAccess
             is RescanResult.Failed -> refreshResult.reason
-            is RescanResult.Completed ->
-                if (refreshResult.added > 0) {
-                    context.resources.getQuantityString(
-                        R.plurals.shelf_refresh_found,
-                        refreshResult.added,
-                        refreshResult.added,
-                    )
-                } else {
-                    rescanFoundNone
+            is RescanResult.Completed -> {
+                // Removals are reported as prominently as additions. A user who has
+                // just deleted screenshots from their gallery and pressed refresh is
+                // asking about removals specifically, and "no new screenshots" would
+                // read as a failure.
+                val added = refreshResult.added
+                val removed = refreshResult.removed
+                val parts = buildList {
+                    if (added > 0) {
+                        add(
+                            context.resources.getQuantityString(
+                                R.plurals.shelf_refresh_found,
+                                added,
+                                added,
+                            ),
+                        )
+                    }
+                    if (removed > 0) {
+                        add(
+                            context.resources.getQuantityString(
+                                R.plurals.shelf_refresh_removed,
+                                removed,
+                                removed,
+                            ),
+                        )
+                    }
                 }
+                if (parts.isEmpty()) rescanFoundNone else parts.joinToString(" · ")
+            }
         }
         if (message != null) {
             snackbarHostState.showSnackbar(message)
