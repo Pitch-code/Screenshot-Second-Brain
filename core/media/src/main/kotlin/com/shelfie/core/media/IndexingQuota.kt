@@ -35,8 +35,44 @@ class IndexingQuota @Inject constructor(
      * Called after each indexing batch. No-op for paid users.
      */
     suspend fun enforce(): Int {
-        if (isUnlimited()) return 0
+        if (isUnlimited()) {
+            // A paid user should never have holds left over from before the purchase.
+            dao.releaseQuotaHolds()
+            return 0
+        }
+
+        // Reclaim before trimming, not after. The window is meant to be rolling in
+        // both directions: this used to only ever hold rows back and never give them
+        // up, so once a screenshot fell out of the free window it stayed unsearchable
+        // for good — even after the user deleted enough screenshots to leave plenty of
+        // room. It showed up as "83 searchable · 13 held back by the free limit" on a
+        // library of 96, which is nonsense to read and looks like the free tier
+        // quietly shrinking.
+        reclaimWithinQuota()
+
         return dao.holdBeyondQuota(FREE_INDEX_LIMIT)
+    }
+
+    /**
+     * Returns held-back screenshots to the queue while the window has room.
+     *
+     * Released rows go back to PENDING rather than straight to INDEXED, because their
+     * recognised text was deleted when they were held — the text has to be extracted
+     * again before they are searchable.
+     *
+     * Newest-first, matching the direction the window rolls: if only some can come
+     * back, they should be the most recent of the held set.
+     *
+     * Cannot oscillate. Releasing at most the available slack means the next
+     * [enforce] finds nothing beyond the limit, so it holds nothing, so there is
+     * nothing to reclaim on the pass after that.
+     */
+    private suspend fun reclaimWithinQuota(): Int {
+        val indexed = dao.indexedCount()
+        val slack = FREE_INDEX_LIMIT - indexed
+        if (slack <= 0) return 0
+
+        return dao.releaseNewestQuotaHolds(slack)
     }
 
     /**
