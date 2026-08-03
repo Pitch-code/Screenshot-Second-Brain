@@ -21,19 +21,24 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +56,7 @@ import androidx.paging.compose.itemKey
 import com.shelfie.core.designsystem.action.ActionResult
 import com.shelfie.core.designsystem.action.ScreenshotActionLauncher
 import com.shelfie.core.designsystem.component.EmptyState
+import com.shelfie.core.designsystem.component.FolderCreateDialog
 import com.shelfie.core.designsystem.component.IndexProblemCard
 import com.shelfie.core.designsystem.component.IndexStatusStrip
 import com.shelfie.core.designsystem.component.LimitedModeBanner
@@ -165,6 +171,81 @@ fun ShelfScreen(
     // Leaving selection with the system back gesture, which is what people try first.
     BackHandler(enabled = selection.isNotEmpty(), onBack = viewModel::onSelectionCleared)
 
+    // Untrash confirmation for undo. Taking files back out of the bin is as much a
+    // media change as putting them in, so it needs its own consent on Android 11+.
+    val undoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult(),
+    ) { }
+
+    val undoable by viewModel.undoableDelete.collectAsStateWithLifecycle()
+    val undoLabel = stringResource(R.string.shelf_undo)
+    LaunchedEffect(undoable) {
+        if (undoable.isEmpty()) return@LaunchedEffect
+
+        val count = undoable.size
+        val result = snackbarHostState.showSnackbar(
+            message = context.resources.getQuantityString(
+                R.plurals.shelf_deleted_undoable,
+                count,
+                count,
+            ),
+            actionLabel = undoLabel,
+            duration = SnackbarDuration.Long,
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            viewModel.onUndoDelete { sender ->
+                undoLauncher.launch(IntentSenderRequest.Builder(sender).build())
+            }
+        } else {
+            viewModel.onUndoDismissed()
+        }
+    }
+
+    val movedCount by viewModel.lastMovedCount.collectAsStateWithLifecycle()
+    LaunchedEffect(movedCount) {
+        if (movedCount == 0) return@LaunchedEffect
+        snackbarHostState.showSnackbar(
+            context.resources.getQuantityString(
+                R.plurals.shelf_moved,
+                movedCount,
+                movedCount,
+            ),
+        )
+        viewModel.onMoveMessageShown()
+    }
+
+    val folders by viewModel.folders.collectAsStateWithLifecycle()
+    var showMoveDialog by remember { mutableStateOf(false) }
+    var showCreateFolder by remember { mutableStateOf(false) }
+
+    if (showMoveDialog) {
+        MoveToFolderDialog(
+            selectedCount = selection.size,
+            folders = folders,
+            onDismiss = { showMoveDialog = false },
+            onMoveTo = { folderId ->
+                viewModel.onMoveSelectionToFolder(folderId)
+                showMoveDialog = false
+            },
+            onCreateNew = {
+                // Swapped rather than stacked: two dialogs at once leaves the lower
+                // one visible behind the scrim.
+                showMoveDialog = false
+                showCreateFolder = true
+            },
+        )
+    }
+
+    if (showCreateFolder) {
+        FolderCreateDialog(
+            onDismiss = { showCreateFolder = false },
+            onCreate = { name, icon ->
+                viewModel.onCreateFolderForSelection(name, icon)
+                showCreateFolder = false
+            },
+        )
+    }
+
     val upsell by viewModel.upsellPrompt.collectAsStateWithLifecycle()
     upsell?.let { prompt ->
         UpsellDialog(
@@ -220,6 +301,7 @@ fun ShelfScreen(
                 SelectionBar(
                     count = selection.size,
                     onClear = viewModel::onSelectionCleared,
+                    onMove = { showMoveDialog = true },
                     onDelete = {
                         val indexOnly = !viewModel.canDeleteFiles()
                         viewModel.onDeleteSelected { sender ->
@@ -439,6 +521,7 @@ private fun ShelfToolbar(
 private fun SelectionBar(
     count: Int,
     onClear: () -> Unit,
+    onMove: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -460,6 +543,13 @@ private fun SelectionBar(
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.weight(1f),
         )
+
+        IconButton(onClick = onMove) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.DriveFileMove,
+                contentDescription = stringResource(R.string.shelf_selection_move),
+            )
+        }
 
         IconButton(onClick = onDelete) {
             Icon(

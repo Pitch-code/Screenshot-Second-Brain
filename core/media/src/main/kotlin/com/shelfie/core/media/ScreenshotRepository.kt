@@ -8,6 +8,7 @@ import com.shelfie.core.classify.UserRule
 import com.shelfie.core.database.dao.CategoryCount
 import com.shelfie.core.database.dao.FolderCount
 import com.shelfie.core.database.dao.IndexStateCount
+import com.shelfie.core.database.dao.SQL_ID_CHUNK
 import com.shelfie.core.database.dao.ScreenshotDao
 import com.shelfie.core.database.entity.ScreenshotEntity
 import com.shelfie.core.database.entity.newFolderEntity
@@ -153,6 +154,16 @@ class ScreenshotRepository @Inject constructor(
 
     /** Files a screenshot into a folder, or clears it when [folderId] is null. */
     suspend fun setFolder(id: Long, folderId: Long?) = dao.setFolder(id, folderId)
+
+    /**
+     * Files several screenshots at once, or clears their folder when null.
+     *
+     * Chunked for the same reason the prune is: a large selection would otherwise
+     * bind more parameters than SQLite allows on older devices.
+     */
+    suspend fun setFolderForAll(ids: List<Long>, folderId: Long?) {
+        ids.chunked(SQL_ID_CHUNK).forEach { chunk -> dao.setFolderForIds(chunk, folderId) }
+    }
 
     /** Deletes a folder; its screenshots return to their automatic category. */
     suspend fun deleteFolder(id: Long) = dao.deleteFolder(id)
