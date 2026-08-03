@@ -208,6 +208,45 @@ interface ScreenshotDao {
     )
     suspend fun pruneMissing(liveIds: List<Long>): Int
 
+    /** Row ids for a set of MediaStore ids, so their text can be removed too. */
+    @Query("SELECT id FROM screenshots WHERE media_store_id IN (:mediaStoreIds)")
+    suspend fun idsForMediaStoreIds(mediaStoreIds: List<Long>): List<Long>
+
+    @Query("DELETE FROM screenshots WHERE media_store_id IN (:mediaStoreIds)")
+    suspend fun deleteByMediaStoreIds(mediaStoreIds: List<Long>): Int
+
+    /**
+     * Removes screenshots whose underlying file is gone, along with their
+     * recognised text.
+     *
+     * Takes the ids to *remove* rather than the ids to keep. The previous approach
+     * bound every image id on the device into a `NOT IN (...)` clause, which meant a
+     * phone with a large gallery bound tens of thousands of parameters — past
+     * SQLite's limit on older versions, where it throws rather than pruning. The
+     * number of rows this app knows about is always far smaller than the number of
+     * images on the device, so comparing in that direction is both correct and
+     * bounded.
+     *
+     * Deleting the FTS rows is not optional. `screenshot_text_fts` is a standalone
+     * FTS4 table, not external-content, so its rows outlive the `screenshots` rows
+     * that referenced them. Without this, text extracted from a deleted screenshot —
+     * one-time passcodes, bank messages — stayed in the database indefinitely, which
+     * contradicts the privacy policy's promise that deleting removes everything.
+     */
+    @Transaction
+    suspend fun removeByMediaStoreIds(mediaStoreIds: List<Long>): Int {
+        if (mediaStoreIds.isEmpty()) return 0
+
+        var removed = 0
+        // Chunked to stay well inside SQLite's bound-parameter limit regardless of
+        // the device's SQLite version.
+        mediaStoreIds.chunked(SQL_ID_CHUNK).forEach { chunk ->
+            deleteTextFor(idsForMediaStoreIds(chunk))
+            removed += deleteByMediaStoreIds(chunk)
+        }
+        return removed
+    }
+
     // ----------------------------------------------------------------- reads
 
     /**
@@ -524,6 +563,15 @@ interface ScreenshotDao {
  * disagree with the queue about whether a row still has a chance of being read.
  */
 const val MAX_INDEX_ATTEMPTS = 3
+
+/**
+ * How many ids to bind in one statement.
+ *
+ * SQLite's `SQLITE_MAX_VARIABLE_NUMBER` was 999 before version 3.32 and 32766 after,
+ * and which one a device has depends on its Android version. 500 is comfortably below
+ * the older limit, so the same code is safe on every supported release.
+ */
+const val SQL_ID_CHUNK = 500
 
 /** Row count for one index state, used by the diagnostics panel. */
 data class IndexStateCount(
