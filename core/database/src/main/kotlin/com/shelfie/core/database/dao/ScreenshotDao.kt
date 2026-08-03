@@ -460,6 +460,34 @@ interface ScreenshotDao {
     @Query("UPDATE screenshots SET index_state = 'PENDING' WHERE index_state = 'QUOTA_HELD'")
     suspend fun releaseQuotaHolds(): Int
 
+    /** One-shot indexed count, for deciding how much room the free window has. */
+    @Query("SELECT COUNT(*) FROM screenshots WHERE index_state = 'INDEXED' AND is_deleted = 0")
+    suspend fun indexedCount(): Int
+
+    /**
+     * Returns up to [limit] held-back screenshots to the queue, newest first.
+     *
+     * Newest-first because that is the direction the free window rolls: if only some
+     * can come back, they should be the most recent of the held set.
+     *
+     * attempt_count is cleared as well. Being held back is not a failure, so a row
+     * that had used up retries before it was ever held must not stay permanently
+     * ineligible once it is released.
+     */
+    @Query(
+        """
+        UPDATE screenshots
+        SET index_state = 'PENDING', attempt_count = 0
+        WHERE id IN (
+          SELECT id FROM screenshots
+          WHERE index_state = 'QUOTA_HELD' AND is_deleted = 0
+          ORDER BY date_added DESC
+          LIMIT :limit
+        )
+        """,
+    )
+    suspend fun releaseNewestQuotaHolds(limit: Int): Int
+
     // is_deleted filter matters: without it, deleting a held screenshot left it
     // counted in the upgrade prompt, offering to unlock rows that no longer exist.
     @Query("SELECT COUNT(*) FROM screenshots WHERE index_state = 'QUOTA_HELD' AND is_deleted = 0")
