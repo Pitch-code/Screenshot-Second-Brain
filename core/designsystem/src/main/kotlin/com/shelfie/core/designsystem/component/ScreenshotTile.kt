@@ -1,6 +1,8 @@
 package com.shelfie.core.designsystem.component
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -65,6 +69,17 @@ fun ScreenshotTile(
      * like it did nothing.
      */
     folder: Folder? = null,
+    /** Long-press, which is how multi-select is entered. Null disables it. */
+    onLongClick: (() -> Unit)? = null,
+    /** True while this tile is part of a multi-select. */
+    selected: Boolean = false,
+    /**
+     * True while any tile is selected.
+     *
+     * The action chip is hidden in this state: tapping "Copy" on a tile the user is
+     * midway through selecting for deletion does something they did not ask for.
+     */
+    selectionActive: Boolean = false,
 ) {
     val categoryLabel = stringResource(screenshot.category.labelRes)
     val badgeLabel = folder?.name ?: categoryLabel
@@ -79,14 +94,19 @@ fun ScreenshotTile(
     )
 
     Card(
-        onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .semantics { contentDescription = tileDescription },
+            .semantics { contentDescription = tileDescription }
+            // combinedClickable rather than Card's onClick, because Card exposes no
+            // long-press parameter.
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
         ),
+        // An outline as well as the tick, so selection is not conveyed only by one
+        // small element in a corner.
+        border = if (selected) BorderStroke(3.dp, MaterialTheme.colorScheme.primary) else null,
     ) {
         Box(
             modifier = Modifier
@@ -139,9 +159,24 @@ fun ScreenshotTile(
                     )
                 }
 
-                screenshot.primaryAction?.let { action ->
-                    TileActionChip(action = action, onClick = { onAction(action) })
+                if (!selectionActive) {
+                    screenshot.primaryAction?.let { action ->
+                        TileActionChip(action = action, onClick = { onAction(action) })
+                    }
                 }
+            }
+
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Filled.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .background(Color.White, RoundedCornerShape(percent = 50))
+                        .size(22.dp),
+                )
             }
         }
     }

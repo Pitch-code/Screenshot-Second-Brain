@@ -1,6 +1,8 @@
 package com.shelfie.feature.shelf
 
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +19,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.CircularProgressIndicator
@@ -34,6 +38,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.shelfie.feature.shelf.R
 import androidx.compose.ui.unit.dp
@@ -142,6 +147,24 @@ fun ShelfScreen(
         )
     }
 
+    val selection by viewModel.selection.collectAsStateWithLifecycle()
+    val indexOnlyMessage = stringResource(R.string.shelf_delete_index_only)
+
+    // System delete confirmation. Declining restores the soft-deleted rows, so
+    // cancelling genuinely cancels.
+    val deleteLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            viewModel.onDeletionConfirmed()
+        } else {
+            viewModel.onDeletionCancelled()
+        }
+    }
+
+    // Leaving selection with the system back gesture, which is what people try first.
+    BackHandler(enabled = selection.isNotEmpty(), onBack = viewModel::onSelectionCleared)
+
     val upsell by viewModel.upsellPrompt.collectAsStateWithLifecycle()
     upsell?.let { prompt ->
         UpsellDialog(
@@ -193,12 +216,30 @@ fun ShelfScreen(
             // Folder and category chips moved to the Find tab. The shelf is now
             // purely "everything, newest first", so all this row carries is the
             // ordering control and a manual rescan.
-            ShelfToolbar(
-                sort = state.sortOrder,
-                isRefreshing = state.isRefreshing,
-                onSortChange = viewModel::onSortSelected,
-                onRefresh = viewModel::onRefresh,
-            )
+            if (selection.isNotEmpty()) {
+                SelectionBar(
+                    count = selection.size,
+                    onClear = viewModel::onSelectionCleared,
+                    onDelete = {
+                        val indexOnly = !viewModel.canDeleteFiles()
+                        viewModel.onDeleteSelected { sender ->
+                            deleteLauncher.launch(IntentSenderRequest.Builder(sender).build())
+                        }
+                        if (indexOnly) {
+                            scope.launch {
+                                snackbarHostState.showSnackbar(indexOnlyMessage)
+                            }
+                        }
+                    },
+                )
+            } else {
+                ShelfToolbar(
+                    sort = state.sortOrder,
+                    isRefreshing = state.isRefreshing,
+                    onSortChange = viewModel::onSortSelected,
+                    onRefresh = viewModel::onRefresh,
+                )
+            }
 
             when {
                 state.isEmpty && state.access.isLimited -> EmptyState(
@@ -217,7 +258,13 @@ fun ShelfScreen(
 
                 else -> ShelfGrid(
                     items = items,
-                    onScreenshotClick = onScreenshotClick,
+                    // While selecting, a tap toggles instead of opening: opening the
+                    // detail sheet mid-selection loses the selection.
+                    onScreenshotClick = { id ->
+                        if (selection.isEmpty()) onScreenshotClick(id) else viewModel.onTileToggled(id)
+                    },
+                    onScreenshotLongPress = viewModel::onTileLongPress,
+                    selectedIds = selection,
                     folderFor = viewModel::folderFor,
                     onAction = { screenshot, action ->
                         scope.launch {
@@ -246,6 +293,8 @@ fun ShelfScreen(
 private fun ShelfGrid(
     items: LazyPagingItems<ShelfListItem>,
     onScreenshotClick: (Long) -> Unit,
+    onScreenshotLongPress: (Long) -> Unit,
+    selectedIds: Set<Long>,
     folderFor: (Screenshot) -> Folder?,
     onAction: (Screenshot, ScreenshotAction) -> Unit,
 ) {
@@ -285,6 +334,9 @@ private fun ShelfGrid(
                     onClick = { onScreenshotClick(item.screenshot.id) },
                     onAction = { action -> onAction(item.screenshot, action) },
                     folder = folderFor(item.screenshot),
+                    onLongClick = { onScreenshotLongPress(item.screenshot.id) },
+                    selected = item.screenshot.id in selectedIds,
+                    selectionActive = selectedIds.isNotEmpty(),
                 )
 
                 null -> Box(modifier = Modifier.fillMaxWidth())
@@ -373,5 +425,48 @@ private fun ShelfToolbar(
         }
 
         SortMenuButton(sort = sort, onSortChange = onSortChange)
+    }
+}
+
+
+/**
+ * Replaces the toolbar while tiles are selected.
+ *
+ * Deliberately occupies the same row rather than appearing above it, so entering
+ * selection does not push the grid down and move the tile the user is aiming at.
+ */
+@Composable
+private fun SelectionBar(
+    count: Int,
+    onClear: () -> Unit,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onClear) {
+            Icon(
+                imageVector = Icons.Outlined.Close,
+                contentDescription = stringResource(R.string.shelf_selection_clear),
+            )
+        }
+
+        Text(
+            text = pluralStringResource(R.plurals.shelf_selected_count, count, count),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f),
+        )
+
+        IconButton(onClick = onDelete) {
+            Icon(
+                imageVector = Icons.Outlined.Delete,
+                contentDescription = stringResource(R.string.shelf_selection_delete),
+                tint = MaterialTheme.colorScheme.error,
+            )
+        }
     }
 }

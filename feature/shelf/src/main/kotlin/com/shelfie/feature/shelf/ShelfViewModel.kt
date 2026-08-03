@@ -16,7 +16,9 @@ import android.app.Activity
 import com.shelfie.core.billing.PurchaseResult
 import com.shelfie.core.billing.ShelfieBilling
 import com.shelfie.core.media.IndexingQuota
+import android.content.IntentSender
 import com.shelfie.core.media.RescanResult
+import com.shelfie.core.media.ScreenshotDeleter
 import com.shelfie.core.media.ScreenshotRepository
 import com.shelfie.core.model.Folder
 import com.shelfie.core.model.IndexProgress
@@ -49,6 +51,7 @@ class ShelfViewModel @Inject constructor(
     private val preferences: ShelfiePreferences,
     private val quota: IndexingQuota,
     private val billing: ShelfieBilling,
+    private val deleter: ScreenshotDeleter,
 ) : ViewModel() {
 
     private val statusDismissed = MutableStateFlow(false)
@@ -285,6 +288,83 @@ class ShelfViewModel @Inject constructor(
     }
 
     val upsellPrompt: StateFlow<UpsellPrompt?> = upsell
+
+    // ------------------------------------------------------ multi-select delete
+
+    private val selectedIds = MutableStateFlow<Set<Long>>(emptySet())
+    val selection: StateFlow<Set<Long>> = selectedIds
+
+    private val deletePending = MutableStateFlow<List<Long>>(emptyList())
+
+    fun onTileLongPress(id: Long) {
+        selectedIds.update { it + id }
+    }
+
+    fun onTileToggled(id: Long) {
+        selectedIds.update { if (id in it) it - id else it + id }
+    }
+
+    fun onSelectionCleared() {
+        selectedIds.value = emptySet()
+    }
+
+    /**
+     * Deletes the current selection, in two stages.
+     *
+     * Not over-engineering: the rows are soft-deleted first so they leave the shelf
+     * at once and land in the 30-day Recently Deleted window, and only then is the
+     * system asked to confirm removing the files. Declining that dialog restores
+     * them, so cancelling genuinely cancels instead of leaving the index and the
+     * gallery disagreeing.
+     *
+     * Android only lets an app delete media it does not own with explicit user
+     * confirmation, so the IntentSender is handed to the UI via [launch].
+     */
+    fun onDeleteSelected(launch: (IntentSender) -> Unit) {
+        val ids = selectedIds.value.toList()
+        if (ids.isEmpty()) return
+
+        viewModelScope.launch {
+            deleter.moveToRecentlyDeleted(ids)
+            deletePending.value = ids
+            selectedIds.value = emptySet()
+
+            val sender = runCatching { deleter.buildDeleteRequest(ids) }.getOrNull()
+            if (sender != null) {
+                launch(sender)
+            } else {
+                // Nothing for the system to confirm: either every row is one of our
+                // own picker-imported copies, or the device predates the API.
+                finaliseDeletion()
+            }
+        }
+    }
+
+    fun onDeletionConfirmed() {
+        viewModelScope.launch { finaliseDeletion() }
+    }
+
+    /** Declining the system dialog puts everything back. */
+    fun onDeletionCancelled() {
+        val ids = deletePending.value
+        deletePending.value = emptyList()
+        viewModelScope.launch { runCatching { deleter.restore(ids) } }
+    }
+
+    private suspend fun finaliseDeletion() {
+        val ids = deletePending.value
+        deletePending.value = emptyList()
+        runCatching { deleter.finalizeDeletion(ids) }
+    }
+
+    /**
+     * False on Android 10 and below, where the file itself cannot be removed.
+     *
+     * Deleting another app's media there needs WRITE_EXTERNAL_STORAGE, which this app
+     * deliberately does not request. Those devices get index-only removal, and the UI
+     * says so rather than implying the file is gone.
+     */
+    fun canDeleteFiles(): Boolean = deleter.canDeleteFiles()
 
     /** Resolves the folder badge for a tile, if the screenshot is filed. */
     fun folderFor(screenshot: Screenshot): Folder? =

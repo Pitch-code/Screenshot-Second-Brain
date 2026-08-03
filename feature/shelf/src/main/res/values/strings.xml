@@ -14,6 +14,18 @@
     </plurals>
     <string name="shelf_refresh_none">Nothing changed — no new or deleted screenshots</string>
 
+    <!-- Multi-select delete. -->
+    <plurals name="shelf_selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <string name="shelf_selection_clear">Clear selection</string>
+    <string name="shelf_selection_delete">Delete selected</string>
+    <!-- Android 10 and below cannot remove the file without a broad write
+         permission this app deliberately does not request, so the wording there
+         must not imply the photo itself is gone. -->
+    <string name="shelf_delete_index_only">Removed from Shelfie. Your phone does not allow this app to delete the files themselves.</string>
+
     <!--
       Upsell shown after a scan finds more screenshots than the free window keeps.
 
