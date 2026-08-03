@@ -370,6 +370,16 @@ interface ScreenshotDao {
     suspend fun setFolder(id: Long, folderId: Long?)
 
     /**
+     * Files several screenshots at once, or clears their folder when null.
+     *
+     * One statement rather than a loop so a bulk move is atomic — a partially applied
+     * move would leave the user's selection split across two folders with no obvious
+     * way to tell which went where.
+     */
+    @Query("UPDATE screenshots SET folder_id = :folderId WHERE id IN (:ids)")
+    suspend fun setFolderForIds(ids: List<Long>, folderId: Long?)
+
+    /**
      * Counts per folder, including empty folders.
      *
      * Unlike categories there is no minimum: the user made this folder on purpose,

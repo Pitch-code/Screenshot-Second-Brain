@@ -72,6 +72,36 @@ class ScreenshotDeleter @Inject constructor(
         }
 
     /**
+     * Builds a request to move files to the system bin, or to take them back out.
+     *
+     * This is what makes an undo honest. [buildDeleteRequest] destroys the file, so
+     * "restore" could only ever put back a database row pointing at nothing — a tile
+     * that renders as a broken box. Trashing keeps the file recoverable at OS level
+     * for the same kind of window Shelfie uses for its own rows, so undo can restore
+     * both halves and actually mean something.
+     *
+     * Used by the shelf's delete, where the user is tidying up and mistakes are
+     * likely. Cleanup keeps using [buildDeleteRequest], because its entire purpose is
+     * reclaiming storage and trashing would not free any.
+     *
+     * @param trash true to bin the files, false to restore them.
+     */
+    suspend fun buildTrashRequest(ids: List<Long>, trash: Boolean): IntentSender? =
+        withContext(Dispatchers.IO) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return@withContext null
+
+            val uris = dao.byIds(ids)
+                .filter { it.source == ScreenshotSource.MEDIA_STORE }
+                .map { it.uri.toUri() }
+
+            if (uris.isEmpty()) return@withContext null
+
+            runCatching {
+                MediaStore.createTrashRequest(contentResolver, uris, trash).intentSender
+            }.getOrNull()
+        }
+
+    /**
      * Finalises deletion after the system dialog was accepted, and removes local
      * copies for picker-imported rows.
      *

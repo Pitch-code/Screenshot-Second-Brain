@@ -21,6 +21,7 @@ import com.shelfie.core.media.RescanResult
 import com.shelfie.core.media.ScreenshotDeleter
 import com.shelfie.core.media.ScreenshotRepository
 import com.shelfie.core.model.Folder
+import com.shelfie.core.model.FolderIcon
 import com.shelfie.core.model.IndexProgress
 import com.shelfie.core.model.IndexState
 import com.shelfie.core.model.MediaAccess
@@ -329,19 +330,30 @@ class ShelfViewModel @Inject constructor(
             deletePending.value = ids
             selectedIds.value = emptySet()
 
-            val sender = runCatching { deleter.buildDeleteRequest(ids) }.getOrNull()
+            // Trash rather than delete, so undo has something to restore. A permanent
+            // delete would leave undo able to put back only a row pointing at a file
+            // that no longer exists.
+            val sender = runCatching { deleter.buildTrashRequest(ids, trash = true) }.getOrNull()
             if (sender != null) {
                 launch(sender)
             } else {
-                // Nothing for the system to confirm: either every row is one of our
-                // own picker-imported copies, or the device predates the API.
-                finaliseDeletion()
+                // Nothing for the system to confirm: either the rows are our own
+                // picker-imported copies, or the device predates the API. In both
+                // cases the file is untouched, so the row alone is the deletion.
+                deletePending.value = emptyList()
+                lastDeleted.value = ids
             }
         }
     }
 
     fun onDeletionConfirmed() {
-        viewModelScope.launch { finaliseDeletion() }
+        val ids = deletePending.value
+        deletePending.value = emptyList()
+
+        // Rows stay soft-deleted rather than hard-deleted. They sit in Recently
+        // Deleted for the same window the system bin uses, so both halves of the
+        // deletion remain recoverable.
+        lastDeleted.value = ids
     }
 
     /** Declining the system dialog puts everything back. */
@@ -351,10 +363,91 @@ class ShelfViewModel @Inject constructor(
         viewModelScope.launch { runCatching { deleter.restore(ids) } }
     }
 
-    private suspend fun finaliseDeletion() {
-        val ids = deletePending.value
-        deletePending.value = emptyList()
-        runCatching { deleter.finalizeDeletion(ids) }
+    // ------------------------------------------------------------------- undo
+
+    private val lastDeleted = MutableStateFlow<List<Long>>(emptyList())
+
+    /** Non-empty while an undo is still offered. */
+    val undoableDelete: StateFlow<List<Long>> = lastDeleted
+
+    /**
+     * Puts back what was just deleted.
+     *
+     * Two halves: the rows return from Recently Deleted, and the files come back out
+     * of the system bin. The second needs its own confirmation on Android 11+, which
+     * is unavoidable — taking files out of the bin is as much a media change as
+     * putting them in.
+     */
+    fun onUndoDelete(launch: (IntentSender) -> Unit) {
+        val ids = lastDeleted.value
+        if (ids.isEmpty()) return
+        lastDeleted.value = emptyList()
+
+        viewModelScope.launch {
+            deleter.restore(ids)
+
+            val sender = runCatching { deleter.buildTrashRequest(ids, trash = false) }.getOrNull()
+            if (sender != null) launch(sender)
+        }
+    }
+
+    fun onUndoDismissed() {
+        lastDeleted.value = emptyList()
+    }
+
+    // -------------------------------------------------------------- bulk move
+
+    /** Folders, for the move picker. */
+    val folders: StateFlow<List<Folder>> = repository.observeFolders()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList(),
+        )
+
+    /**
+     * Moves everything selected into [folderId], or out of any folder when null.
+     *
+     * Exists because the only way to correct a wrong move used to be opening each
+     * screenshot and changing it one at a time — and a mistake made in bulk needs to
+     * be fixable in bulk.
+     */
+    fun onMoveSelectionToFolder(folderId: Long?) {
+        val ids = selectedIds.value.toList()
+        if (ids.isEmpty()) return
+
+        viewModelScope.launch {
+            runCatching { repository.setFolderForAll(ids, folderId) }
+            selectedIds.value = emptySet()
+            movedCount.value = ids.size
+        }
+    }
+
+    /** Creates a folder and moves the whole selection into it in one step. */
+    fun onCreateFolderForSelection(name: String, icon: FolderIcon) {
+        val ids = selectedIds.value.toList()
+        if (ids.isEmpty()) return
+
+        viewModelScope.launch {
+            val folder = repository.createFolder(name, icon) ?: return@launch
+            runCatching { repository.setFolderForAll(ids, folder.id) }
+            selectedIds.value = emptySet()
+            movedCount.value = ids.size
+        }
+    }
+
+    /**
+     * Confirmation for a completed move.
+     *
+     * A bulk move with no feedback leaves the user unsure whether it worked — and the
+     * moved screenshots have just vanished from wherever they were looking, which
+     * reads as a failure rather than a success.
+     */
+    private val movedCount = MutableStateFlow(0)
+    val lastMovedCount: StateFlow<Int> = movedCount
+
+    fun onMoveMessageShown() {
+        movedCount.value = 0
     }
 
     /**
