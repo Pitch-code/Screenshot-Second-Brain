@@ -67,7 +67,10 @@ fun DetailSheet(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showCategoryPicker by remember { mutableStateOf(false) }
     var showFolderCreate by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    // Opens fully expanded rather than half-height. The sheet's whole purpose is
+    // reading the recognised text, and a half sheet showed a few lines with the rest
+    // needing a second drag before anything useful was visible.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val context = LocalContext.current
     val launcher = remember(context) { ScreenshotActionLauncher(context) }
