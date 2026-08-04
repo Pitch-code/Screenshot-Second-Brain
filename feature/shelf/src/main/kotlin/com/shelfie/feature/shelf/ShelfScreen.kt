@@ -261,10 +261,12 @@ fun ShelfScreen(
     }
 
     val upsell by viewModel.upsellPrompt.collectAsStateWithLifecycle()
+    val price by viewModel.formattedPrice.collectAsStateWithLifecycle()
     upsell?.let { prompt ->
         UpsellDialog(
             foundCount = prompt.foundCount,
             freeLimit = prompt.freeLimit,
+            formattedPrice = price,
             onContinueFree = viewModel::onUpsellDismissed,
             onUnlock = {
                 (context as? android.app.Activity)?.let(viewModel::onUnlockRequested)

@@ -13,6 +13,7 @@ import com.shelfie.core.designsystem.component.ShelfChip
 import com.shelfie.core.media.ImmediateIndexer
 import com.shelfie.core.media.PickerImporter
 import android.app.Activity
+import com.shelfie.core.billing.BillingState
 import com.shelfie.core.billing.PurchaseResult
 import com.shelfie.core.billing.ShelfieBilling
 import com.shelfie.core.media.IndexingQuota
@@ -290,6 +291,16 @@ class ShelfViewModel @Inject constructor(
     }
 
     val upsellPrompt: StateFlow<UpsellPrompt?> = upsell
+
+    /**
+     * Localised price from Play, or null until it answers.
+     *
+     * Never hardcoded, so it is correct in every currency and stays correct if the
+     * price is ever changed in Play Console without an app update.
+     */
+    val formattedPrice: StateFlow<String?> = billing.billingState
+        .map { (it as? BillingState.Available)?.formattedPrice }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /**
      * Multi-select, move and delete.
