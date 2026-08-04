@@ -490,6 +490,10 @@ interface ScreenshotDao {
     @Query("UPDATE screenshots SET index_state = 'QUOTA_HELD' WHERE id = :id")
     suspend fun holdWithoutIndexing(id: Long)
 
+    /** Whether any of these screenshots is currently filed in a folder. */
+    @Query("SELECT COUNT(*) FROM screenshots WHERE id IN (:ids) AND folder_id IS NOT NULL")
+    suspend fun filedCount(ids: List<Long>): Int
+
     /** Screenshots known about but never processed, for the "found N" total. */
     @Query("SELECT COUNT(*) FROM screenshots WHERE is_deleted = 0")
     suspend fun discoveredCount(): Int
