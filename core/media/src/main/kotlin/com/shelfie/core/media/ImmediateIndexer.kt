@@ -1,11 +1,14 @@
 package com.shelfie.core.media
 
+import com.shelfie.core.datastore.ShelfiePreferences
 import com.shelfie.core.model.MediaAccess
+import com.shelfie.core.ocr.TEXT_PIPELINE_VERSION
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -28,6 +31,7 @@ class ImmediateIndexer @Inject constructor(
     private val indexer: ScreenshotIndexer,
     private val scheduler: IndexScheduler,
     private val quota: IndexingQuota,
+    private val preferences: ShelfiePreferences,
 ) {
 
     /** Guards against two concurrent warm-ups racing on the same rows. */
@@ -50,6 +54,10 @@ class ImmediateIndexer @Inject constructor(
      */
     fun warmUp(scope: CoroutineScope): Job = scope.launch {
         if (repository.currentAccess() == MediaAccess.DENIED) return@launch
+
+        // Before any indexing, so requeued rows are picked up by this same pass
+        // rather than sitting until the next launch.
+        migrateTextPipelineIfNeeded()
 
         mutex.withLock {
             if (!hasRunThisProcess) {
@@ -95,6 +103,34 @@ class ImmediateIndexer @Inject constructor(
         }
         scheduler.scheduleAll()
         return result
+    }
+
+    /**
+     * Re-reads every indexed screenshot once, after the text extraction pipeline
+     * changes.
+     *
+     * Without this a pipeline improvement is invisible: the stored text was produced
+     * by the old algorithm and nothing in the normal flow ever revisits a row that
+     * indexed successfully. The user reinstalls, sees identical jumbled text, and
+     * reasonably concludes nothing was fixed.
+     *
+     * The version is written *after* the requeue, never before. If the process dies
+     * in between, the migration simply runs again on the next launch, which costs one
+     * redundant UPDATE. The other order would record the pipeline as migrated while
+     * leaving the old text in place — permanently, since this only runs on a version
+     * change.
+     */
+    private suspend fun migrateTextPipelineIfNeeded() {
+        // Defaults to the current version on read failure, so an unreadable
+        // preference store cannot requeue the whole library on every single launch.
+        val stored = runCatching { preferences.textPipelineVersion.first() }
+            .getOrDefault(TEXT_PIPELINE_VERSION)
+        if (stored >= TEXT_PIPELINE_VERSION) return
+
+        runCatching {
+            repository.requeueAllIndexed()
+            preferences.setTextPipelineVersion(TEXT_PIPELINE_VERSION)
+        }
     }
 
     private suspend fun runCatchUp() {

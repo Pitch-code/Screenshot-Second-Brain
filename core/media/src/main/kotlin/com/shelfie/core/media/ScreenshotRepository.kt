@@ -266,6 +266,9 @@ class ScreenshotRepository @Inject constructor(
     /** Requeues failed and skipped rows, e.g. after a fix or a permission change. */
     suspend fun requeueFailed(): Int = dao.requeueFailed()
 
+    /** Requeues indexed rows so a changed text pipeline is applied to them. */
+    suspend fun requeueAllIndexed(): Int = dao.requeueAllIndexed()
+
     /**
      * Records a pipeline-level error not attributable to one screenshot.
      *
