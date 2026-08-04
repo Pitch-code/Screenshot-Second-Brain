@@ -182,6 +182,10 @@ fun SearchScreen(
                 viewModel.selection.moveTo(folderId)
                 showMoveDialog = false
             },
+            onMoveToCategory = { category ->
+                viewModel.selection.moveToCategory(category)
+                showMoveDialog = false
+            },
             onCreateNew = {
                 showMoveDialog = false
                 showCreateFolder = true

@@ -31,7 +31,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.shelfie.core.designsystem.R
 import com.shelfie.core.designsystem.category.icon
+import com.shelfie.core.designsystem.category.labelRes
 import com.shelfie.core.model.Folder
+import com.shelfie.core.model.ScreenshotCategory
 
 /**
  * Bar shown while screenshots are selected.
@@ -98,6 +100,7 @@ fun MoveToFolderDialog(
     showRemoveOption: Boolean,
     onDismiss: () -> Unit,
     onMoveTo: (Long?) -> Unit,
+    onMoveToCategory: (ScreenshotCategory) -> Unit,
     onCreateNew: () -> Unit,
 ) {
     AlertDialog(
@@ -108,19 +111,21 @@ fun MoveToFolderDialog(
         text = {
             Column(
                 modifier = Modifier
-                    .heightIn(max = 400.dp)
+                    .heightIn(max = 420.dp)
                     .verticalScroll(rememberScrollState()),
             ) {
-                if (folders.isEmpty()) {
-                    // Without this the dialog is two rows and looks broken, which is
-                    // exactly how it was reported.
-                    Text(
-                        text = stringResource(R.string.selection_move_no_folders),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 8.dp),
-                    )
-                } else {
+                /*
+                 * Both destinations, because the Find tab presents them identically.
+                 *
+                 * This dialog used to list only user-created folders, so somebody
+                 * looking at "Payments" in Find, with 4 screenshots in it, could not
+                 * move anything there — and with no folders of their own the dialog
+                 * offered nothing but "Create new folder", which reads as broken.
+                 * Categories and folders are one idea to the user even though they are
+                 * two mechanisms underneath, so both belong here.
+                 */
+                if (folders.isNotEmpty()) {
+                    SectionLabel(stringResource(R.string.selection_move_folders))
                     folders.forEach { folder ->
                         MoveRow(
                             icon = folder.icon.icon,
@@ -145,6 +150,21 @@ fun MoveToFolderDialog(
                         onClick = { onMoveTo(null) },
                     )
                 }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                SectionLabel(stringResource(R.string.selection_move_categories))
+
+                // NOT_SORTED is excluded: it is the absence of a category, so offering
+                // it as a destination is offering to un-sort something deliberately.
+                ScreenshotCategory.entries
+                    .filter { it != ScreenshotCategory.NOT_SORTED }
+                    .forEach { category ->
+                        MoveRow(
+                            icon = category.icon,
+                            label = stringResource(category.labelRes),
+                            onClick = { onMoveToCategory(category) },
+                        )
+                    }
             }
         },
         confirmButton = {
@@ -152,6 +172,16 @@ fun MoveToFolderDialog(
                 Text(stringResource(R.string.folder_cancel))
             }
         },
+    )
+}
+
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
     )
 }
 

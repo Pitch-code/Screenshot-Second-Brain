@@ -3,6 +3,7 @@ package com.shelfie.core.media
 import android.content.IntentSender
 import com.shelfie.core.model.Folder
 import com.shelfie.core.model.FolderIcon
+import com.shelfie.core.model.ScreenshotCategory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -146,6 +147,25 @@ class ScreenshotSelection(
 
         scope.launch {
             runCatching { repository.setFolderForAll(ids, folderId) }
+            selectedIds.value = emptySet()
+            moved.value = ids.size
+        }
+    }
+
+    /**
+     * Moves the selection into an automatic category.
+     *
+     * Categories were browsable in the Find tab but were not offered as move
+     * destinations, so a screenshot could be seen under "Payments" and yet could not be
+     * put there. The two lists are presented identically to the user, so both have to
+     * be reachable from the same place.
+     */
+    fun moveToCategory(category: ScreenshotCategory) {
+        val ids = selectedIds.value.toList()
+        if (ids.isEmpty()) return
+
+        scope.launch {
+            runCatching { repository.setCategoryForAll(ids, category) }
             selectedIds.value = emptySet()
             moved.value = ids.size
         }

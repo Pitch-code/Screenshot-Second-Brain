@@ -165,6 +165,11 @@ class ScreenshotRepository @Inject constructor(
         ids.chunked(SQL_ID_CHUNK).forEach { chunk -> dao.setFolderForIds(chunk, folderId) }
     }
 
+    /** Re-categorises several screenshots at once, clearing any folder. */
+    suspend fun setCategoryForAll(ids: List<Long>, category: ScreenshotCategory) {
+        ids.chunked(SQL_ID_CHUNK).forEach { chunk -> dao.setCategoryForIds(chunk, category) }
+    }
+
     /** Deletes a folder; its screenshots return to their automatic category. */
     suspend fun deleteFolder(id: Long) = dao.deleteFolder(id)
 

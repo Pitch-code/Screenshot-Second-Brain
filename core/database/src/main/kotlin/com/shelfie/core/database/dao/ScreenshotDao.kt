@@ -380,6 +380,24 @@ interface ScreenshotDao {
     suspend fun setFolderForIds(ids: List<Long>, folderId: Long?)
 
     /**
+     * Re-categorises several screenshots at once.
+     *
+     * Clears folder_id for the same reason the single-row version does: choosing an
+     * automatic category is the user saying "this belongs there instead", and leaving
+     * them filed would hide them from the category they just picked.
+     *
+     * Confidence is 1.0 because an explicit choice is not a guess.
+     */
+    @Query(
+        """
+        UPDATE screenshots
+        SET category = :category, category_confidence = 1.0, folder_id = NULL
+        WHERE id IN (:ids)
+        """,
+    )
+    suspend fun setCategoryForIds(ids: List<Long>, category: ScreenshotCategory)
+
+    /**
      * Counts per folder, including empty folders.
      *
      * Unlike categories there is no minimum: the user made this folder on purpose,
