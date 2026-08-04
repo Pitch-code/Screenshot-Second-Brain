@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.FolderOff
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -41,6 +43,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -618,44 +621,89 @@ private fun FolderDeleteDialog(
             Text(pluralStringResource(R.plurals.find_folder_delete_title, folderCount, folderCount))
         },
         text = {
-            Text(
-                if (screenshotCount == 0) {
-                    stringResource(R.string.find_folder_delete_body_empty)
-                } else {
-                    pluralStringResource(
-                        R.plurals.find_folder_delete_body,
-                        screenshotCount,
-                        screenshotCount,
-                    )
-                },
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = onDeleteEverything) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = if (screenshotCount == 0) {
+                    if (screenshotCount == 0) {
+                        stringResource(R.string.find_folder_delete_body_empty)
+                    } else {
+                        pluralStringResource(
+                            R.plurals.find_folder_delete_body,
+                            screenshotCount,
+                            screenshotCount,
+                        )
+                    },
+                )
+
+                Spacer(Modifier.size(8.dp))
+
+                /*
+                 * The two choices are rows in the body, not buttons.
+                 *
+                 * A dialog's button area lays its buttons out in a single row and is
+                 * built for one or two short ones. Three actions, one of them a
+                 * five-word sentence, overflowed it — the buttons stacked, and Cancel
+                 * was pushed outside the dialog's own bounds and clipped.
+                 *
+                 * Full-width rows also make the choice easier to read: the two
+                 * outcomes sit one above the other in the same shape, so they can be
+                 * compared, rather than being scattered across a row where position
+                 * implies a priority that does not exist.
+                 */
+                ChoiceRow(
+                    icon = Icons.Outlined.Delete,
+                    label = if (screenshotCount == 0) {
                         stringResource(R.string.find_folder_delete_confirm_empty)
                     } else {
                         stringResource(R.string.find_folder_delete_confirm_all)
                     },
-                    color = MaterialTheme.colorScheme.error,
+                    tint = MaterialTheme.colorScheme.error,
+                    onClick = onDeleteEverything,
                 )
-            }
-        },
-        dismissButton = {
-            Column {
+
                 // Only worth offering when there is something to keep.
                 if (screenshotCount > 0) {
-                    TextButton(onClick = onDeleteFoldersOnly) {
-                        Text(stringResource(R.string.find_folder_delete_keep))
-                    }
+                    ChoiceRow(
+                        icon = Icons.Outlined.FolderOff,
+                        label = stringResource(R.string.find_folder_delete_keep),
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        onClick = onDeleteFoldersOnly,
+                    )
                 }
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.find_folder_delete_cancel))
-                }
+            }
+        },
+        // Cancel is the only thing left in the button area, so it always fits, and
+        // the dialog has exactly one way out that is not destructive.
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.find_folder_delete_cancel))
             }
         },
     )
+}
+
+/** One full-width choice inside a dialog body. */
+@Composable
+private fun ChoiceRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    tint: androidx.compose.ui.graphics.Color,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Icon(imageVector = icon, contentDescription = null, tint = tint)
+            Text(text = label, color = tint, style = MaterialTheme.typography.bodyLarge)
+        }
+    }
 }
 
 @Composable

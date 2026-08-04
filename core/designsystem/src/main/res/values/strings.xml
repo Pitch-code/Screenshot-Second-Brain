@@ -59,16 +59,14 @@
     <string name="folder_create">Create</string>
     <string name="folder_cancel">Cancel</string>
     <string name="folder_pick_icon">Icon</string>
-    <string name="folder_delete">Delete folder</string>
-    <string name="folder_section">My folders</string>
-    <string name="folder_section_empty">No folders yet. Open a screenshot, tap Change, then Create new folder.</string>
     <plurals name="folder_item_count">
         <item quantity="one">%d screenshot</item>
         <item quantity="other">%d screenshots</item>
     </plurals>
-    <!-- Stated plainly because deleting a folder sounds like it might delete
-         the screenshots inside it. -->
-    <string name="folder_delete_explainer">Screenshots inside go back to their automatic category. Nothing is deleted.</string>
+    <!-- Folder deletion moved to the Find tab, and says what it will do there:
+         the wording now depends on which of the two options is offered, so a
+         single fixed explainer no longer works. -->
+
 
     <!-- Actions offered on a tile or in the detail sheet. -->
     <string name="action_open_link">Open link</string>
