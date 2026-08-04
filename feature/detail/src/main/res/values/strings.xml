@@ -8,4 +8,14 @@
     <string name="detail_pick_category">Move to…</string>
     <string name="detail_rule_hint">Also sort future screenshots containing \"%1$s\" here</string>
     <string name="detail_cancel">Cancel</string>
+
+    <string name="viewer_back">Back</string>
+    <string name="viewer_copy_text">Copy text</string>
+    <string name="viewer_copy_all">Copy all</string>
+    <string name="viewer_close">Close</string>
+    <string name="viewer_details">Details</string>
+    <string name="viewer_edit">Edit</string>
+    <string name="viewer_edit_with">Edit screenshot with</string>
+    <string name="viewer_copied">Text copied</string>
+    <string name="viewer_no_editor">No photo editor was found on this phone.</string>
 </resources>
