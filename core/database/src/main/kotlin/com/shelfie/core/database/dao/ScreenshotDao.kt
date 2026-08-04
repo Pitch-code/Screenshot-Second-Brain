@@ -162,6 +162,34 @@ interface ScreenshotDao {
     suspend fun requeueStaleInProgress(): Int
 
     /**
+     * Returns every successfully indexed row to the queue so its text is produced
+     * again by the current pipeline.
+     *
+     * For when the extraction algorithm itself changes: the stored text is not wrong
+     * in a way the app can detect, it is simply the output of an older algorithm, and
+     * nothing else would ever cause it to be re-read. Deliberately narrow —
+     * INDEXED only:
+     *
+     *  - FAILED and SKIPPED rows have no text to regenerate, and requeueing them here
+     *    would quietly hand them fresh retry attempts that the failure path decided
+     *    they had exhausted.
+     *  - QUOTA_HELD rows were never read in the first place, and releasing them would
+     *    index past the free limit.
+     *
+     * The attempt counter is left alone. These rows succeeded, so it is already at
+     * or near zero, and resetting it would forgive genuine flakiness that the retry
+     * limit exists to catch.
+     */
+    @Query(
+        """
+        UPDATE screenshots
+        SET index_state = 'PENDING'
+        WHERE is_deleted = 0 AND index_state = 'INDEXED'
+        """,
+    )
+    suspend fun requeueAllIndexed(): Int
+
+    /**
      * Applies a manual re-categorisation. Confidence is forced to 1.0 because a
      * user's explicit choice is not a guess.
      */

@@ -3,6 +3,7 @@ package com.shelfie.core.ocr
 import android.graphics.Bitmap
 import android.net.Uri
 import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlinx.coroutines.CancellableContinuation
@@ -119,7 +120,7 @@ class MlKitTextRecognitionEngine @Inject constructor(
                 .addOnSuccessListener { visionText ->
                     continuation.resumeIfActive(
                         OcrResult.Success(
-                            text = visionText.text,
+                            text = visionText.inReadingOrder(),
                             blockCount = visionText.textBlocks.size,
                         ),
                     )
@@ -145,6 +146,33 @@ class MlKitTextRecognitionEngine @Inject constructor(
 
     private fun CancellableContinuation<OcrResult>.resumeIfActive(result: OcrResult) {
         if (isActive) resume(result)
+    }
+
+    /**
+     * Recognised text, re-sorted into reading order by position on screen.
+     *
+     * Falls back to ML Kit's own concatenation if *any* line came back without a
+     * bounding box. Boxes are nullable in the API, and a partially positioned result
+     * cannot be sorted without silently dropping the unpositioned lines — losing
+     * real text is a worse outcome than presenting it in a poor order, since text
+     * that is absent from the index can never be searched for.
+     */
+    private fun Text.inReadingOrder(): String {
+        val lines = textBlocks.flatMap { it.lines }
+        if (lines.isEmpty()) return text
+
+        val fragments = lines.map { line ->
+            val box = line.boundingBox ?: return text
+            TextFragment(
+                text = line.text,
+                left = box.left,
+                top = box.top,
+                right = box.right,
+                bottom = box.bottom,
+            )
+        }
+
+        return ReadingOrder.arrange(fragments)
     }
 
     private companion object {

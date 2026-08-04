@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -36,6 +37,18 @@ class ShelfiePreferences @Inject constructor(
         dataStore.data.map { it[KEY_FULL_VERSION] ?: false }
 
     val lastReconcileAt: Flow<Long> = dataStore.data.map { it[KEY_LAST_RECONCILE] ?: 0L }
+
+    /**
+     * Which version of the text extraction pipeline produced the text currently on
+     * disk.
+     *
+     * Defaults to 1 rather than 0 for installs that predate this key, because those
+     * installs do have indexed text — it was produced by pipeline 1. Treating them
+     * as version 0 would be equivalent, but naming the version they actually ran
+     * keeps the comparison in the migration honest.
+     */
+    val textPipelineVersion: Flow<Int> =
+        dataStore.data.map { it[KEY_TEXT_PIPELINE_VERSION] ?: 1 }
 
     /**
      * Wallpaper-derived colour, off by default.
@@ -104,6 +117,10 @@ class ShelfiePreferences @Inject constructor(
         dataStore.edit { it[KEY_EXTRA_FOLDERS] = folderKeys }
     }
 
+    suspend fun setTextPipelineVersion(version: Int) {
+        dataStore.edit { it[KEY_TEXT_PIPELINE_VERSION] = version }
+    }
+
     suspend fun setLastReconcileAt(epochSeconds: Long) {
         dataStore.edit { it[KEY_LAST_RECONCILE] = epochSeconds }
     }
@@ -113,6 +130,7 @@ class ShelfiePreferences @Inject constructor(
         val KEY_ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
         val KEY_FULL_VERSION = booleanPreferencesKey("full_version_purchased")
         val KEY_LAST_RECONCILE = longPreferencesKey("last_reconcile_seconds")
+        val KEY_TEXT_PIPELINE_VERSION = intPreferencesKey("text_pipeline_version")
         val KEY_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
         val KEY_SHELF_SORT = stringPreferencesKey("shelf_sort_order")
         val KEY_EXTRA_FOLDERS = stringSetPreferencesKey("extra_indexed_folders")
