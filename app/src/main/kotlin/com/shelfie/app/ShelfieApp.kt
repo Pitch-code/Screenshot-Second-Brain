@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationRail
@@ -106,6 +107,13 @@ private fun MainShell(navController: NavHostController, startOnSearch: Boolean =
                 // Transparent so the gradient behind it shows through. Scaffold
                 // otherwise paints an opaque background over it.
                 containerColor = Color.Transparent,
+                // Both, always. Scaffold derives its content colour from its
+                // container, and `contentColorFor(Transparent)` is unspecified, so it
+                // falls back to LocalContentColor — which at the root is BLACK. That
+                // rendered every text and icon that does not set its own colour in
+                // near-black on a dark navy background: date headers, the selection
+                // count, the toolbar icons.
+                contentColor = MaterialTheme.colorScheme.onBackground,
                 bottomBar = {
                     NavigationBar {
                         ShelfieDestination.entries.forEach { destination ->

@@ -237,6 +237,10 @@ fun ShelfScreen(
                 viewModel.selection.moveTo(folderId)
                 showMoveDialog = false
             },
+            onMoveToCategory = { category ->
+                viewModel.selection.moveToCategory(category)
+                showMoveDialog = false
+            },
             onCreateNew = {
                 // Swapped rather than stacked: two dialogs at once leaves the lower
                 // one visible behind the scrim.

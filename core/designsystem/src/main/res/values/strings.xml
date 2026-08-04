@@ -37,7 +37,10 @@
         <item quantity="other">Move %d screenshots</item>
     </plurals>
     <string name="selection_move_remove">Remove from folder</string>
-    <string name="selection_move_no_folders">You have no folders yet. Create one below and the selected screenshots will go straight into it.</string>
+    <!-- No "you have no folders" message any more: the dialog always lists the
+         automatic categories, so it is never empty and never needs to apologise. -->
+    <string name="selection_move_categories">Automatic categories</string>
+    <string name="selection_move_folders">Your folders</string>
     <plurals name="selection_moved">
         <item quantity="one">%d screenshot moved</item>
         <item quantity="other">%d screenshots moved</item>

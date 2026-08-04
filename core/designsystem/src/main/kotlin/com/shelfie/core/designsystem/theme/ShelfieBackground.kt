@@ -3,8 +3,10 @@ package com.shelfie.core.designsystem.theme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 
@@ -42,6 +44,19 @@ fun ShelfieBackground(
                 ),
             ),
     ) {
-        content()
+        /*
+         * Sets the ambient content colour, which a plain Box does not.
+         *
+         * Only Surface establishes a content colour, so drawing the background with a
+         * Box left LocalContentColor at its root default of BLACK. Everything that
+         * did not set its own colour — date headers, the selection count, toolbar
+         * icons — rendered near-black on dark navy and was effectively unreadable.
+         *
+         * Fixed here rather than in each caller so no screen can be added later that
+         * quietly reintroduces it.
+         */
+        CompositionLocalProvider(LocalContentColor provides scheme.onBackground) {
+            content()
+        }
     }
 }
