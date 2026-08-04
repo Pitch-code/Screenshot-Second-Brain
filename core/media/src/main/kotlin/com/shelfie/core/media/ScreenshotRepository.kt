@@ -269,9 +269,6 @@ class ScreenshotRepository @Inject constructor(
     /** Requeues indexed rows so a changed text pipeline is applied to them. */
     suspend fun requeueAllIndexed(): Int = dao.requeueAllIndexed()
 
-    /** Returns one row to the queue, e.g. after its image was edited elsewhere. */
-    suspend fun requeueOne(id: Long) = dao.requeue(id)
-
     /** Ids of the live screenshots filed in any of these folders. */
     suspend fun screenshotIdsInFolders(folderIds: List<Long>): List<Long> =
         if (folderIds.isEmpty()) emptyList() else dao.screenshotIdsInFolders(folderIds)

@@ -181,7 +181,9 @@ class SearchViewModel @Inject constructor(
     fun onDeleteFoldersRequested() {
         viewModelScope.launch {
             _affectedScreenshotCount.value =
-                repository.screenshotIdsInFolders(selectedFolderIds.value.toList()).size
+                runCatching { repository.screenshotIdsInFolders(selectedFolderIds.value.toList()) }
+                    .getOrDefault(emptyList())
+                    .size
         }
     }
 
@@ -199,7 +201,7 @@ class SearchViewModel @Inject constructor(
         if (ids.isEmpty()) return
 
         viewModelScope.launch {
-            repository.deleteFolders(ids)
+            runCatching { repository.deleteFolders(ids) }
             leaveDeletedFolders(ids)
             selectedFolderIds.value = emptySet()
         }
@@ -226,11 +228,13 @@ class SearchViewModel @Inject constructor(
         if (folderIds.isEmpty()) return
 
         viewModelScope.launch {
-            val screenshotIds = repository.screenshotIdsInFolders(folderIds)
+            val screenshotIds = runCatching { repository.screenshotIdsInFolders(folderIds) }
+                .getOrNull()
+                ?: return@launch
 
             if (screenshotIds.isEmpty()) {
                 // Nothing inside, so there is nothing to ask about.
-                repository.deleteFolders(folderIds)
+                runCatching { repository.deleteFolders(folderIds) }
                 leaveDeletedFolders(folderIds)
                 selectedFolderIds.value = emptySet()
                 return@launch
@@ -260,8 +264,13 @@ class SearchViewModel @Inject constructor(
         pendingPermanentDelete = null
 
         viewModelScope.launch {
-            if (filesRemoved) deleter.finalizeDeletion(screenshotIds)
-            repository.deleteFolders(folderIds)
+            // Guarded individually. Removing files touches the media store and can
+            // fail on its own — a revoked permission, a file already gone — and an
+            // exception escaping a viewModelScope coroutine takes the whole app down.
+            // The folders should still go in that case, since that is the part the
+            // user was asked about and the part this app fully controls.
+            if (filesRemoved) runCatching { deleter.finalizeDeletion(screenshotIds) }
+            runCatching { repository.deleteFolders(folderIds) }
             leaveDeletedFolders(folderIds)
             selectedFolderIds.value = emptySet()
         }

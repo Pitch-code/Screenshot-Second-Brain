@@ -235,65 +235,10 @@ fun SettingsScreen(
                 )
             }
 
-            item {
-                SectionHeader(
-                    stringResource(com.shelfie.core.designsystem.R.string.folder_section),
-                )
-            }
-            if (state.folders.isEmpty()) {
-                item {
-                    Text(
-                        text = stringResource(
-                            com.shelfie.core.designsystem.R.string.folder_section_empty,
-                        ),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                    )
-                }
-            } else {
-                items(items = state.folders, key = { it.folder.id }) { entry ->
-                    ListItem(
-                        leadingContent = {
-                            Icon(entry.folder.icon.icon, contentDescription = null)
-                        },
-                        headlineContent = { Text(entry.folder.name) },
-                        supportingContent = {
-                            Text(
-                                pluralStringResource(
-                                    com.shelfie.core.designsystem.R.plurals.folder_item_count,
-                                    entry.count,
-                                    entry.count,
-                                ),
-                            )
-                        },
-                        trailingContent = {
-                            IconButton(onClick = { viewModel.onDeleteFolder(entry.folder.id) }) {
-                                Icon(
-                                    Icons.Outlined.Delete,
-                                    contentDescription = stringResource(
-                                        com.shelfie.core.designsystem.R.string.folder_delete,
-                                    ),
-                                )
-                            }
-                        },
-                    )
-                }
-                item {
-                    // Spelled out because "delete folder" reads as though the
-                    // screenshots inside go with it.
-                    Text(
-                        text = stringResource(
-                            com.shelfie.core.designsystem.R.string.folder_delete_explainer,
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                    )
-                }
-            }
-
-            item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) }
+            // Folders are managed where they are used, in the Find tab: long press
+            // one to select it, then delete. A second list of the same folders here,
+            // with different delete behaviour, meant two places to learn and two
+            // places to keep correct.
 
             item { SectionHeader(stringResource(R.string.settings_section_rules)) }
             if (state.rules.isEmpty()) {

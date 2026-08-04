@@ -1,11 +1,6 @@
 package com.shelfie.feature.detail
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.net.Uri
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -23,7 +18,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -104,29 +98,7 @@ fun ScreenshotViewer(
     var showText by remember { mutableStateOf(false) }
     var showDetails by remember { mutableStateOf(false) }
 
-    /**
-     * Bumped after an edit to force a fresh decode.
-     *
-     * An edit changes the file behind a URI that has not itself changed, so Coil
-     * would keep serving the cached bitmap and the edit would appear not to have
-     * happened. The token is folded into the cache keys instead of disabling
-     * caching, which would cost a re-decode on every single pan.
-     */
-    var reloadToken by remember { mutableIntStateOf(0) }
-
-    val noEditorMessage = stringResource(R.string.viewer_no_editor)
     val copiedMessage = stringResource(R.string.viewer_copied)
-
-    val editLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult(),
-    ) {
-        // Deliberately ignores the result code. Editors are wildly inconsistent
-        // about what they report, and several return CANCELED having saved. The
-        // only safe assumption is that the file may have changed, so re-read it and
-        // re-index; if nothing changed, both are cheap and harmless.
-        reloadToken++
-        viewModel.onPixelsMayHaveChanged()
-    }
 
     BackHandler(onBack = onDismiss)
 
@@ -140,15 +112,7 @@ fun ScreenshotViewer(
             if (state.isLoading || screenshot == null) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else {
-                val request = remember(screenshot.uri, reloadToken) {
-                    ImageRequest.Builder(context)
-                        .data(screenshot.uri)
-                        .memoryCacheKey("${screenshot.uri}#$reloadToken")
-                        .diskCacheKey("${screenshot.uri}#$reloadToken")
-                        .build()
-                }
-
-                ZoomableImage(model = request, modifier = Modifier.fillMaxSize())
+                ZoomableImage(model = screenshot.uri, modifier = Modifier.fillMaxSize())
 
                 // Controls sit above the image and inside the system insets, so the
                 // picture itself stays edge to edge while nothing is unreachable
@@ -198,28 +162,6 @@ fun ScreenshotViewer(
                             )
                             Text(
                                 text = "  " + stringResource(R.string.viewer_details),
-                                color = Color.White,
-                            )
-                        }
-                        TextButton(
-                            onClick = {
-                                val opened = launchEditor(
-                                    context = context,
-                                    uri = Uri.parse(screenshot.uri),
-                                    launch = editLauncher::launch,
-                                )
-                                if (!opened) {
-                                    scope.launch { snackbarHostState.showSnackbar(noEditorMessage) }
-                                }
-                            },
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Edit,
-                                contentDescription = null,
-                                tint = Color.White,
-                            )
-                            Text(
-                                text = "  " + stringResource(R.string.viewer_edit),
                                 color = Color.White,
                             )
                         }
@@ -393,41 +335,21 @@ private fun RecognisedTextSheet(
     }
 }
 
-/**
- * Hands the screenshot to whatever editor the phone already has.
+/*
+ * There was an Edit button here, which handed the screenshot to the phone's own
+ * editor with ACTION_EDIT. Removed, because it crashed the app rather than editing
+ * anything.
  *
- * Deliberately not an editor of our own. Every Android phone ships a competent one
- * — crop, rotate, adjust, filters, markup, text — and it is the editor the owner
- * already knows. Reimplementing that inside a search app would take weeks to arrive
- * at something worse, and it would save to the same place this does.
+ * The cause: the intent carried FLAG_GRANT_WRITE_URI_PERMISSION for a MediaStore
+ * URI. An app can only pass on a URI permission it was itself granted, and read
+ * access here comes from holding READ_MEDIA_IMAGES — a manifest permission, not a
+ * grant. So starting the activity threw SecurityException, and only
+ * ActivityNotFoundException was being caught.
  *
- * Write permission is granted on the intent so the editor can save in place, which
- * is what makes the change appear in the gallery rather than as a copy.
- *
- * @return false when no app on the device can handle editing, so the caller can say
- *   so instead of leaving a button that silently does nothing.
+ * Not simply patched, because the honest version of this feature is bigger than a
+ * caught exception: writing back to an image the app does not own needs
+ * MediaStore.createWriteRequest and its own system consent dialog, and then the
+ * screenshot has to be re-read because an edit can crop away the text it was filed
+ * under. That is a feature, not a fix, and editing is already one tap away in the
+ * gallery.
  */
-private fun launchEditor(
-    context: android.content.Context,
-    uri: Uri,
-    launch: (Intent) -> Unit,
-): Boolean {
-    val edit = Intent(Intent.ACTION_EDIT).apply {
-        setDataAndType(uri, "image/*")
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-    }
-
-    // A chooser rather than a direct start, so someone with more than one editor
-    // gets to pick. Flags are repeated on the chooser because the grant applies to
-    // the intent that is actually started.
-    val chooser = Intent.createChooser(edit, context.getString(R.string.viewer_edit_with)).apply {
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-    }
-
-    return try {
-        launch(chooser)
-        true
-    } catch (_: ActivityNotFoundException) {
-        false
-    }
-}
