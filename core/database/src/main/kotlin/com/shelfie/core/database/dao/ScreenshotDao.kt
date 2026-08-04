@@ -338,16 +338,41 @@ interface ScreenshotDao {
     )
     fun observeOutstandingCount(maxAttempts: Int = MAX_INDEX_ATTEMPTS): Flow<Int>
 
+    /**
+     * Categories to list in the Find tab, with how many screenshots each holds.
+     *
+     * ### The predicate must match [ShelfQuery]'s category filter exactly
+     *
+     * This is the bug that made a manual move disappear. The list was computed with
+     * `index_state = 'INDEXED'` while the view it links to had no state filter at all,
+     * so the two disagreed: a category could be absent from the list while holding
+     * screenshots, or show a count lower than what opening it revealed.
+     *
+     * It bit hardest on the free tier. With a window of 50, most of a larger library
+     * is QUOTA_HELD — those screenshots are still on the shelf and still browsable,
+     * only their text is not searchable — so moving one into a category counted for
+     * nothing and the category stayed hidden.
+     *
+     * The rule now: if opening a category would show it, the count includes it.
+     *
+     * ### Why the threshold is 1
+     *
+     * It was 3, to stop low-confidence automatic guesses cluttering the list with
+     * one-item categories. Reasonable for guesses, wrong for choices: a screenshot the
+     * user deliberately moved into OTP codes must appear there immediately, and
+     * anything else reads as the app having lost it. The count is displayed beside each
+     * category, so a small one is visible rather than misleading.
+     */
     @Query(
         """
         SELECT category, COUNT(*) AS count FROM screenshots
-        WHERE is_deleted = 0 AND index_state = 'INDEXED' AND folder_id IS NULL
+        WHERE is_deleted = 0 AND folder_id IS NULL
         GROUP BY category
         HAVING count >= :minimumMatches
         ORDER BY count DESC
         """,
     )
-    fun observeCategoryCounts(minimumMatches: Int = 3): Flow<List<CategoryCount>>
+    fun observeCategoryCounts(minimumMatches: Int = 1): Flow<List<CategoryCount>>
 
     // ----------------------------------------------------------------- folders
 
