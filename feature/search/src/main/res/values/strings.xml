@@ -14,6 +14,27 @@
     <string name="find_folder_empty_title">Nothing in here yet</string>
     <string name="find_folder_empty_body">Open a screenshot and tap Change to move it into this folder.</string>
 
+    <!-- Selecting folders, in order to delete them. -->
+    <string name="find_folder_selection_clear">Clear selection</string>
+    <string name="find_folder_delete">Delete selected folders</string>
+    <plurals name="find_folder_selection_count">
+        <item quantity="one">%1$d folder selected</item>
+        <item quantity="other">%1$d folders selected</item>
+    </plurals>
+    <plurals name="find_folder_delete_title">
+        <item quantity="one">Delete this folder?</item>
+        <item quantity="other">Delete these %1$d folders?</item>
+    </plurals>
+    <plurals name="find_folder_delete_body">
+        <item quantity="one">There is 1 screenshot inside. You can delete it along with the folder, or keep it and remove only the folder.</item>
+        <item quantity="other">There are %1$d screenshots inside. You can delete them along with the folder, or keep them and remove only the folder.</item>
+    </plurals>
+    <string name="find_folder_delete_body_empty">There are no screenshots inside, so nothing will be lost.</string>
+    <string name="find_folder_delete_confirm_all">Delete folder and screenshots</string>
+    <string name="find_folder_delete_confirm_empty">Delete folder</string>
+    <string name="find_folder_delete_keep">Keep screenshots, delete folder</string>
+    <string name="find_folder_delete_cancel">Cancel</string>
+
     <string name="search_no_results_title">No matches for \"%1$s\"</string>
     <string name="search_no_results_body">Older screenshots finish indexing while your phone is idle and charging, so try again later if it was a while ago.</string>
 

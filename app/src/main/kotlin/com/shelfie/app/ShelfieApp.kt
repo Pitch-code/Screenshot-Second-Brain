@@ -28,6 +28,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.shelfie.app.navigation.ShelfieDestination
 import com.shelfie.app.navigation.ShelfieNavHost
+import com.shelfie.feature.detail.ScreenshotViewer
 import com.shelfie.feature.onboarding.OnboardingScreen
 
 /**
@@ -82,6 +83,17 @@ private fun MainShell(navController: NavHostController, startOnSearch: Boolean =
         }
     }
 
+    /*
+     * Which screenshot is open in the full-screen viewer, if any.
+     *
+     * Held here, above the scaffold, rather than inside the NavHost. The viewer has
+     * to cover the navigation bar to be full screen, and anything composed inside
+     * the NavHost sits within the scaffold's content slot with the bar drawn on top
+     * of it. Saveable so it survives rotation.
+     */
+    var viewingScreenshotId: Long? by rememberSaveable { mutableStateOf(null) }
+    val onScreenshotClick: (Long) -> Unit = { id -> viewingScreenshotId = id }
+
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val useRail = maxWidth >= 600.dp
 
@@ -99,6 +111,7 @@ private fun MainShell(navController: NavHostController, startOnSearch: Boolean =
                 }
                 ShelfieNavHost(
                     navController = navController,
+                    onScreenshotClick = onScreenshotClick,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -130,11 +143,20 @@ private fun MainShell(navController: NavHostController, startOnSearch: Boolean =
             ) { innerPadding ->
                 ShelfieNavHost(
                     navController = navController,
+                    onScreenshotClick = onScreenshotClick,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding),
                 )
             }
+        }
+
+        // Last in the box, so it is drawn over the navigation bar and the rail.
+        viewingScreenshotId?.let { id ->
+            ScreenshotViewer(
+                screenshotId = id,
+                onDismiss = { viewingScreenshotId = null },
+            )
         }
     }
 }

@@ -162,6 +162,21 @@ interface ScreenshotDao {
     suspend fun requeueStaleInProgress(): Int
 
     /**
+     * Ids of the live screenshots filed in any of these folders.
+     *
+     * Not chunked, unlike the screenshot-id queries: the parameter list here is
+     * folders the user created by hand, which is a number in the low tens, nowhere
+     * near SQLite's limit on bound parameters.
+     */
+    @Query(
+        """
+        SELECT id FROM screenshots
+        WHERE folder_id IN (:folderIds) AND is_deleted = 0
+        """,
+    )
+    suspend fun screenshotIdsInFolders(folderIds: List<Long>): List<Long>
+
+    /**
      * Returns every successfully indexed row to the queue so its text is produced
      * again by the current pipeline.
      *

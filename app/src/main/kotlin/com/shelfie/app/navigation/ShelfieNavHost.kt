@@ -1,17 +1,11 @@
 package com.shelfie.app.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.shelfie.feature.cleanup.CleanupScreen
-import com.shelfie.feature.detail.DetailSheet
 import com.shelfie.feature.search.SearchScreen
 import com.shelfie.feature.settings.SettingsScreen
 import com.shelfie.feature.shelf.ShelfScreen
@@ -19,29 +13,29 @@ import com.shelfie.feature.shelf.ShelfScreen
 /**
  * The only place that knows about every feature module.
  *
- * Feature modules never reference one another, so all cross-feature routing —
- * including opening the detail sheet from either the shelf or search — is
+ * Feature modules never reference one another, so all cross-feature routing is
  * resolved here in `:app`.
+ *
+ * Opening a screenshot is reported upwards rather than handled here, because the
+ * viewer has to be drawn above the whole shell including the navigation bar, and
+ * anything composed inside this NavHost is by definition inside the scaffold.
  */
 @Composable
 fun ShelfieNavHost(
     navController: NavHostController,
+    onScreenshotClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Detail is an overlay rather than a destination, so the shelf stays visible
-    // behind the sheet's scrim. Saveable so it survives configuration changes.
-    var detailScreenshotId: Long? by rememberSaveable { mutableStateOf(null) }
-
     NavHost(
         navController = navController,
         startDestination = ShelfieDestination.SHELF.route,
         modifier = modifier,
     ) {
         composable(ShelfieDestination.SHELF.route) {
-            ShelfScreen(onScreenshotClick = { id -> detailScreenshotId = id })
+            ShelfScreen(onScreenshotClick = onScreenshotClick)
         }
         composable(ShelfieDestination.SEARCH.route) {
-            SearchScreen(onScreenshotClick = { id -> detailScreenshotId = id })
+            SearchScreen(onScreenshotClick = onScreenshotClick)
         }
         composable(ShelfieDestination.CLEANUP.route) {
             CleanupScreen()
@@ -49,12 +43,5 @@ fun ShelfieNavHost(
         composable(ShelfieDestination.SETTINGS.route) {
             SettingsScreen()
         }
-    }
-
-    detailScreenshotId?.let { id ->
-        DetailSheet(
-            screenshotId = id,
-            onDismiss = { detailScreenshotId = null },
-        )
     }
 }

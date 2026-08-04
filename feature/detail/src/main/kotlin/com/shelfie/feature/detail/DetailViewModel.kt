@@ -75,6 +75,23 @@ class DetailViewModel @Inject constructor(
         viewModelScope.launch { text.value = repository.textFor(id) }
     }
 
+    /**
+     * Called after an external editor has had the file, so the stored text is
+     * regenerated from the new pixels.
+     *
+     * An edit can crop away or add the very text the screenshot was filed under, so
+     * leaving the old text in place would leave it searchable by words no longer in
+     * the image and unsearchable by the ones now in it.
+     *
+     * This only returns the row to the queue; the recognition itself happens on the
+     * next indexing pass, which runs when the activity resumes — which is exactly
+     * what returning from the editor does.
+     */
+    fun onPixelsMayHaveChanged() {
+        val id = screenshotId.value ?: return
+        viewModelScope.launch { repository.requeueOne(id) }
+    }
+
     fun onCategoryChanged(category: ScreenshotCategory) {
         val id = screenshotId.value ?: return
         viewModelScope.launch { repository.setCategory(id, category) }

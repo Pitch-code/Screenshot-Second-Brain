@@ -269,6 +269,25 @@ class ScreenshotRepository @Inject constructor(
     /** Requeues indexed rows so a changed text pipeline is applied to them. */
     suspend fun requeueAllIndexed(): Int = dao.requeueAllIndexed()
 
+    /** Returns one row to the queue, e.g. after its image was edited elsewhere. */
+    suspend fun requeueOne(id: Long) = dao.requeue(id)
+
+    /** Ids of the live screenshots filed in any of these folders. */
+    suspend fun screenshotIdsInFolders(folderIds: List<Long>): List<Long> =
+        if (folderIds.isEmpty()) emptyList() else dao.screenshotIdsInFolders(folderIds)
+
+    /**
+     * Deletes several folders, returning their screenshots to their categories.
+     *
+     * One folder at a time because each [ScreenshotDao.deleteFolder] is already
+     * transactional in the order that matters — assignments cleared before the row
+     * goes, so a failure part way through can never leave a screenshot pointing at a
+     * folder that no longer exists, which would hide it from both views.
+     */
+    suspend fun deleteFolders(ids: List<Long>) {
+        ids.forEach { dao.deleteFolder(it) }
+    }
+
     /**
      * Records a pipeline-level error not attributable to one screenshot.
      *

@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -29,8 +30,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -38,6 +42,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -115,6 +120,10 @@ fun SearchScreen(
     var showCreateFolder by remember { mutableStateOf(false) }
     var anyFiled by remember { mutableStateOf(false) }
 
+    val selectedFolderIds by viewModel.folderSelection.collectAsStateWithLifecycle()
+    val affectedScreenshotCount by viewModel.affectedScreenshotCount.collectAsStateWithLifecycle()
+    var showFolderDeleteConfirm by remember { mutableStateOf(false) }
+
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -132,7 +141,53 @@ fun SearchScreen(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
     ) { }
 
+    val folderDeleteLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            viewModel.onPermanentDeleteConfirmed()
+        } else {
+            viewModel.onPermanentDeleteCancelled()
+        }
+    }
+
     BackHandler(enabled = selectedIds.isNotEmpty(), onBack = viewModel.selection::clear)
+
+    BackHandler(
+        enabled = selectedFolderIds.isNotEmpty(),
+        onBack = viewModel::clearFolderSelection,
+    )
+
+    if (showFolderDeleteConfirm) {
+        FolderDeleteDialog(
+            folderCount = selectedFolderIds.size,
+            screenshotCount = affectedScreenshotCount,
+            onDismiss = { showFolderDeleteConfirm = false },
+            onDeleteFoldersOnly = {
+                showFolderDeleteConfirm = false
+                viewModel.onDeleteFoldersOnly()
+            },
+            onDeleteEverything = {
+                showFolderDeleteConfirm = false
+                viewModel.onDeleteFoldersAndScreenshots { sender ->
+                    folderDeleteLauncher.launch(IntentSenderRequest.Builder(sender).build())
+                }
+            },
+        )
+    }
+
+    // Back leaves the folder you are browsing rather than the whole tab.
+    //
+    // Browsing into a folder is view-model state, not a navigation destination, so
+    // the system back gesture used to fall straight through to the nav stack and
+    // land on the shelf — losing the folder, the tab, and any idea of where you
+    // were. Registered after the selection handler so that clearing a selection
+    // still wins while one is active, since Compose offers the gesture to the most
+    // recently registered enabled handler first.
+    BackHandler(
+        enabled = selectedIds.isEmpty() && state.selectedFilter != null,
+        onBack = { viewModel.onFilterSelected(null) },
+    )
 
     LaunchedEffect(showMoveDialog) {
         if (showMoveDialog) anyFiled = viewModel.selection.selectionHasFiledItems()
@@ -328,12 +383,26 @@ fun SearchScreen(
                 }
             }
 
-            else -> BrowseList(
-                folders = state.folders,
-                categories = state.categories,
-                onSelect = viewModel::onFilterSelected,
-                onDeleteFolder = viewModel::onDeleteFolder,
-            )
+            else -> Column(modifier = Modifier.fillMaxSize()) {
+                if (selectedFolderIds.isNotEmpty()) {
+                    FolderSelectionBar(
+                        count = selectedFolderIds.size,
+                        onClear = viewModel::clearFolderSelection,
+                        onDelete = {
+                            viewModel.onDeleteFoldersRequested()
+                            showFolderDeleteConfirm = true
+                        },
+                    )
+                }
+                BrowseList(
+                    folders = state.folders,
+                    categories = state.categories,
+                    selectedFolderIds = selectedFolderIds,
+                    onSelect = viewModel::onFilterSelected,
+                    onFolderLongPress = viewModel::onFolderLongPress,
+                    onFolderToggle = viewModel::onFolderToggle,
+                )
+            }
         }
     }
 
@@ -349,8 +418,10 @@ fun SearchScreen(
 private fun BrowseList(
     folders: List<ShelfChip>,
     categories: List<ShelfChip>,
+    selectedFolderIds: Set<Long>,
     onSelect: (ShelfFilter) -> Unit,
-    onDeleteFolder: (Long) -> Unit,
+    onFolderLongPress: (Long) -> Unit,
+    onFolderToggle: (Long) -> Unit,
 ) {
     if (folders.isEmpty() && categories.isEmpty()) {
         EmptyState(
@@ -371,10 +442,22 @@ private fun BrowseList(
                 SectionLabel(stringResource(R.string.find_section_folders))
             }
             items(items = folders, key = { it.key }) { chip ->
+                val folderId = chip.folder?.id
                 BrowseRow(
                     chip = chip,
-                    onClick = { onSelect(chip.filter) },
-                    onDelete = chip.folder?.let { folder -> { onDeleteFolder(folder.id) } },
+                    selected = folderId != null && folderId in selectedFolderIds,
+                    onClick = {
+                        // While a selection is active a tap adjusts it instead of
+                        // opening, which is how selection already behaves for
+                        // screenshots — opening a folder mid-selection would abandon
+                        // the selection with no way to tell it had happened.
+                        if (selectedFolderIds.isNotEmpty() && folderId != null) {
+                            onFolderToggle(folderId)
+                        } else {
+                            onSelect(chip.filter)
+                        }
+                    },
+                    onLongClick = folderId?.let { id -> { onFolderLongPress(id) } },
                 )
             }
         }
@@ -384,7 +467,15 @@ private fun BrowseList(
                 SectionLabel(stringResource(R.string.find_section_categories))
             }
             items(items = categories, key = { it.key }) { chip ->
-                BrowseRow(chip = chip, onClick = { onSelect(chip.filter) }, onDelete = null)
+                // Automatic categories are not selectable: they are not user-created,
+                // there is nothing to delete, and an empty one reappears the moment
+                // something is classified into it.
+                BrowseRow(
+                    chip = chip,
+                    selected = false,
+                    onClick = { onSelect(chip.filter) },
+                    onLongClick = null,
+                )
             }
         }
     }
@@ -403,18 +494,26 @@ private fun SectionLabel(text: String) {
 @Composable
 private fun BrowseRow(
     chip: ShelfChip,
+    selected: Boolean,
     onClick: () -> Unit,
-    onDelete: (() -> Unit)?,
+    onLongClick: (() -> Unit)?,
 ) {
     val label = chip.folder?.name ?: chip.category?.let { stringResource(it.labelRes) } ?: return
     val leading = chip.folder?.icon?.icon ?: chip.category?.icon
 
     Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            // combinedClickable rather than Card(onClick), which has no long-press
+            // parameter at all.
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainer
+            },
         ),
     ) {
         Row(
@@ -441,18 +540,122 @@ private fun BrowseRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (onDelete != null) {
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = Icons.Outlined.Close,
-                        contentDescription = stringResource(
-                            com.shelfie.core.designsystem.R.string.folder_delete,
-                        ),
-                    )
-                }
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Outlined.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
             }
         }
     }
+}
+
+/**
+ * Header shown while folders are selected.
+ *
+ * Mirrors the screenshot [SelectionBar] rather than reusing it: that one offers Move,
+ * which is meaningless for a folder, and passing it a disabled action would leave a
+ * dead button on screen.
+ */
+@Composable
+private fun FolderSelectionBar(
+    count: Int,
+    onClear: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 4.dp, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onClear) {
+            Icon(
+                imageVector = Icons.Outlined.Close,
+                contentDescription = stringResource(R.string.find_folder_selection_clear),
+            )
+        }
+        Text(
+            text = pluralStringResource(R.plurals.find_folder_selection_count, count, count),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(onClick = onDelete) {
+            Icon(
+                imageVector = Icons.Outlined.Delete,
+                contentDescription = stringResource(R.string.find_folder_delete),
+                tint = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
+/**
+ * Confirmation for deleting folders, with the two intentions separated.
+ *
+ * "Delete the folder" and "delete the pictures in it" are different decisions, and
+ * the old ✕ silently chose the first while looking like it might mean the second.
+ * Both are offered explicitly, with the counts stated, and the destructive one is
+ * the only one coloured as destructive.
+ *
+ * Android will show its own confirmation after this one for the permanent option. It
+ * has to: the app did not create these files. Ours still earns its place, because the
+ * system dialog can only talk about a number of images and cannot mention folders at
+ * all.
+ */
+@Composable
+private fun FolderDeleteDialog(
+    folderCount: Int,
+    screenshotCount: Int,
+    onDismiss: () -> Unit,
+    onDeleteFoldersOnly: () -> Unit,
+    onDeleteEverything: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(pluralStringResource(R.plurals.find_folder_delete_title, folderCount, folderCount))
+        },
+        text = {
+            Text(
+                if (screenshotCount == 0) {
+                    stringResource(R.string.find_folder_delete_body_empty)
+                } else {
+                    pluralStringResource(
+                        R.plurals.find_folder_delete_body,
+                        screenshotCount,
+                        screenshotCount,
+                    )
+                },
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onDeleteEverything) {
+                Text(
+                    text = if (screenshotCount == 0) {
+                        stringResource(R.string.find_folder_delete_confirm_empty)
+                    } else {
+                        stringResource(R.string.find_folder_delete_confirm_all)
+                    },
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        },
+        dismissButton = {
+            Column {
+                // Only worth offering when there is something to keep.
+                if (screenshotCount > 0) {
+                    TextButton(onClick = onDeleteFoldersOnly) {
+                        Text(stringResource(R.string.find_folder_delete_keep))
+                    }
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.find_folder_delete_cancel))
+                }
+            }
+        },
+    )
 }
 
 @Composable

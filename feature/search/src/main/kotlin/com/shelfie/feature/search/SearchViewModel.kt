@@ -26,7 +26,9 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import android.content.IntentSender
 import javax.inject.Inject
 
 /**
@@ -41,7 +43,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val repository: ScreenshotRepository,
-    deleter: ScreenshotDeleter,
+    private val deleter: ScreenshotDeleter,
 ) : ViewModel() {
 
     /**
@@ -143,12 +145,138 @@ class SearchViewModel @Inject constructor(
         if (filter != null) _query.value = ""
     }
 
-    fun onDeleteFolder(folderId: Long) {
+    // ---- Folder selection -------------------------------------------------------
+    //
+    // Folders used to carry a permanent ✕, which put an irreversible action one
+    // stray tap away from the row you tap to open the folder — and it fired with no
+    // confirmation at all. Deleting is now something you have to enter a mode to do,
+    // matching how selecting screenshots already works on this screen.
+
+    private val selectedFolderIds = MutableStateFlow<Set<Long>>(emptySet())
+    val folderSelection: StateFlow<Set<Long>> = selectedFolderIds
+
+    /** Screenshots inside the current folder selection, for the confirmation text. */
+    private val _affectedScreenshotCount = MutableStateFlow(0)
+    val affectedScreenshotCount: StateFlow<Int> = _affectedScreenshotCount
+
+    fun onFolderLongPress(folderId: Long) {
+        selectedFolderIds.update { it + folderId }
+    }
+
+    fun onFolderToggle(folderId: Long) {
+        selectedFolderIds.update { if (folderId in it) it - folderId else it + folderId }
+    }
+
+    fun clearFolderSelection() {
+        selectedFolderIds.value = emptySet()
+    }
+
+    /**
+     * Counts what is at stake, before asking.
+     *
+     * Called when the confirmation opens rather than kept continuously up to date,
+     * because it is only ever read at that one moment and a live count would mean a
+     * query on every tap of a folder row.
+     */
+    fun onDeleteFoldersRequested() {
         viewModelScope.launch {
-            repository.deleteFolder(folderId)
-            if (selectedFilter.value == ShelfFilter.InFolder(folderId)) {
-                selectedFilter.value = null
+            _affectedScreenshotCount.value =
+                repository.screenshotIdsInFolders(selectedFolderIds.value.toList()).size
+        }
+    }
+
+    /**
+     * Deletes the folders and keeps every screenshot.
+     *
+     * The screenshots return to their automatic category, which is what the app has
+     * always done on folder deletion. Offered alongside the destructive option
+     * because "I no longer want this grouping" and "I no longer want these pictures"
+     * are completely different intentions, and a single confirm button would force
+     * the second on anyone who meant the first.
+     */
+    fun onDeleteFoldersOnly() {
+        val ids = selectedFolderIds.value.toList()
+        if (ids.isEmpty()) return
+
+        viewModelScope.launch {
+            repository.deleteFolders(ids)
+            leaveDeletedFolders(ids)
+            selectedFolderIds.value = emptySet()
+        }
+    }
+
+    /**
+     * Deletes the folders and permanently deletes everything inside them.
+     *
+     * Uses the permanent request rather than the bin used elsewhere, because the
+     * stated intent is that these pictures stop existing, and binning them would
+     * leave them in the gallery's recently-deleted for a month.
+     *
+     * The folder rows are removed only *after* the system confirms. Deleting them
+     * first would mean a cancelled dialog had still destroyed the folders, leaving
+     * their screenshots scattered back into categories with no way to tell what had
+     * been grouped — a cancel that changed things.
+     *
+     * @param launch shows the system's own confirmation, which Android requires for
+     *   deleting media this app did not create. Two prompts is unavoidable; ours
+     *   exists because the system's cannot mention folders.
+     */
+    fun onDeleteFoldersAndScreenshots(launch: (IntentSender) -> Unit) {
+        val folderIds = selectedFolderIds.value.toList()
+        if (folderIds.isEmpty()) return
+
+        viewModelScope.launch {
+            val screenshotIds = repository.screenshotIdsInFolders(folderIds)
+
+            if (screenshotIds.isEmpty()) {
+                // Nothing inside, so there is nothing to ask about.
+                repository.deleteFolders(folderIds)
+                leaveDeletedFolders(folderIds)
+                selectedFolderIds.value = emptySet()
+                return@launch
             }
+
+            val sender = runCatching { deleter.buildDeleteRequest(screenshotIds) }.getOrNull()
+
+            if (sender == null) {
+                // No system request available — below API 30, or an imported-only
+                // selection this app has no file access to. Removing the folders and
+                // index rows is still honest; the files simply stay on the device.
+                pendingPermanentDelete = folderIds to screenshotIds
+                onPermanentDeleteConfirmed(filesRemoved = false)
+                return@launch
+            }
+
+            pendingPermanentDelete = folderIds to screenshotIds
+            launch(sender)
+        }
+    }
+
+    /** Held between issuing the system request and its result coming back. */
+    private var pendingPermanentDelete: Pair<List<Long>, List<Long>>? = null
+
+    fun onPermanentDeleteConfirmed(filesRemoved: Boolean = true) {
+        val (folderIds, screenshotIds) = pendingPermanentDelete ?: return
+        pendingPermanentDelete = null
+
+        viewModelScope.launch {
+            if (filesRemoved) deleter.finalizeDeletion(screenshotIds)
+            repository.deleteFolders(folderIds)
+            leaveDeletedFolders(folderIds)
+            selectedFolderIds.value = emptySet()
+        }
+    }
+
+    fun onPermanentDeleteCancelled() {
+        // Nothing to undo: by design nothing was changed before the system asked.
+        pendingPermanentDelete = null
+    }
+
+    /** Stops browsing a folder that has just ceased to exist. */
+    private fun leaveDeletedFolders(deleted: List<Long>) {
+        val current = selectedFilter.value
+        if (current is ShelfFilter.InFolder && current.folderId in deleted) {
+            selectedFilter.value = null
         }
     }
 
