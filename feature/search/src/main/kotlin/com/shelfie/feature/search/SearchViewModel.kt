@@ -5,7 +5,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import com.shelfie.core.designsystem.component.ShelfChip
+import com.shelfie.core.media.ScreenshotDeleter
 import com.shelfie.core.media.ScreenshotRepository
+import com.shelfie.core.media.ScreenshotSelection
 import com.shelfie.core.model.Folder
 import com.shelfie.core.model.Screenshot
 import com.shelfie.core.model.ShelfFilter
@@ -39,7 +41,18 @@ import javax.inject.Inject
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val repository: ScreenshotRepository,
+    deleter: ScreenshotDeleter,
 ) : ViewModel() {
+
+    /**
+     * The same multi-select as the shelf, from the same controller.
+     *
+     * Selecting inside a folder used to be impossible: all of this lived in the shelf
+     * and nowhere else, so the Find tab could show a folder's contents but not act on
+     * them. Sharing the controller rather than copying it means a fix to delete or
+     * move behaviour applies to both screens by construction.
+     */
+    val selection = ScreenshotSelection(repository, deleter, viewModelScope)
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query

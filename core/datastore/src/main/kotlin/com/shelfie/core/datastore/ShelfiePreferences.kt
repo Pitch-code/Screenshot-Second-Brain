@@ -37,9 +37,19 @@ class ShelfiePreferences @Inject constructor(
 
     val lastReconcileAt: Flow<Long> = dataStore.data.map { it[KEY_LAST_RECONCILE] ?: 0L }
 
-    /** Dynamic colour follows the system wallpaper by default on Android 12+. */
+    /**
+     * Wallpaper-derived colour, off by default.
+     *
+     * It used to default on, which meant almost nobody ever saw the app's own
+     * palette — Android derives a scheme from the wallpaper, and for most wallpapers
+     * the dark result is a low-saturation grey. The app looked washed out and
+     * generic, and the amber accent that makes it recognisable never appeared.
+     *
+     * Still offered, because people who like matching their wallpaper like it a lot.
+     * Just no longer the default.
+     */
     val useDynamicColor: Flow<Boolean> =
-        dataStore.data.map { it[KEY_DYNAMIC_COLOR] ?: true }
+        dataStore.data.map { it[KEY_DYNAMIC_COLOR] ?: false }
 
     /**
      * Grid ordering. Stored by enum name, and an unrecognised value falls back to

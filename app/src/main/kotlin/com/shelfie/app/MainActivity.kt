@@ -8,6 +8,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.runtime.getValue
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.shelfie.core.designsystem.theme.ShelfieBackground
 import com.shelfie.core.designsystem.theme.ShelfieTheme
 import com.shelfie.core.media.ScreenshotContentObserver
 import dagger.hilt.android.AndroidEntryPoint
@@ -47,7 +48,11 @@ class MainActivity : ComponentActivity() {
             val useDynamicColor by appViewModel.useDynamicColor.collectAsStateWithLifecycle()
 
             ShelfieTheme(dynamicColor = useDynamicColor) {
-                ShelfieApp(startOnSearch = openSearch, viewModel = appViewModel)
+                // Wraps everything, so the gradient is behind every screen rather
+                // than being repeated per-screen and drifting out of sync.
+                ShelfieBackground {
+                    ShelfieApp(startOnSearch = openSearch, viewModel = appViewModel)
+                }
             }
         }
     }

@@ -24,6 +24,31 @@
     <string name="sort_largest_first">Largest files first</string>
     <string name="sort_smallest_first">Smallest files first</string>
 
+    <!-- Multi-select, shared by the shelf and the Find tab. -->
+    <plurals name="selection_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <string name="selection_clear">Clear selection</string>
+    <string name="selection_move">Move to folder</string>
+    <string name="selection_delete">Delete selected</string>
+    <plurals name="selection_move_title">
+        <item quantity="one">Move %d screenshot</item>
+        <item quantity="other">Move %d screenshots</item>
+    </plurals>
+    <string name="selection_move_remove">Remove from folder</string>
+    <string name="selection_move_no_folders">You have no folders yet. Create one below and the selected screenshots will go straight into it.</string>
+    <plurals name="selection_moved">
+        <item quantity="one">%d screenshot moved</item>
+        <item quantity="other">%d screenshots moved</item>
+    </plurals>
+    <plurals name="selection_deleted">
+        <item quantity="one">%d screenshot moved to your bin</item>
+        <item quantity="other">%d screenshots moved to your bin</item>
+    </plurals>
+    <string name="selection_undo">Undo</string>
+    <string name="selection_delete_index_only">Removed from Shelfie. Your phone does not allow this app to delete the files themselves.</string>
+
     <!-- User-created folders. -->
     <string name="folder_new">Create new folder…</string>
     <string name="folder_new_title">New folder</string>

@@ -57,6 +57,8 @@ import com.shelfie.core.designsystem.action.ActionResult
 import com.shelfie.core.designsystem.action.ScreenshotActionLauncher
 import com.shelfie.core.designsystem.component.EmptyState
 import com.shelfie.core.designsystem.component.FolderCreateDialog
+import com.shelfie.core.designsystem.component.MoveToFolderDialog
+import com.shelfie.core.designsystem.component.SelectionBar
 import com.shelfie.core.designsystem.component.IndexProblemCard
 import com.shelfie.core.designsystem.component.IndexStatusStrip
 import com.shelfie.core.designsystem.component.LimitedModeBanner
@@ -153,8 +155,8 @@ fun ShelfScreen(
         )
     }
 
-    val selection by viewModel.selection.collectAsStateWithLifecycle()
-    val indexOnlyMessage = stringResource(R.string.shelf_delete_index_only)
+    val selection by viewModel.selection.selection.collectAsStateWithLifecycle()
+    val indexOnlyMessage = stringResource(com.shelfie.core.designsystem.R.string.selection_delete_index_only)
 
     // System delete confirmation. Declining restores the soft-deleted rows, so
     // cancelling genuinely cancels.
@@ -162,14 +164,14 @@ fun ShelfScreen(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
     ) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
-            viewModel.onDeletionConfirmed()
+            viewModel.selection.onDeleteConfirmed()
         } else {
-            viewModel.onDeletionCancelled()
+            viewModel.selection.onDeleteCancelled()
         }
     }
 
     // Leaving selection with the system back gesture, which is what people try first.
-    BackHandler(enabled = selection.isNotEmpty(), onBack = viewModel::onSelectionCleared)
+    BackHandler(enabled = selection.isNotEmpty(), onBack = viewModel.selection::clear)
 
     // Untrash confirmation for undo. Taking files back out of the bin is as much a
     // media change as putting them in, so it needs its own consent on Android 11+.
@@ -177,15 +179,15 @@ fun ShelfScreen(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
     ) { }
 
-    val undoable by viewModel.undoableDelete.collectAsStateWithLifecycle()
-    val undoLabel = stringResource(R.string.shelf_undo)
+    val undoable by viewModel.selection.undoableDelete.collectAsStateWithLifecycle()
+    val undoLabel = stringResource(com.shelfie.core.designsystem.R.string.selection_undo)
     LaunchedEffect(undoable) {
         if (undoable.isEmpty()) return@LaunchedEffect
 
         val count = undoable.size
         val result = snackbarHostState.showSnackbar(
             message = context.resources.getQuantityString(
-                R.plurals.shelf_deleted_undoable,
+                com.shelfie.core.designsystem.R.plurals.selection_deleted,
                 count,
                 count,
             ),
@@ -193,38 +195,46 @@ fun ShelfScreen(
             duration = SnackbarDuration.Long,
         )
         if (result == SnackbarResult.ActionPerformed) {
-            viewModel.onUndoDelete { sender ->
+            viewModel.selection.undo { sender ->
                 undoLauncher.launch(IntentSenderRequest.Builder(sender).build())
             }
         } else {
-            viewModel.onUndoDismissed()
+            viewModel.selection.onUndoDismissed()
         }
     }
 
-    val movedCount by viewModel.lastMovedCount.collectAsStateWithLifecycle()
+    val movedCount by viewModel.selection.lastMovedCount.collectAsStateWithLifecycle()
     LaunchedEffect(movedCount) {
         if (movedCount == 0) return@LaunchedEffect
         snackbarHostState.showSnackbar(
             context.resources.getQuantityString(
-                R.plurals.shelf_moved,
+                com.shelfie.core.designsystem.R.plurals.selection_moved,
                 movedCount,
                 movedCount,
             ),
         )
-        viewModel.onMoveMessageShown()
+        viewModel.selection.onMoveMessageShown()
     }
 
-    val folders by viewModel.folders.collectAsStateWithLifecycle()
+    val folders by viewModel.selection.folders.collectAsStateWithLifecycle()
     var showMoveDialog by remember { mutableStateOf(false) }
     var showCreateFolder by remember { mutableStateOf(false) }
+
+    // Resolved when the dialog opens, so "Remove from folder" is only offered when it
+    // would actually do something.
+    var anyFiled by remember { mutableStateOf(false) }
+    LaunchedEffect(showMoveDialog) {
+        if (showMoveDialog) anyFiled = viewModel.selection.selectionHasFiledItems()
+    }
 
     if (showMoveDialog) {
         MoveToFolderDialog(
             selectedCount = selection.size,
             folders = folders,
+            showRemoveOption = anyFiled,
             onDismiss = { showMoveDialog = false },
             onMoveTo = { folderId ->
-                viewModel.onMoveSelectionToFolder(folderId)
+                viewModel.selection.moveTo(folderId)
                 showMoveDialog = false
             },
             onCreateNew = {
@@ -240,7 +250,7 @@ fun ShelfScreen(
         FolderCreateDialog(
             onDismiss = { showCreateFolder = false },
             onCreate = { name, icon ->
-                viewModel.onCreateFolderForSelection(name, icon)
+                viewModel.selection.createFolderAndMove(name, icon)
                 showCreateFolder = false
             },
         )
@@ -300,11 +310,11 @@ fun ShelfScreen(
             if (selection.isNotEmpty()) {
                 SelectionBar(
                     count = selection.size,
-                    onClear = viewModel::onSelectionCleared,
+                    onClear = viewModel.selection::clear,
                     onMove = { showMoveDialog = true },
                     onDelete = {
-                        val indexOnly = !viewModel.canDeleteFiles()
-                        viewModel.onDeleteSelected { sender ->
+                        val indexOnly = !viewModel.selection.canDeleteFiles()
+                        viewModel.selection.delete { sender ->
                             deleteLauncher.launch(IntentSenderRequest.Builder(sender).build())
                         }
                         if (indexOnly) {
@@ -343,9 +353,9 @@ fun ShelfScreen(
                     // While selecting, a tap toggles instead of opening: opening the
                     // detail sheet mid-selection loses the selection.
                     onScreenshotClick = { id ->
-                        if (selection.isEmpty()) onScreenshotClick(id) else viewModel.onTileToggled(id)
+                        if (selection.isEmpty()) onScreenshotClick(id) else viewModel.selection.onToggle(id)
                     },
-                    onScreenshotLongPress = viewModel::onTileLongPress,
+                    onScreenshotLongPress = viewModel.selection::onLongPress,
                     selectedIds = selection,
                     folderFor = viewModel::folderFor,
                     onAction = { screenshot, action ->
@@ -507,56 +517,5 @@ private fun ShelfToolbar(
         }
 
         SortMenuButton(sort = sort, onSortChange = onSortChange)
-    }
-}
-
-
-/**
- * Replaces the toolbar while tiles are selected.
- *
- * Deliberately occupies the same row rather than appearing above it, so entering
- * selection does not push the grid down and move the tile the user is aiming at.
- */
-@Composable
-private fun SelectionBar(
-    count: Int,
-    onClear: () -> Unit,
-    onMove: () -> Unit,
-    onDelete: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(onClick = onClear) {
-            Icon(
-                imageVector = Icons.Outlined.Close,
-                contentDescription = stringResource(R.string.shelf_selection_clear),
-            )
-        }
-
-        Text(
-            text = pluralStringResource(R.plurals.shelf_selected_count, count, count),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.weight(1f),
-        )
-
-        IconButton(onClick = onMove) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Outlined.DriveFileMove,
-                contentDescription = stringResource(R.string.shelf_selection_move),
-            )
-        }
-
-        IconButton(onClick = onDelete) {
-            Icon(
-                imageVector = Icons.Outlined.Delete,
-                contentDescription = stringResource(R.string.shelf_selection_delete),
-                tint = MaterialTheme.colorScheme.error,
-            )
-        }
     }
 }

@@ -432,6 +432,15 @@ class ScreenshotRepository @Inject constructor(
     /** How many screenshots Shelfie knows about, searchable or not. */
     suspend fun discoveredCount(): Int = dao.discoveredCount()
 
+    /**
+     * True when any of these is filed in a folder.
+     *
+     * Drives whether the move picker offers "Remove from folder": offering it for a
+     * selection that is not in any folder is an action that would visibly do nothing.
+     */
+    suspend fun anyFiled(ids: List<Long>): Boolean =
+        ids.chunked(SQL_ID_CHUNK).any { chunk -> dao.filedCount(chunk) > 0 }
+
     suspend fun discoverNewest(limit: Int): Int {
         if (!accessChecker.canReadAnyMedia()) return 0
 

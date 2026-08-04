@@ -16,11 +16,36 @@ private val ShelfieDarkColors: ColorScheme = darkColorScheme(
     onPrimary = BrandColors.SignalDark,
     primaryContainer = BrandColors.SignalDark,
     onPrimaryContainer = BrandColors.SignalContainer,
+
+    secondary = BrandColors.Aqua,
+    onSecondary = BrandColors.AquaDark,
+    secondaryContainer = BrandColors.AquaDark,
+    onSecondaryContainer = BrandColors.Aqua,
+
+    tertiary = BrandColors.Violet,
+    onTertiary = BrandColors.VioletDark,
+    tertiaryContainer = BrandColors.VioletDark,
+    onTertiaryContainer = BrandColors.Violet,
+
     background = BrandColors.DeepSurface,
     onBackground = BrandColors.Shelf,
     surface = BrandColors.Deep,
     onSurface = BrandColors.Shelf,
+    // Muted rather than full-strength white for supporting text: with everything at
+    // the same brightness there is no visual hierarchy and the screen reads as noise.
+    onSurfaceVariant = BrandColors.ShelfMuted,
+
+    // Four distinguishable steps. Cards previously sat on a surface almost the same
+    // colour as themselves, so nothing had edges.
+    surfaceContainerLowest = BrandColors.DeepSurface,
+    surfaceContainerLow = BrandColors.Deep,
     surfaceContainer = BrandColors.DeepElevated,
+    surfaceContainerHigh = BrandColors.DeepHigh,
+    surfaceContainerHighest = BrandColors.DeepHigh,
+
+    outline = BrandColors.DeepHigh,
+    outlineVariant = BrandColors.DeepElevated,
+
     error = BrandColors.ErrorDark,
 )
 
@@ -29,6 +54,12 @@ private val ShelfieLightColors: ColorScheme = lightColorScheme(
     onPrimary = BrandColors.Shelf,
     primaryContainer = BrandColors.SignalContainer,
     onPrimaryContainer = BrandColors.SignalDark,
+
+    secondary = BrandColors.AquaDark,
+    onSecondary = BrandColors.Shelf,
+    tertiary = BrandColors.VioletDark,
+    onTertiary = BrandColors.Shelf,
+
     background = BrandColors.Shelf,
     onBackground = BrandColors.Deep,
     surface = BrandColors.Shelf,
@@ -52,7 +83,7 @@ private val ShelfieLightColors: ColorScheme = lightColorScheme(
 @Composable
 fun ShelfieTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val colorScheme = when {

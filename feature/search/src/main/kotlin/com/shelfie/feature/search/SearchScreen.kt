@@ -1,5 +1,19 @@
 package com.shelfie.feature.search
 
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import com.shelfie.core.designsystem.component.FolderCreateDialog
+import com.shelfie.core.designsystem.component.MoveToFolderDialog
+import com.shelfie.core.designsystem.component.SelectionBar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -25,6 +39,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -91,12 +106,106 @@ fun SearchScreen(
         fieldText = ""
     }
 
+    val selectedIds by viewModel.selection.selection.collectAsStateWithLifecycle()
+    val moveFolders by viewModel.selection.folders.collectAsStateWithLifecycle()
+    val undoable by viewModel.selection.undoableDelete.collectAsStateWithLifecycle()
+    val movedCount by viewModel.selection.lastMovedCount.collectAsStateWithLifecycle()
+
+    var showMoveDialog by remember { mutableStateOf(false) }
+    var showCreateFolder by remember { mutableStateOf(false) }
+    var anyFiled by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    val deleteLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            viewModel.selection.onDeleteConfirmed()
+        } else {
+            viewModel.selection.onDeleteCancelled()
+        }
+    }
+    val undoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult(),
+    ) { }
+
+    BackHandler(enabled = selectedIds.isNotEmpty(), onBack = viewModel.selection::clear)
+
+    LaunchedEffect(showMoveDialog) {
+        if (showMoveDialog) anyFiled = viewModel.selection.selectionHasFiledItems()
+    }
+
+    val undoLabel = stringResource(com.shelfie.core.designsystem.R.string.selection_undo)
+    LaunchedEffect(undoable) {
+        if (undoable.isEmpty()) return@LaunchedEffect
+        val count = undoable.size
+        val result = snackbarHostState.showSnackbar(
+            message = context.resources.getQuantityString(
+                com.shelfie.core.designsystem.R.plurals.selection_deleted,
+                count,
+                count,
+            ),
+            actionLabel = undoLabel,
+            duration = SnackbarDuration.Long,
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            viewModel.selection.undo { sender ->
+                undoLauncher.launch(IntentSenderRequest.Builder(sender).build())
+            }
+        } else {
+            viewModel.selection.onUndoDismissed()
+        }
+    }
+
+    LaunchedEffect(movedCount) {
+        if (movedCount == 0) return@LaunchedEffect
+        snackbarHostState.showSnackbar(
+            context.resources.getQuantityString(
+                com.shelfie.core.designsystem.R.plurals.selection_moved,
+                movedCount,
+                movedCount,
+            ),
+        )
+        viewModel.selection.onMoveMessageShown()
+    }
+
+    if (showMoveDialog) {
+        MoveToFolderDialog(
+            selectedCount = selectedIds.size,
+            folders = moveFolders,
+            showRemoveOption = anyFiled,
+            onDismiss = { showMoveDialog = false },
+            onMoveTo = { folderId ->
+                viewModel.selection.moveTo(folderId)
+                showMoveDialog = false
+            },
+            onCreateNew = {
+                showMoveDialog = false
+                showCreateFolder = true
+            },
+        )
+    }
+
+    if (showCreateFolder) {
+        FolderCreateDialog(
+            onDismiss = { showCreateFolder = false },
+            onCreate = { name, icon ->
+                viewModel.selection.createFolderAndMove(name, icon)
+                showCreateFolder = false
+            },
+        )
+    }
+
     val selected = state.selectedFilter
     val browsingFolder = (selected as? ShelfFilter.InFolder)
         ?.let { f -> folders.firstOrNull { it.id == f.folderId } }
     val browsingCategoryRes = (selected as? ShelfFilter.Category)?.category?.labelRes
 
-    Column(modifier = modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize()) {
         OutlinedTextField(
             value = fieldText,
             onValueChange = { value ->
@@ -137,25 +246,40 @@ fun SearchScreen(
             )
 
             selected != null -> Column(modifier = Modifier.fillMaxSize()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 4.dp, end = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(onClick = { viewModel.onFilterSelected(null) }) {
-                        Icon(
-                            Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = stringResource(R.string.find_back),
+                if (selectedIds.isNotEmpty()) {
+                    // Replaces the folder header while selecting, so the same actions
+                    // are available here as on the shelf.
+                    SelectionBar(
+                        count = selectedIds.size,
+                        onClear = viewModel.selection::clear,
+                        onMove = { showMoveDialog = true },
+                        onDelete = {
+                            viewModel.selection.delete { sender ->
+                                deleteLauncher.launch(IntentSenderRequest.Builder(sender).build())
+                            }
+                        },
+                    )
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 4.dp, end = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        IconButton(onClick = { viewModel.onFilterSelected(null) }) {
+                            Icon(
+                                Icons.AutoMirrored.Outlined.ArrowBack,
+                                contentDescription = stringResource(R.string.find_back),
+                            )
+                        }
+                        Text(
+                            text = browsingFolder?.name
+                                ?: browsingCategoryRes?.let { stringResource(it) }
+                                ?: "",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f),
                         )
                     }
-                    Text(
-                        text = browsingFolder?.name
-                            ?: browsingCategoryRes?.let { stringResource(it) }
-                            ?: "",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.weight(1f),
-                    )
                 }
 
                 if (browseItems.itemCount == 0) {
@@ -179,9 +303,20 @@ fun SearchScreen(
                             browseItems[index]?.let { screenshot ->
                                 ScreenshotTile(
                                     screenshot = screenshot,
-                                    onClick = { onScreenshotClick(screenshot.id) },
+                                    onClick = {
+                                        if (selectedIds.isEmpty()) {
+                                            onScreenshotClick(screenshot.id)
+                                        } else {
+                                            viewModel.selection.onToggle(screenshot.id)
+                                        }
+                                    },
                                     onAction = {},
                                     folder = browsingFolder,
+                                    onLongClick = {
+                                        viewModel.selection.onLongPress(screenshot.id)
+                                    },
+                                    selected = screenshot.id in selectedIds,
+                                    selectionActive = selectedIds.isNotEmpty(),
                                 )
                             }
                         }
@@ -196,6 +331,12 @@ fun SearchScreen(
                 onDeleteFolder = viewModel::onDeleteFolder,
             )
         }
+    }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
 }
 
