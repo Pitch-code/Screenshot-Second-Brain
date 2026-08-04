@@ -25,10 +25,31 @@
       It also states what the free tier still DOES rather than only what it withholds,
       because a dialog that reads purely as a restriction gets dismissed unread.
     -->
+    <!--
+      Rewritten for clarity. The previous version had three problems:
+
+      "One payment unlocks all 105" put an unusual noun phrase in the subject
+      position, which reads as translated English. The standard phrasing for this is
+      a one-time purchase, and the reassurance belongs in its own short sentence.
+
+      It also crammed three separate offers into one sentence, and never said the
+      price — a purchase prompt that does not state what it costs makes people
+      hesitate no matter how good the offer is.
+    -->
     <string name="upsell_title">%1$d screenshots found</string>
-    <string name="upsell_body">The free version keeps your newest %1$d searchable — those are ready now.\n\nOne payment unlocks all %2$d, plus anything you add later, and lets you search other folders such as WhatsApp and Telegram. No subscription.</string>
-    <string name="upsell_continue_free">Continue with free version</string>
-    <string name="upsell_unlock">Unlock everything</string>
+
+    <!-- %1$d = free limit, %2$d = total found. -->
+    <string name="upsell_body">Right now you can search your %1$d most recent screenshots. The other %2$d are on your shelf, but their text is not searchable yet.\n\nThe full version makes all of them searchable, including every screenshot you take from now on. You can also add other folders, such as WhatsApp and Telegram.</string>
+
+    <!-- Shown when Play has given us a price. -->
+    <string name="upsell_price">%1$s, paid once. No subscription and no renewals.</string>
+    <!-- Fallback when the price is not yet known, so the dialog is never misleading. -->
+    <string name="upsell_price_unknown">A single purchase. No subscription and no renewals.</string>
+
+    <string name="upsell_continue_free">Not now</string>
+    <string name="upsell_unlock">Get the full version</string>
+    <!-- With the price on the button, the decision needs no extra reading. -->
+    <string name="upsell_unlock_priced">Unlock for %1$s</string>
     <string name="shelf_refresh_no_access">Shelfie cannot read your screenshots. Check permissions in Settings.</string>
 
     <string name="shelf_limited_empty_title">Pick a few screenshots</string>
