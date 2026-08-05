@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
@@ -42,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -64,6 +66,22 @@ private const val MAX_SCALE = 6f
 
 /** Where a double tap zooms to, when starting from unzoomed. */
 private const val DOUBLE_TAP_SCALE = 2.5f
+
+/**
+ * Height of the fades behind the top and bottom controls.
+ *
+ * Generous enough to cover the status bar inset plus a row of buttons on a tall
+ * phone, so the fade has finished before it reaches the image's subject.
+ */
+private val SCRIM_HEIGHT = 168.dp
+
+/**
+ * Darkest point of each fade.
+ *
+ * Enough for white text to clear the contrast bar against pure white underneath,
+ * without the corners looking like they have been painted over.
+ */
+private const val SCRIM_ALPHA = 0.55f
 
 /**
  * The screenshot itself, full screen, as the first thing a tap produces.
@@ -113,6 +131,47 @@ fun ScreenshotViewer(
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else {
                 ZoomableImage(model = screenshot.uri, modifier = Modifier.fillMaxSize())
+
+                /*
+                 * Scrims behind the controls, so white text is readable on any image.
+                 *
+                 * The controls were white on transparent, which vanished completely
+                 * over a light screenshot — and screenshots of apps are very often
+                 * mostly white. Sampling the image and flipping the tint was the
+                 * obvious fix and is the wrong one: it needs the bitmap decoded before
+                 * it can decide, it has no answer for an image that is white at one
+                 * end of the row and dark at the other, and the colour would have to
+                 * change while panning, which reads as flickering.
+                 *
+                 * A gradient guarantees contrast instead of estimating it, costs
+                 * nothing, and never changes as the image moves. It is also what the
+                 * shelf tiles already do for the same reason.
+                 *
+                 * Drawn edge to edge rather than inside the insets so the fade starts
+                 * at the very top of the screen; the controls themselves stay inset.
+                 */
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .height(SCRIM_HEIGHT)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Black.copy(alpha = SCRIM_ALPHA), Color.Transparent),
+                            ),
+                        ),
+                )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(SCRIM_HEIGHT)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, Color.Black.copy(alpha = SCRIM_ALPHA)),
+                            ),
+                        ),
+                )
 
                 // Controls sit above the image and inside the system insets, so the
                 // picture itself stays edge to edge while nothing is unreachable

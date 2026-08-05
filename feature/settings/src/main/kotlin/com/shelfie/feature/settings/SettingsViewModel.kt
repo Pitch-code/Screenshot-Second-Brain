@@ -16,6 +16,7 @@ import com.shelfie.core.media.ScreenshotDeleter
 import com.shelfie.core.media.ScreenshotRepository
 import com.shelfie.core.model.MediaFolder
 import com.shelfie.core.model.MediaAccess
+import com.shelfie.core.model.ThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.shelfie.core.designsystem.component.UiMessage
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,7 +47,7 @@ class SettingsViewModel @Inject constructor(
         repository.observeRules(),
         quota.state,
         billing.billingState,
-        preferences.useDynamicColor,
+        combine(preferences.useDynamicColor, preferences.themeMode) { dyn, mode -> dyn to mode },
         combine(message, failureText) { m, f -> m to f },
         combine(
             repository.observeStateCounts(),
@@ -57,7 +58,7 @@ class SettingsViewModel @Inject constructor(
         val rules = values[0] as List<UserRule>
         val quotaState = values[1] as QuotaState
         val billingState = values[2] as BillingState
-        val dynamicColor = values[3] as Boolean
+        val (dynamicColor, themeMode) = values[3] as Pair<Boolean, ThemeMode>
         val (msg, failure) = values[4] as Pair<UiMessage?, String?>
         val (counts, lastError) = values[5] as Pair<List<IndexStateCount>, String?>
 
@@ -66,6 +67,7 @@ class SettingsViewModel @Inject constructor(
             quota = quotaState,
             billing = billingState,
             useDynamicColor = dynamicColor,
+            themeMode = themeMode,
             access = repository.currentAccess(),
             message = msg,
             failureText = failure,
@@ -113,6 +115,10 @@ class SettingsViewModel @Inject constructor(
                     failureText.value = result.message
             }
         }
+    }
+
+    fun onThemeModeChanged(mode: ThemeMode) {
+        viewModelScope.launch { preferences.setThemeMode(mode) }
     }
 
     fun onDynamicColorChanged(enabled: Boolean) {
@@ -240,6 +246,7 @@ data class SettingsUiState(
     val quota: QuotaState = QuotaState(),
     val billing: BillingState = BillingState.Connecting,
     val useDynamicColor: Boolean = true,
+    val themeMode: ThemeMode = ThemeMode.Default,
     val access: MediaAccess = MediaAccess.DENIED,
     val message: UiMessage? = null,
     val failureText: String? = null,

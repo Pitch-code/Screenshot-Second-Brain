@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.shelfie.core.model.ShelfSortOrder
+import com.shelfie.core.model.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -65,6 +66,12 @@ class ShelfiePreferences @Inject constructor(
         dataStore.data.map { it[KEY_DYNAMIC_COLOR] ?: false }
 
     /**
+     * Light, dark, or follow the phone. Stored by enum name, decoded leniently.
+     */
+    val themeMode: Flow<ThemeMode> =
+        dataStore.data.map { ThemeMode.fromName(it[KEY_THEME_MODE]) }
+
+    /**
      * Grid ordering. Stored by enum name, and an unrecognised value falls back to
      * the default rather than throwing, so a downgrade cannot crash the shelf.
      */
@@ -109,6 +116,10 @@ class ShelfiePreferences @Inject constructor(
         dataStore.edit { it[KEY_DYNAMIC_COLOR] = enabled }
     }
 
+    suspend fun setThemeMode(mode: ThemeMode) {
+        dataStore.edit { it[KEY_THEME_MODE] = mode.name }
+    }
+
     suspend fun setShelfSortOrder(order: ShelfSortOrder) {
         dataStore.edit { it[KEY_SHELF_SORT] = order.name }
     }
@@ -131,6 +142,7 @@ class ShelfiePreferences @Inject constructor(
         val KEY_FULL_VERSION = booleanPreferencesKey("full_version_purchased")
         val KEY_LAST_RECONCILE = longPreferencesKey("last_reconcile_seconds")
         val KEY_TEXT_PIPELINE_VERSION = intPreferencesKey("text_pipeline_version")
+        val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         val KEY_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
         val KEY_SHELF_SORT = stringPreferencesKey("shelf_sort_order")
         val KEY_EXTRA_FOLDERS = stringSetPreferencesKey("extra_indexed_folders")

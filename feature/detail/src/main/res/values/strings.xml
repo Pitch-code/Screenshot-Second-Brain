@@ -3,6 +3,13 @@
     <string name="detail_change_category">Change</string>
     <string name="detail_detected">Detected</string>
     <string name="detail_text_heading">Text in this screenshot</string>
+    <string name="detail_file_heading">File details</string>
+    <string name="detail_meta_taken">Taken</string>
+    <string name="detail_meta_added">Added</string>
+    <string name="detail_meta_dimensions">Dimensions</string>
+    <string name="detail_meta_size">Size</string>
+    <string name="detail_meta_name">File name</string>
+    <string name="detail_meta_path">Location</string>
     <string name="detail_no_text">No text was recognised in this screenshot.</string>
     <string name="detail_delete">Delete</string>
     <string name="detail_pick_category">Move to…</string>

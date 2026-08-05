@@ -4,6 +4,11 @@
     <string name="settings_section_full">Shelfie Full</string>
     <string name="settings_section_access">Access</string>
     <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_detail">Choose light or dark, or let Shelfie follow your phone\'s setting.</string>
+    <string name="settings_theme_system">Automatic</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
 
     <!-- Opt-in folder scanning. No extra permission is involved: the app already
          queries every image on the device and simply discards non-screenshots. -->

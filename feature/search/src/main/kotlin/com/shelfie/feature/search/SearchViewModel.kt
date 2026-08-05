@@ -289,11 +289,29 @@ class SearchViewModel @Inject constructor(
         }
     }
 
+    /**
+     * A few screenshots to show on a browse card.
+     *
+     * A plain suspend function rather than another flow in the ui state: there is one
+     * call per card that scrolls into view, and folding twenty of these into the state
+     * would query every category on every count change whether visible or not.
+     */
+    suspend fun previewsFor(filter: ShelfFilter): List<Screenshot> =
+        runCatching { repository.previews(filter, PREVIEW_COUNT) }.getOrDefault(emptyList())
+
     /** Recognised text for a result, used for the snippet and copy actions. */
     suspend fun textFor(id: Long): String? = repository.textFor(id)
 
     private companion object {
         const val DEBOUNCE_MILLIS = 200L
+
+        /**
+         * Previews per browse card.
+         *
+         * Enough to fill the strip past the edge of the screen, so it reads as "and
+         * more" rather than as the complete contents of the folder.
+         */
+        const val PREVIEW_COUNT = 8
     }
 }
 

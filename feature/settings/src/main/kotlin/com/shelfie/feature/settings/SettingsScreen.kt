@@ -59,6 +59,12 @@ import com.shelfie.core.designsystem.category.labelRes
 import com.shelfie.core.media.IndexingQuota
 import com.shelfie.core.designsystem.component.resolve
 import com.shelfie.core.model.MediaAccess
+import com.shelfie.core.model.ThemeMode
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -222,6 +228,37 @@ fun SettingsScreen(
             }
 
             item { SectionHeader(stringResource(R.string.settings_section_appearance)) }
+            item {
+                // A segmented row rather than a light-mode switch. A switch has to be
+                // labelled either "light" or "dark", which makes the third and default
+                // option — follow the phone — unrepresentable, so it either disappears
+                // or has to be inferred from the switch never having been touched.
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                    Text(
+                        text = stringResource(R.string.settings_theme),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_theme_detail),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.size(10.dp))
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        ThemeMode.entries.forEachIndexed { index, mode ->
+                            SegmentedButton(
+                                selected = state.themeMode == mode,
+                                onClick = { viewModel.onThemeModeChanged(mode) },
+                                shape = SegmentedButtonDefaults.itemShape(
+                                    index = index,
+                                    count = ThemeMode.entries.size,
+                                ),
+                                label = { Text(stringResource(mode.labelRes())) },
+                            )
+                        }
+                    }
+                }
+            }
             item {
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.settings_dynamic_color)) },
@@ -630,4 +667,13 @@ private fun SettingsUiState.healthSummary(): String {
     }
 
     return parts.joinToString(" · ")
+}
+
+
+/** Label for a theme choice. Kept next to the picker so the two cannot drift. */
+@androidx.annotation.StringRes
+private fun ThemeMode.labelRes(): Int = when (this) {
+    ThemeMode.SYSTEM -> R.string.settings_theme_system
+    ThemeMode.LIGHT -> R.string.settings_theme_light
+    ThemeMode.DARK -> R.string.settings_theme_dark
 }
