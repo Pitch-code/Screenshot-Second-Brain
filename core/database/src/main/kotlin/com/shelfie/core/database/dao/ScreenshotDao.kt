@@ -417,6 +417,40 @@ interface ScreenshotDao {
     )
     fun observeCategoryCounts(minimumMatches: Int = 1): Flow<List<CategoryCount>>
 
+    /**
+     * Newest few screenshots in a folder, for the preview strip on its card.
+     *
+     * Newest rather than a fixed selection so a card visibly changes when something is
+     * added, which is what makes the strip worth looking at.
+     */
+    @Query(
+        """
+        SELECT * FROM screenshots
+        WHERE is_deleted = 0 AND folder_id = :folderId
+        ORDER BY date_added DESC
+        LIMIT :limit
+        """,
+    )
+    suspend fun folderPreviews(folderId: Long, limit: Int): List<ScreenshotEntity>
+
+    /**
+     * Newest few screenshots in a category.
+     *
+     * The predicate has to match [observeCategoryCounts] exactly — `folder_id IS NULL`
+     * included. A previous bug came from two views of the same category disagreeing on
+     * what belonged to it, and a card whose count says four while its strip shows six
+     * is that bug wearing a new hat.
+     */
+    @Query(
+        """
+        SELECT * FROM screenshots
+        WHERE is_deleted = 0 AND folder_id IS NULL AND category = :category
+        ORDER BY date_added DESC
+        LIMIT :limit
+        """,
+    )
+    suspend fun categoryPreviews(category: ScreenshotCategory, limit: Int): List<ScreenshotEntity>
+
     // ----------------------------------------------------------------- folders
 
     @Query("SELECT * FROM folders ORDER BY name COLLATE NOCASE ASC")

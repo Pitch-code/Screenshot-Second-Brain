@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -62,7 +63,11 @@ fun DetailSheet(
     onDismiss: () -> Unit,
     viewModel: DetailViewModel = hiltViewModel(key = "detail-$screenshotId"),
 ) {
-    LaunchedEffect(screenshotId) { viewModel.load(screenshotId) }
+    LaunchedEffect(screenshotId) {
+        viewModel.load(screenshotId)
+        // Only queried because this sheet is open; the viewer alone does not need it.
+        viewModel.loadMetadata()
+    }
 
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showCategoryPicker by remember { mutableStateOf(false) }
@@ -226,6 +231,15 @@ fun DetailSheet(
                     }
                 }
             }
+
+            HorizontalDivider()
+
+            // File facts, read live from MediaStore so they match the gallery.
+            Text(
+                text = stringResource(R.string.detail_file_heading),
+                style = MaterialTheme.typography.labelLarge,
+            )
+            MetadataRows(screenshot = screenshot, metadata = state.metadata)
 
             HorizontalDivider()
 
@@ -400,4 +414,72 @@ private fun CategoryPickerDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.detail_cancel)) }
         },
     )
+}
+
+
+/**
+ * Date, dimensions, size and location.
+ *
+ * Falls back to the app's own indexed values for dimensions and size when MediaStore
+ * cannot be read — a screenshot imported through the photo picker has no row this app
+ * may query. Showing the values it does have beats showing an empty panel, and they
+ * were read from the same file.
+ *
+ * A row is omitted entirely rather than printed as "unknown". A details panel exists
+ * to be trusted, and a column of "unknown" teaches the reader to distrust the values
+ * beside it.
+ */
+@Composable
+private fun MetadataRows(
+    screenshot: com.shelfie.core.model.Screenshot,
+    metadata: com.shelfie.core.media.ScreenshotMetadata?,
+) {
+    val capturedLabel = if (metadata?.capturedAtIsExact == true) {
+        R.string.detail_meta_taken
+    } else {
+        // Deliberately different wording: without DATE_TAKEN this is when the file
+        // appeared, which for a screenshot is close to but not the same as when it
+        // was captured, and claiming otherwise would be inventing precision.
+        R.string.detail_meta_added
+    }
+
+    val capturedAt = MetadataFormat.timestamp(
+        metadata?.capturedAtMillis ?: screenshot.dateAdded.times(1000L),
+    )
+    val dimensions = MetadataFormat.dimensions(
+        width = metadata?.width?.takeIf { it > 0 } ?: screenshot.width,
+        height = metadata?.height?.takeIf { it > 0 } ?: screenshot.height,
+    )
+    val size = MetadataFormat.fileSize(
+        metadata?.sizeBytes?.takeIf { it > 0L } ?: screenshot.sizeBytes,
+    )
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        capturedAt?.let { MetadataRow(stringResource(capturedLabel), it) }
+        dimensions?.let { MetadataRow(stringResource(R.string.detail_meta_dimensions), it) }
+        size?.let { MetadataRow(stringResource(R.string.detail_meta_size), it) }
+        MetadataRow(
+            label = stringResource(R.string.detail_meta_name),
+            value = screenshot.displayName,
+        )
+        metadata?.path?.let { MetadataRow(stringResource(R.string.detail_meta_path), it) }
+    }
+}
+
+@Composable
+private fun MetadataRow(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            // Fixed label column so the values line up into a readable second column
+            // rather than starting at a different place on every row.
+            modifier = Modifier.width(104.dp),
+        )
+        // Selectable because a path is something people copy.
+        SelectionContainer(modifier = Modifier.weight(1f)) {
+            Text(text = value, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
 }

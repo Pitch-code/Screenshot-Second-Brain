@@ -269,6 +269,21 @@ class ScreenshotRepository @Inject constructor(
     /** Requeues indexed rows so a changed text pipeline is applied to them. */
     suspend fun requeueAllIndexed(): Int = dao.requeueAllIndexed()
 
+    /**
+     * A handful of screenshots to show on a folder or category card.
+     *
+     * Loaded per card as it scrolls into view rather than joined into the counts
+     * query. A top-N-per-group query is awkward in SQLite and would fetch previews
+     * for every category whether or not it is on screen; this way an unopened Find
+     * tab costs nothing and a visible card costs one indexed lookup.
+     */
+    suspend fun previews(filter: ShelfFilter, limit: Int): List<Screenshot> = when (filter) {
+        is ShelfFilter.InFolder -> dao.folderPreviews(filter.folderId, limit)
+        is ShelfFilter.Category -> dao.categoryPreviews(filter.category, limit)
+        // Other filters are not browsable as cards, so there is nothing to preview.
+        else -> emptyList()
+    }.map { it.toDomain() }
+
     /** Ids of the live screenshots filed in any of these folders. */
     suspend fun screenshotIdsInFolders(folderIds: List<Long>): List<Long> =
         if (folderIds.isEmpty()) emptyList() else dao.screenshotIdsInFolders(folderIds)

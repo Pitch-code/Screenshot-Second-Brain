@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.shelfie.core.classify.EntityExtractor
 import com.shelfie.core.classify.ExtractedEntities
+import com.shelfie.core.media.ScreenshotMetadata
+import com.shelfie.core.media.ScreenshotMetadataReader
 import com.shelfie.core.media.ScreenshotRepository
 import com.shelfie.core.model.Folder
 import com.shelfie.core.model.FolderIcon
@@ -15,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
@@ -31,10 +34,12 @@ import javax.inject.Inject
 @HiltViewModel
 class DetailViewModel @Inject constructor(
     private val repository: ScreenshotRepository,
+    private val metadataReader: ScreenshotMetadataReader,
 ) : ViewModel() {
 
     private val screenshotId = MutableStateFlow<Long?>(null)
     private val text = MutableStateFlow<String?>(null)
+    private val metadata = MutableStateFlow<ScreenshotMetadata?>(null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<DetailUiState> = screenshotId
@@ -46,10 +51,12 @@ class DetailViewModel @Inject constructor(
                     repository.observeScreenshot(id),
                     text,
                     repository.observeFolders(),
-                ) { screenshot, recognisedText, folders ->
+                    metadata,
+                ) { screenshot, recognisedText, folders, fileFacts ->
                     DetailUiState(
                         screenshot = screenshot,
                         text = recognisedText,
+                        metadata = fileFacts,
                         // Re-extracted on the fly rather than stored: it is cheap
                         // on a single string, and an improved extractor then
                         // benefits every existing screenshot with no migration.
@@ -72,7 +79,26 @@ class DetailViewModel @Inject constructor(
 
         screenshotId.value = id
         text.value = null
+        metadata.value = null
         viewModelScope.launch { text.value = repository.textFor(id) }
+    }
+
+    /**
+     * Loads the file facts, on first opening the details panel.
+     *
+     * Not part of [load], because it is a MediaStore query and the overwhelming
+     * majority of opens never expand details — paying for it on every tap of a
+     * screenshot would be a query per tap for something usually unseen.
+     */
+    fun loadMetadata() {
+        if (metadata.value != null) return
+        val id = screenshotId.value ?: return
+
+        viewModelScope.launch {
+            val mediaStoreId = repository.observeScreenshot(id).firstOrNull()?.mediaStoreId
+                ?: return@launch
+            metadata.value = runCatching { metadataReader.read(mediaStoreId) }.getOrNull()
+        }
     }
 
     fun onCategoryChanged(category: ScreenshotCategory) {
@@ -120,6 +146,7 @@ class DetailViewModel @Inject constructor(
 data class DetailUiState(
     val screenshot: Screenshot? = null,
     val text: String? = null,
+    val metadata: ScreenshotMetadata? = null,
     val entities: ExtractedEntities = ExtractedEntities.Empty,
     val folders: List<Folder> = emptyList(),
     val isLoading: Boolean = false,

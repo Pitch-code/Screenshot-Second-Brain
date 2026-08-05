@@ -23,11 +23,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -46,6 +49,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.text.style.TextOverflow
+import coil3.compose.AsyncImage
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -401,9 +409,11 @@ fun SearchScreen(
                     folders = state.folders,
                     categories = state.categories,
                     selectedFolderIds = selectedFolderIds,
+                    loadPreviews = viewModel::previewsFor,
                     onSelect = viewModel::onFilterSelected,
                     onFolderLongPress = viewModel::onFolderLongPress,
                     onFolderToggle = viewModel::onFolderToggle,
+                    onScreenshotClick = onScreenshotClick,
                 )
             }
         }
@@ -422,9 +432,11 @@ private fun BrowseList(
     folders: List<ShelfChip>,
     categories: List<ShelfChip>,
     selectedFolderIds: Set<Long>,
+    loadPreviews: suspend (ShelfFilter) -> List<Screenshot>,
     onSelect: (ShelfFilter) -> Unit,
     onFolderLongPress: (Long) -> Unit,
     onFolderToggle: (Long) -> Unit,
+    onScreenshotClick: (Long) -> Unit,
 ) {
     if (folders.isEmpty() && categories.isEmpty()) {
         EmptyState(
@@ -438,17 +450,19 @@ private fun BrowseList(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (folders.isNotEmpty()) {
             item(key = "folders-header") {
                 SectionLabel(stringResource(R.string.find_section_folders))
             }
-            items(items = folders, key = { it.key }) { chip ->
+            itemsIndexed(items = folders, key = { _, chip -> chip.key }) { index, chip ->
                 val folderId = chip.folder?.id
-                BrowseRow(
+                BrowseCard(
                     chip = chip,
+                    tintIndex = index,
                     selected = folderId != null && folderId in selectedFolderIds,
+                    loadPreviews = loadPreviews,
                     onClick = {
                         // While a selection is active a tap adjusts it instead of
                         // opening, which is how selection already behaves for
@@ -461,6 +475,7 @@ private fun BrowseList(
                         }
                     },
                     onLongClick = folderId?.let { id -> { onFolderLongPress(id) } },
+                    onScreenshotClick = onScreenshotClick,
                 )
             }
         }
@@ -469,15 +484,21 @@ private fun BrowseList(
             item(key = "categories-header") {
                 SectionLabel(stringResource(R.string.find_section_categories))
             }
-            items(items = categories, key = { it.key }) { chip ->
+            itemsIndexed(items = categories, key = { _, chip -> chip.key }) { index, chip ->
                 // Automatic categories are not selectable: they are not user-created,
                 // there is nothing to delete, and an empty one reappears the moment
                 // something is classified into it.
-                BrowseRow(
+                //
+                // The tint index continues past the folders so a folder and the
+                // category directly below it are never given the same colour.
+                BrowseCard(
                     chip = chip,
+                    tintIndex = folders.size + index,
                     selected = false,
+                    loadPreviews = loadPreviews,
                     onClick = { onSelect(chip.filter) },
                     onLongClick = null,
+                    onScreenshotClick = onScreenshotClick,
                 )
             }
         }
@@ -494,15 +515,58 @@ private fun SectionLabel(text: String) {
     )
 }
 
+/**
+ * A folder or category as a card, with a strip of what is inside it.
+ *
+ * Replaces a plain list row, which showed a name, an icon and a number and left the
+ * user to remember what "Payments" contained. A card that shows its newest few
+ * screenshots is recognisable at a glance — the whole point of the app is that people
+ * remember what a screenshot *looked* like, not what it was filed under.
+ *
+ * Each card is tinted, cycling through the theme's accent roles by position. Colour
+ * carries no meaning here; it exists so the eye can tell one card from the next while
+ * scrolling, which a column of identical grey cards does not allow.
+ */
 @Composable
-private fun BrowseRow(
+private fun BrowseCard(
     chip: ShelfChip,
+    tintIndex: Int,
     selected: Boolean,
+    loadPreviews: suspend (ShelfFilter) -> List<Screenshot>,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)?,
+    onScreenshotClick: (Long) -> Unit,
 ) {
     val label = chip.folder?.name ?: chip.category?.let { stringResource(it.labelRes) } ?: return
     val leading = chip.folder?.icon?.icon ?: chip.category?.icon
+
+    val scheme = MaterialTheme.colorScheme
+    val accent = when (tintIndex % 3) {
+        0 -> scheme.primary
+        1 -> scheme.secondary
+        else -> scheme.tertiary
+    }
+
+    // Blended towards the surface rather than used raw. The reference designs are
+    // pastel on white; the same idea in a dark scheme means a slight wash of colour
+    // over the card surface, not a saturated block that the title has to fight.
+    val container = if (selected) {
+        scheme.primaryContainer
+    } else {
+        lerp(scheme.surfaceContainer, accent, CARD_TINT_STRENGTH)
+    }
+
+    /*
+     * Previews are loaded when the card first composes and kept keyed to the filter.
+     *
+     * produceState rather than a flow on the view model: there is one of these per
+     * visible card, the query is a bounded lookup, and tying it to the composition
+     * means a card scrolled out of view stops mattering. The count comes from the
+     * observed counts flow as before, so it stays live even though the strip does not.
+     */
+    val previews by produceState(initialValue = emptyList(), chip.key) {
+        value = runCatching { loadPreviews(chip.filter) }.getOrDefault(emptyList())
+    }
 
     Card(
         modifier = Modifier
@@ -511,47 +575,86 @@ private fun BrowseRow(
             // parameter at all.
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceContainer
-            },
-        ),
+        colors = CardDefaults.cardColors(containerColor = container),
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        Column(
+            modifier = Modifier.padding(vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            leading?.let {
-                Icon(
-                    imageVector = it,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                leading?.let {
+                    Icon(imageVector = it, contentDescription = null, tint = accent)
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = pluralStringResource(
+                            com.shelfie.core.designsystem.R.plurals.folder_item_count,
+                            chip.count,
+                            chip.count,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (selected) {
+                    Icon(
+                        imageVector = Icons.Outlined.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = label, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = pluralStringResource(
-                        com.shelfie.core.designsystem.R.plurals.folder_item_count,
-                        chip.count,
-                        chip.count,
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (selected) {
-                Icon(
-                    imageVector = Icons.Outlined.CheckCircle,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
+
+            // Absent rather than an empty box while loading or when a folder holds
+            // nothing: a strip of grey placeholders on every card would be more
+            // noticeable than the previews themselves.
+            if (previews.isNotEmpty()) {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(items = previews, key = { it.id }) { screenshot ->
+                        PreviewThumb(
+                            screenshot = screenshot,
+                            // Tapping a preview opens that screenshot directly. While
+                            // folders are being selected it must not, or a tap aimed
+                            // at the card would leave the selection.
+                            onClick = if (onLongClick != null && selected) {
+                                null
+                            } else {
+                                { onScreenshotClick(screenshot.id) }
+                            },
+                        )
+                    }
+                }
             }
         }
     }
+}
+
+@Composable
+private fun PreviewThumb(screenshot: Screenshot, onClick: (() -> Unit)?) {
+    val shape = MaterialTheme.shapes.medium
+
+    AsyncImage(
+        model = screenshot.uri,
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = Modifier
+            .size(width = PREVIEW_WIDTH, height = PREVIEW_HEIGHT)
+            .clip(shape)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+    )
 }
 
 /**
@@ -820,3 +923,16 @@ private fun SearchResultRow(
 }
 
 private const val FIND_GRID_COLUMNS = 2
+
+/**
+ * How far each card's tint is pushed from the surface towards its accent.
+ *
+ * Low on purpose. These are backgrounds for a title and a row of images, and anything
+ * stronger stops being a tint and starts competing with the screenshots, which are
+ * the content the card exists to show.
+ */
+private const val CARD_TINT_STRENGTH = 0.14f
+
+/** Preview thumbnail size. Portrait, because phone screenshots are. */
+private val PREVIEW_WIDTH = 72.dp
+private val PREVIEW_HEIGHT = 104.dp

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.shelfie.core.billing.ShelfieBilling
 import com.shelfie.core.datastore.ShelfiePreferences
+import com.shelfie.core.model.ThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -28,6 +29,20 @@ class ShelfieAppViewModel @Inject constructor(
 ) : ViewModel() {
 
     /** Theme preference, applied before the first frame of real UI. */
+    /**
+     * Read here rather than in a screen, because the theme wraps the whole activity
+     * and has to be known before anything is composed.
+     *
+     * [SharingStarted.Eagerly] with the stored value unavailable on the first frame
+     * would flash the wrong scheme, so the initial value matches the default the
+     * preference itself falls back to.
+     */
+    val themeMode: StateFlow<ThemeMode> = preferences.themeMode.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = ThemeMode.Default,
+    )
+
     val useDynamicColor: StateFlow<Boolean> = preferences.useDynamicColor.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
