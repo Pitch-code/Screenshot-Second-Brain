@@ -1,0 +1,136 @@
+name: Release AAB for Play
+
+# Manual only. This produces the artefact that gets uploaded to Google Play, which
+# should never happen as a side effect of pushing a commit.
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: "Version name shown on the store page, e.g. 1.0.0. Leave blank to use the value in the build file."
+        type: string
+        required: false
+      version_code:
+        description: "Version code. Must be HIGHER than every code already uploaded to Play. Leave blank to use the build file."
+        type: string
+        required: false
+
+# Read-only. Unlike the debug workflow this does not publish a GitHub release:
+# attaching a Play-bound bundle to a public release page invites people to
+# sideload a build that has not been through review.
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    name: Signed App Bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install the Android SDK packages this project needs
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-37.0" "build-tools;37.0.0"
+
+      - name: Fail early if the signing secrets are missing
+        # Better to say which secret is absent than to spend forty minutes building
+        # and hand back an unsigned bundle that Play silently rejects.
+        env:
+          KEYSTORE_BASE64: ${{ secrets.SHELFIE_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.SHELFIE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.SHELFIE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.SHELFIE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=""
+          [ -n "${KEYSTORE_BASE64:-}" ] || missing="$missing SHELFIE_KEYSTORE_BASE64"
+          [ -n "${KEYSTORE_PASSWORD:-}" ] || missing="$missing SHELFIE_KEYSTORE_PASSWORD"
+          [ -n "${KEY_ALIAS:-}" ] || missing="$missing SHELFIE_KEY_ALIAS"
+          [ -n "${KEY_PASSWORD:-}" ] || missing="$missing SHELFIE_KEY_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "Missing repository secrets:$missing"
+            echo "Add them under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+      - name: Decode the upload keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.SHELFIE_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          # Written outside the workspace so no later step can archive it by
+          # accident, and never echoed.
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          test -s "$RUNNER_TEMP/upload.jks"
+
+      - name: Build the signed bundle
+        env:
+          SHELFIE_KEYSTORE_PATH: ${{ runner.temp }}/upload.jks
+          SHELFIE_KEYSTORE_PASSWORD: ${{ secrets.SHELFIE_KEYSTORE_PASSWORD }}
+          SHELFIE_KEY_ALIAS: ${{ secrets.SHELFIE_KEY_ALIAS }}
+          SHELFIE_KEY_PASSWORD: ${{ secrets.SHELFIE_KEY_PASSWORD }}
+          VERSION_NAME: ${{ inputs.version_name }}
+          VERSION_CODE: ${{ inputs.version_code }}
+        run: |
+          set -euo pipefail
+          ARGS=""
+          [ -n "${VERSION_NAME:-}" ] && ARGS="$ARGS -PversionName=$VERSION_NAME"
+          [ -n "${VERSION_CODE:-}" ] && ARGS="$ARGS -PversionCode=$VERSION_CODE"
+          # shellcheck disable=SC2086
+          ./gradlew :app:bundleRelease $ARGS --no-daemon --stacktrace
+
+      - name: Delete the keystore
+        # Runs even on failure. The runner is discarded anyway, but leaving a signing
+        # key on disk through later steps is a habit worth not having.
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload.jks"
+
+      - name: Confirm the bundle is signed
+        # An unsigned bundle builds perfectly happily and is rejected at upload, by
+        # which point the failure is far from its cause.
+        run: |
+          set -euo pipefail
+          AAB=$(ls app/build/outputs/bundle/release/*.aab)
+          echo "Built: $AAB"
+          ls -lh "$AAB"
+          if unzip -l "$AAB" | grep -qE "META-INF/.*\.(RSA|DSA|EC)"; then
+            echo "Signature block present."
+          else
+            echo "No signature block - the bundle is UNSIGNED and Play will reject it."
+            exit 1
+          fi
+
+      - name: Upload the bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: shelfie-release-aab
+          path: app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: What to do next
+        run: |
+          {
+            echo "### Bundle ready"
+            echo ""
+            echo "Download **shelfie-release-aab** from the Artifacts section of this run."
+            echo ""
+            echo "Then in Play Console: **Testing -> Closed testing -> Create new release**,"
+            echo "and upload the \`.aab\`."
+            echo ""
+            echo "Remember: every future upload needs a **higher version code** than this one."
+          } >> "$GITHUB_STEP_SUMMARY"
