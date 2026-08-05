@@ -116,11 +116,16 @@ class MlKitTextRecognitionEngine @Inject constructor(
         suspendCancellableCoroutine { continuation ->
             val image = InputImage.fromBitmap(bitmap, 0)
 
+            // Read now, not in the listener. The bitmap is recycled in the caller's
+            // finally block, and the listener runs asynchronously — reading height
+            // from a recycled bitmap would throw inside a callback.
+            val imageHeight = bitmap.height
+
             recognizer.process(image)
                 .addOnSuccessListener { visionText ->
                     continuation.resumeIfActive(
                         OcrResult.Success(
-                            text = visionText.inReadingOrder(),
+                            text = visionText.inReadingOrder(imageHeight),
                             blockCount = visionText.textBlocks.size,
                         ),
                     )
@@ -157,7 +162,7 @@ class MlKitTextRecognitionEngine @Inject constructor(
      * real text is a worse outcome than presenting it in a poor order, since text
      * that is absent from the index can never be searched for.
      */
-    private fun Text.inReadingOrder(): String {
+    private fun Text.inReadingOrder(imageHeight: Int): String {
         val lines = textBlocks.flatMap { it.lines }
         if (lines.isEmpty()) return text
 
@@ -172,7 +177,7 @@ class MlKitTextRecognitionEngine @Inject constructor(
             )
         }
 
-        return ReadingOrder.arrange(fragments)
+        return ReadingOrder.arrange(fragments, imageHeight)
     }
 
     private companion object {

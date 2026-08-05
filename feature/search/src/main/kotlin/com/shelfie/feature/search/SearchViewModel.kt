@@ -9,7 +9,9 @@ import com.shelfie.core.media.ScreenshotDeleter
 import com.shelfie.core.media.ScreenshotRepository
 import com.shelfie.core.media.ScreenshotSelection
 import com.shelfie.core.model.Folder
+import com.shelfie.core.model.FolderIcon
 import com.shelfie.core.model.Screenshot
+import com.shelfie.core.model.ScreenshotCategory
 import com.shelfie.core.model.ShelfFilter
 import com.shelfie.core.model.ShelfSortOrder
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -105,13 +107,22 @@ class SearchViewModel @Inject constructor(
                     folder = entry.folder,
                 )
             },
-            categories = categories.map { entry ->
-                ShelfChip(
-                    filter = ShelfFilter.Category(entry.category),
-                    count = entry.count,
-                    category = entry.category,
-                )
-            },
+            // "Not sorted yet" is deliberately absent.
+            //
+            // It is not a category anyone browses *to* — it is the absence of one, and
+            // as the largest group it sat at the top of Find claiming the most
+            // prominent position for the screenshots the app understood least.
+            // Everything in it is still on the shelf, still searchable, and still
+            // selectable there, so nothing becomes unreachable.
+            categories = categories
+                .filterNot { it.category == ScreenshotCategory.NOT_SORTED }
+                .map { entry ->
+                    ShelfChip(
+                        filter = ShelfFilter.Category(entry.category),
+                        count = entry.count,
+                        category = entry.category,
+                    )
+                },
             selectedFilter = filter,
         )
     }.stateIn(
@@ -287,6 +298,18 @@ class SearchViewModel @Inject constructor(
         if (current is ShelfFilter.InFolder && current.folderId in deleted) {
             selectedFilter.value = null
         }
+    }
+
+    /**
+     * Creates an empty folder, with nothing to put in it yet.
+     *
+     * Folders could previously only be created while moving a screenshot, which meant
+     * the only way to set up a filing scheme was to file something first. Someone who
+     * knows they want "Bills" and "Warranties" before they start sorting had no way to
+     * say so.
+     */
+    fun onCreateEmptyFolder(name: String, icon: FolderIcon) {
+        viewModelScope.launch { runCatching { repository.createFolder(name, icon) } }
     }
 
     /**

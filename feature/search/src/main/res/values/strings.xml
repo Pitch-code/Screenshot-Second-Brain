@@ -4,11 +4,14 @@
     <string name="search_placeholder">Search inside your screenshots</string>
     <string name="search_clear">Clear search</string>
 
-    <string name="search_idle_title">Search your screenshots</string>
-    <string name="search_idle_body">Type an amount, a name, a code, a booking ID — anything you remember seeing.</string>
+    <!-- The idle empty state is gone: the folders header and its create action are
+         always shown now, which is more use to someone with an empty library than a
+         message telling them to search something they have not indexed yet. -->
 
     <!-- Browsing folders and categories, which now live on this tab. -->
     <string name="find_section_folders">Your folders</string>
+    <string name="find_new_folder">New folder</string>
+    <string name="find_no_folders">No folders yet. Create one, then hold a screenshot to move it in.</string>
     <string name="find_section_categories">Sorted automatically</string>
     <string name="find_back">Back to all folders</string>
     <string name="find_folder_empty_title">Nothing in here yet</string>

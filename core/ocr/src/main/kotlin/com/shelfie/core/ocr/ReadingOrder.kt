@@ -84,7 +84,42 @@ object ReadingOrder {
      */
     private const val PARAGRAPH_GAP_RATIO = 0.8
 
-    fun arrange(fragments: List<TextFragment>): String {
+    /**
+     * Fraction of image height within which a band may be the status bar.
+     *
+     * Android's status bar is around 24dp of a screen at least 640dp tall, so well
+     * under 6% even on a short screen. Kept as a fraction because the bitmap is
+     * downsampled to a size that varies.
+     */
+    private const val STATUS_BAR_MAX_FRACTION = 0.06
+
+    /**
+     * Longest a band may be and still be dismissed as the status bar.
+     *
+     * A status bar holds a clock, a couple of indicators and a battery figure. A real
+     * line of content that happens to start near the top will normally be longer, and
+     * this stops a legitimate heading being discarded because it contains a time.
+     */
+    private const val STATUS_BAR_MAX_CHARS = 44
+
+    /**
+     * What a status bar looks like: a clock, a battery percentage, or a network speed.
+     *
+     * A clock is effectively always present. The others are here because some skins —
+     * including the one this was reported on — put a live network speed up there,
+     * which is the source of values like `0.62` and `2.00`.
+     */
+    private val STATUS_BAR_SIGNATURE = Regex(
+        """\d{1,2}:\d{2}|\d{1,3}\s?%|\b[KMG]B/s\b""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /**
+     * @param imageHeight height in the same pixel space as the fragments' coordinates.
+     *   Pass 0 when unknown, which disables status bar removal rather than guessing at
+     *   a position — dropping a real line is worse than keeping a clock.
+     */
+    fun arrange(fragments: List<TextFragment>, imageHeight: Int = 0): String {
         val usable = fragments.filter { it.text.isNotBlank() }
         if (usable.isEmpty()) return ""
 
@@ -108,9 +143,31 @@ object ReadingOrder {
             }
         }
 
+        /*
+         * Drop the status bar.
+         *
+         * Every screenshot has one, and its contents — the clock, the battery, the
+         * network speed on some skins — are never what the screenshot is about. Left
+         * in, they are actively harmful now that reading order is correct, because
+         * being at the top means being *first*: the shelf labels a screenshot with the
+         * first useful-looking line it finds, and that line became the clock. Hence
+         * tiles reading "2:03 2.00" instead of a place name.
+         *
+         * It also pollutes search — every screenshot matching a time — and adds noise
+         * to the text the classifier scores.
+         *
+         * Only the first band is ever considered, and only when it is high enough,
+         * short enough, and looks like a status bar. All three must hold: text lost
+         * here can never be searched for again.
+         */
+        val body = bands.firstOrNull()
+            ?.takeIf { first -> isStatusBar(first, imageHeight) }
+            ?.let { bands.drop(1) }
+            ?: bands
+
         return buildString {
             var previousBottom: Int? = null
-            for (band in bands) {
+            for (band in body) {
                 band.sortBy { it.left }
 
                 previousBottom?.let { bottom ->
@@ -122,6 +179,16 @@ object ReadingOrder {
                 previousBottom = band.maxOf { it.bottom }
             }
         }
+    }
+
+    private fun isStatusBar(band: List<TextFragment>, imageHeight: Int): Boolean {
+        if (imageHeight <= 0) return false
+        if (band.maxOf { it.bottom } > imageHeight * STATUS_BAR_MAX_FRACTION) return false
+
+        val text = band.joinToString(" ") { it.text.trim() }
+        if (text.length > STATUS_BAR_MAX_CHARS) return false
+
+        return STATUS_BAR_SIGNATURE.containsMatchIn(text)
     }
 
     private fun sharesRow(a: TextFragment, b: TextFragment): Boolean {

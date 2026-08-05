@@ -162,10 +162,32 @@ class ScreenshotClassifier(
         amount.replace(",", "").toDoubleOrNull() ?: 0.0
 
     /** First line with real content, for categories with no obvious key value. */
+    /**
+     * The first line worth putting on a tile.
+     *
+     * "Meaningful" used to mean only "between 3 and 60 characters", which let through
+     * whatever happened to be at the top of the text — and once reading order was
+     * fixed, what is at the top of a screenshot is the status bar. Tiles were labelled
+     * with the clock and the network speed: `2:03 2.00`, `2:03 0.62 Y…`.
+     *
+     * The status bar is now removed during extraction, which is the real fix. This is
+     * the second line of defence, because that removal is deliberately conservative and
+     * will sometimes leave one in — and a label is the most visible text in the app, so
+     * it should not be the first thing that clears a length check.
+     *
+     * A line has to be mostly letters to qualify. That rejects clocks, speeds, phone
+     * numbers and reference codes, none of which read as a title, while accepting
+     * ordinary content like a place or a company name.
+     */
     private fun firstMeaningfulLine(text: String): String? =
         text.lineSequence()
             .map { it.trim() }
-            .firstOrNull { it.length in 3..60 }
+            .firstOrNull { line ->
+                val letters = line.count(Char::isLetter)
+                line.length in 3..60 &&
+                    letters >= MIN_LABEL_LETTERS &&
+                    letters.toDouble() / line.length >= MIN_LABEL_LETTER_RATIO
+            }
             ?.take(60)
 
     private companion object {
@@ -174,5 +196,16 @@ class ScreenshotClassifier(
 
         /** Controls how fast confidence approaches 1.0. */
         const val SATURATION = 6.0
+
+        /** Fewest letters a line needs before it can be used as a tile label. */
+        const val MIN_LABEL_LETTERS = 4
+
+        /**
+         * Proportion of a candidate label that must be letters.
+         *
+         * Half rejects `2:03 YeD RI` — five letters in eleven characters — while
+         * accepting real content with a number in it, such as `Block 2, DLF Cyber City`.
+         */
+        const val MIN_LABEL_LETTER_RATIO = 0.5
     }
 }
