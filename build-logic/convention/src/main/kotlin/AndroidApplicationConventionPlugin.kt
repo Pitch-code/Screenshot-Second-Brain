@@ -25,12 +25,44 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                 targetCompatibility = JAVA_VERSION
             }
 
+            /*
+             * Upload signing, from the environment.
+             *
+             * Read from environment variables rather than a checked-in
+             * `keystore.properties`, so the key and its passwords live only in CI
+             * secrets and never in the repository — which is public.
+             *
+             * Absent locally, and that is deliberate: `bundleRelease` still runs and
+             * still exercises R8, producing an unsigned bundle. Being able to verify
+             * that minification has not broken anything, without holding the signing
+             * key, is worth more than refusing to build.
+             *
+             * `providers.environmentVariable` rather than `System.getenv` so the
+             * configuration cache tracks the value instead of baking in whatever was
+             * set the first time.
+             */
+            val keystorePath = providers.environmentVariable("SHELFIE_KEYSTORE_PATH").orNull
+                ?.takeIf { it.isNotBlank() }
+
+            if (keystorePath != null) {
+                signingConfigs.create("upload") {
+                    storeFile = file(keystorePath)
+                    storePassword =
+                        providers.environmentVariable("SHELFIE_KEYSTORE_PASSWORD").orNull
+                    keyAlias = providers.environmentVariable("SHELFIE_KEY_ALIAS").orNull
+                    keyPassword = providers.environmentVariable("SHELFIE_KEY_PASSWORD").orNull
+                }
+            }
+
             buildTypes {
                 debug {
                     applicationIdSuffix = ".debug"
                     isMinifyEnabled = false
                 }
                 release {
+                    // Null when the environment supplied no key, leaving the bundle
+                    // unsigned rather than failing the build.
+                    signingConfig = signingConfigs.findByName("upload")
                     // R8 full mode is enabled by default in AGP 8 with
                     // android.enableR8.fullMode; kept explicit for clarity.
                     isMinifyEnabled = true
