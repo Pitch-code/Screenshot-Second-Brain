@@ -59,6 +59,9 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.splashscreen)
 
+    // App lock. Brings androidx.fragment with it, which BiometricPrompt requires.
+    implementation(libs.androidx.biometric)
+
     // Applies the Baseline Profile at install time on API 28+.
     implementation(libs.androidx.profileinstaller)
 

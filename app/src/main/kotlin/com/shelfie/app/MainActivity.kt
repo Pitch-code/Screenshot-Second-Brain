@@ -1,7 +1,8 @@
 package com.shelfie.app
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import android.view.WindowManager
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -20,7 +21,9 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+// FragmentActivity rather than ComponentActivity because BiometricPrompt requires one.
+// FragmentActivity extends ComponentActivity, so nothing else changes.
+class MainActivity : FragmentActivity() {
 
     /**
      * Watches MediaStore while the app is in the foreground. Only a hint — the
@@ -76,11 +79,36 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            val appLockEnabled by appViewModel.appLockEnabled.collectAsStateWithLifecycle()
+
+            /*
+             * Keeps the app out of screenshots and the recents preview while locked.
+             *
+             * Without this the task switcher holds a live thumbnail of whatever was on
+             * screen, so anyone can read the shelf without ever unlocking — which
+             * would make the lock decorative. Tied to the setting rather than always
+             * on, because FLAG_SECURE also blocks the user's own screenshots, and
+             * silently breaking that in a screenshot app would be its own bug.
+             */
+            LaunchedEffect(appLockEnabled) {
+                if (appLockEnabled) {
+                    window.setFlags(
+                        WindowManager.LayoutParams.FLAG_SECURE,
+                        WindowManager.LayoutParams.FLAG_SECURE,
+                    )
+                } else {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+            }
+
             ShelfieTheme(darkTheme = darkTheme, dynamicColor = useDynamicColor) {
                 // Wraps everything, so the gradient is behind every screen rather
                 // than being repeated per-screen and drifting out of sync.
                 ShelfieBackground {
-                    ShelfieApp(startOnSearch = openSearch, viewModel = appViewModel)
+                    // Outside the app, so nothing at all is composed while locked.
+                    AppLockGate(enabled = appLockEnabled) {
+                        ShelfieApp(startOnSearch = openSearch, viewModel = appViewModel)
+                    }
                 }
             }
         }

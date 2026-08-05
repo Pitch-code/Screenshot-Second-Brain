@@ -47,7 +47,11 @@ class SettingsViewModel @Inject constructor(
         repository.observeRules(),
         quota.state,
         billing.billingState,
-        combine(preferences.useDynamicColor, preferences.themeMode) { dyn, mode -> dyn to mode },
+        combine(
+            preferences.useDynamicColor,
+            preferences.themeMode,
+            preferences.appLockEnabled,
+        ) { dyn, mode, lock -> Appearance(dyn, mode, lock) },
         combine(message, failureText) { m, f -> m to f },
         combine(
             repository.observeStateCounts(),
@@ -58,7 +62,7 @@ class SettingsViewModel @Inject constructor(
         val rules = values[0] as List<UserRule>
         val quotaState = values[1] as QuotaState
         val billingState = values[2] as BillingState
-        val (dynamicColor, themeMode) = values[3] as Pair<Boolean, ThemeMode>
+            val appearance = values[3] as Appearance
         val (msg, failure) = values[4] as Pair<UiMessage?, String?>
         val (counts, lastError) = values[5] as Pair<List<IndexStateCount>, String?>
 
@@ -66,8 +70,9 @@ class SettingsViewModel @Inject constructor(
             rules = rules,
             quota = quotaState,
             billing = billingState,
-            useDynamicColor = dynamicColor,
-            themeMode = themeMode,
+            useDynamicColor = appearance.dynamicColor,
+            themeMode = appearance.themeMode,
+            appLockEnabled = appearance.appLock,
             access = repository.currentAccess(),
             message = msg,
             failureText = failure,
@@ -115,6 +120,10 @@ class SettingsViewModel @Inject constructor(
                     failureText.value = result.message
             }
         }
+    }
+
+    fun onAppLockChanged(enabled: Boolean) {
+        viewModelScope.launch { preferences.setAppLockEnabled(enabled) }
     }
 
     fun onThemeModeChanged(mode: ThemeMode) {
@@ -247,9 +256,24 @@ data class SettingsUiState(
     val billing: BillingState = BillingState.Connecting,
     val useDynamicColor: Boolean = true,
     val themeMode: ThemeMode = ThemeMode.Default,
+    val appLockEnabled: Boolean = false,
     val access: MediaAccess = MediaAccess.DENIED,
     val message: UiMessage? = null,
     val failureText: String? = null,
     val stateCounts: List<IndexStateCount> = emptyList(),
     val lastError: String? = null,
+)
+
+
+/**
+ * The three appearance-and-access preferences, combined before entering the state.
+ *
+ * Grouped because `combine` accepts a limited number of sources and the settings state
+ * was already at that limit. A named type rather than a Triple so the destructuring at
+ * the call site cannot silently swap two booleans.
+ */
+private data class Appearance(
+    val dynamicColor: Boolean,
+    val themeMode: ThemeMode,
+    val appLock: Boolean,
 )

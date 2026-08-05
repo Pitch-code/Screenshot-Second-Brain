@@ -66,6 +66,17 @@ class ShelfiePreferences @Inject constructor(
         dataStore.data.map { it[KEY_DYNAMIC_COLOR] ?: false }
 
     /**
+     * Whether opening the app requires the phone's screen lock.
+     *
+     * Off by default. A lock on a screenshot organiser is a reasonable thing to want
+     * and an unreasonable thing to impose, and defaulting it on would put an
+     * authentication prompt in front of a first launch before the user had any idea
+     * what the app was.
+     */
+    val appLockEnabled: Flow<Boolean> =
+        dataStore.data.map { it[KEY_APP_LOCK] ?: false }
+
+    /**
      * Light, dark, or follow the phone. Stored by enum name, decoded leniently.
      */
     val themeMode: Flow<ThemeMode> =
@@ -116,6 +127,10 @@ class ShelfiePreferences @Inject constructor(
         dataStore.edit { it[KEY_DYNAMIC_COLOR] = enabled }
     }
 
+    suspend fun setAppLockEnabled(enabled: Boolean) {
+        dataStore.edit { it[KEY_APP_LOCK] = enabled }
+    }
+
     suspend fun setThemeMode(mode: ThemeMode) {
         dataStore.edit { it[KEY_THEME_MODE] = mode.name }
     }
@@ -143,6 +158,7 @@ class ShelfiePreferences @Inject constructor(
         val KEY_LAST_RECONCILE = longPreferencesKey("last_reconcile_seconds")
         val KEY_TEXT_PIPELINE_VERSION = intPreferencesKey("text_pipeline_version")
         val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
+        val KEY_APP_LOCK = booleanPreferencesKey("app_lock_enabled")
         val KEY_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
         val KEY_SHELF_SORT = stringPreferencesKey("shelf_sort_order")
         val KEY_EXTRA_FOLDERS = stringSetPreferencesKey("extra_indexed_folders")

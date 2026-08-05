@@ -43,6 +43,22 @@ class ShelfieAppViewModel @Inject constructor(
         initialValue = ThemeMode.Default,
     )
 
+    /**
+     * Whether to demand the screen lock before showing anything.
+     *
+     * Initial value false, and that direction matters: the alternative is a frame in
+     * which the shelf is visible before the preference has loaded, which is exactly
+     * the content the lock exists to hide. It is safe here because the gate re-locks
+     * on every stop, so a true value arriving a frame later still locks — the app has
+     * not been *unlocked*, it has simply not been locked yet, and nothing is
+     * interactive in that frame.
+     */
+    val appLockEnabled: StateFlow<Boolean> = preferences.appLockEnabled.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = false,
+    )
+
     val useDynamicColor: StateFlow<Boolean> = preferences.useDynamicColor.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,

@@ -20,6 +20,8 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.Lock
+import androidx.biometric.BiometricManager
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.StarBorder
 import com.shelfie.core.model.IndexState
@@ -259,6 +261,39 @@ fun SettingsScreen(
                     }
                 }
             }
+            // Its own section rather than filed under Appearance. A lock is not a
+            // matter of taste, and someone scanning for it will look for a privacy
+            // heading, not a colour one.
+            item { SectionHeader(stringResource(R.string.settings_section_privacy_lock)) }
+            item {
+                // Checked at composition, not cached: someone can add or remove their
+                // screen lock in phone settings and come straight back here.
+                val canLock = remember { canUseDeviceLock(context) }
+
+                ListItem(
+                    leadingContent = { Icon(Icons.Outlined.Lock, contentDescription = null) },
+                    headlineContent = { Text(stringResource(R.string.settings_app_lock)) },
+                    supportingContent = {
+                        Text(
+                            if (canLock) {
+                                stringResource(R.string.settings_app_lock_detail)
+                            } else {
+                                // Says what to do about it. A disabled switch with no
+                                // explanation reads as a broken feature.
+                                stringResource(R.string.settings_app_lock_unavailable)
+                            },
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = state.appLockEnabled && canLock,
+                            enabled = canLock,
+                            onCheckedChange = viewModel::onAppLockChanged,
+                        )
+                    },
+                )
+            }
+
             item {
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.settings_dynamic_color)) },
@@ -677,3 +712,21 @@ private fun ThemeMode.labelRes(): Int = when (this) {
     ThemeMode.LIGHT -> R.string.settings_theme_light
     ThemeMode.DARK -> R.string.settings_theme_dark
 }
+
+
+/**
+ * Whether this phone has anything to authenticate with.
+ *
+ * Duplicates one call from the lock gate in `:app` rather than sharing a module for it.
+ * The two ask the same question for opposite reasons — this one decides whether to
+ * *offer* the setting, the gate decides whether to *enforce* it — and a new module for
+ * a single library call would cost more to follow than the repetition does.
+ *
+ * Accepts weak biometrics or the device credential, matching the gate exactly. Asking
+ * a stricter question here would hide the setting on phones where the lock works.
+ */
+private fun canUseDeviceLock(context: android.content.Context): Boolean =
+    BiometricManager.from(context).canAuthenticate(
+        BiometricManager.Authenticators.BIOMETRIC_WEAK or
+            BiometricManager.Authenticators.DEVICE_CREDENTIAL,
+    ) == BiometricManager.BIOMETRIC_SUCCESS

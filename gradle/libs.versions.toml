@@ -21,6 +21,9 @@ datastore = "1.2.1"
 work = "2.11.2"
 paging = "3.5.0"
 splashscreen = "1.2.0"
+# 1.1.0 is the newest stable; later versions are alpha only. Provides
+# setAllowedAuthenticators, which is what lets the device PIN/pattern be accepted.
+biometric = "1.1.0"
 exifinterface = "1.4.2"
 
 # Bundled ML Kit model: ships in the APK so OCR works with zero network access.
@@ -61,6 +64,7 @@ robolectric = "4.16"
 [libraries]
 # Core
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
 androidx-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
 
 # Lifecycle

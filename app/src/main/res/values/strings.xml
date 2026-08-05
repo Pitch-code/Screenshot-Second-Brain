@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Shelfie</string>
+
+    <string name="lock_prompt_title">Unlock Shelfie</string>
+    <string name="lock_prompt_subtitle">Use your fingerprint, or your phone\'s PIN, pattern or password.</string>
+    <string name="lock_locked_title">Shelfie is locked</string>
+    <string name="lock_unlock">Unlock</string>
 </resources>

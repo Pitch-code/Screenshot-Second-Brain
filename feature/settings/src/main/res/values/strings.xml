@@ -10,6 +10,11 @@
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
 
+    <string name="settings_section_privacy_lock">Privacy</string>
+    <string name="settings_app_lock">Require unlock to open Shelfie</string>
+    <string name="settings_app_lock_detail">Uses your phone\'s own fingerprint, PIN, pattern or password. Shelfie never sees it. Also hides the app from the recent apps preview.</string>
+    <string name="settings_app_lock_unavailable">Set a screen lock on your phone first, in your phone\'s settings.</string>
+
     <!-- Opt-in folder scanning. No extra permission is involved: the app already
          queries every image on the device and simply discards non-screenshots. -->
     <string name="settings_section_folders">Where to look</string>
