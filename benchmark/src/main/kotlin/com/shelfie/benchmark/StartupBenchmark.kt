@@ -58,4 +58,4 @@ class StartupBenchmark {
     }
 }
 
-internal const val TARGET_PACKAGE = "com.shelfie.app"
+internal const val TARGET_PACKAGE = "com.pitchcode.shelfie"

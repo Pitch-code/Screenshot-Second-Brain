@@ -91,7 +91,7 @@ Install on a connected phone:
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Debug builds install as **`com.shelfie.app.debug`**. Full instructions and a
+Debug builds install as **`com.pitchcode.shelfie.debug`**. Full instructions and a
 priority-ordered test plan are in
 [`docs/08-run-on-device.md`](docs/08-run-on-device.md).
 
