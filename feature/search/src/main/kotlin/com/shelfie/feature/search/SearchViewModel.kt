@@ -166,9 +166,23 @@ class SearchViewModel @Inject constructor(
     private val selectedFolderIds = MutableStateFlow<Set<Long>>(emptySet())
     val folderSelection: StateFlow<Set<Long>> = selectedFolderIds
 
-    /** Screenshots inside the current folder selection, for the confirmation text. */
-    private val _affectedScreenshotCount = MutableStateFlow(0)
-    val affectedScreenshotCount: StateFlow<Int> = _affectedScreenshotCount
+    /**
+     * The pending folder-delete confirmation, or null when none is open.
+     *
+     * Both counts travel together in one object, and the dialog exists only when this
+     * does. That is the fix for a wrong number in the prompt: the count used to be a
+     * separate flow that the screen read as soon as the dialog opened, so the dialog
+     * could render before the query finished — showing zero, or worse, the count from
+     * a previous selection. The title's folder count came straight from the live
+     * selection meanwhile, so the two halves of the sentence could describe different
+     * things.
+     *
+     * Counting first and opening afterwards makes that unrepresentable. A dialog about
+     * permanently deleting someone's pictures is the last place to state a figure the
+     * app has not actually established.
+     */
+    private val _folderDeletePrompt = MutableStateFlow<FolderDeletePrompt?>(null)
+    val folderDeletePrompt: StateFlow<FolderDeletePrompt?> = _folderDeletePrompt
 
     fun onFolderLongPress(folderId: Long) {
         selectedFolderIds.update { it + folderId }
@@ -180,7 +194,12 @@ class SearchViewModel @Inject constructor(
 
     fun clearFolderSelection() {
         selectedFolderIds.value = emptySet()
+        // A prompt describing a selection that no longer exists must not survive it.
+        _folderDeletePrompt.value = null
     }
+
+    /** A folder deletion awaiting confirmation, with what it would affect. */
+    data class FolderDeletePrompt(val folderCount: Int, val screenshotCount: Int)
 
     /**
      * Counts what is at stake, before asking.
@@ -190,12 +209,29 @@ class SearchViewModel @Inject constructor(
      * query on every tap of a folder row.
      */
     fun onDeleteFoldersRequested() {
+        val folderIds = selectedFolderIds.value.toList()
+        if (folderIds.isEmpty()) return
+
         viewModelScope.launch {
-            _affectedScreenshotCount.value =
-                runCatching { repository.screenshotIdsInFolders(selectedFolderIds.value.toList()) }
-                    .getOrDefault(emptyList())
-                    .size
+            // Deliberately opens nothing if the count cannot be read. Asking someone
+            // to confirm a permanent deletion without being able to say what it covers
+            // is worse than appearing not to respond, and this is a local indexed
+            // read — if it fails, the folder list on screen is not trustworthy either.
+            val affected = runCatching { repository.screenshotIdsInFolders(folderIds) }
+                .getOrNull()
+                ?: return@launch
+
+            _folderDeletePrompt.value = FolderDeletePrompt(
+                // Snapshotted alongside the count so the title and the body can never
+                // describe different selections.
+                folderCount = folderIds.size,
+                screenshotCount = affected.size,
+            )
         }
+    }
+
+    fun onFolderDeleteDismissed() {
+        _folderDeletePrompt.value = null
     }
 
     /**
@@ -209,6 +245,7 @@ class SearchViewModel @Inject constructor(
      */
     fun onDeleteFoldersOnly() {
         val ids = selectedFolderIds.value.toList()
+        _folderDeletePrompt.value = null
         if (ids.isEmpty()) return
 
         viewModelScope.launch {
@@ -236,6 +273,7 @@ class SearchViewModel @Inject constructor(
      */
     fun onDeleteFoldersAndScreenshots(launch: (IntentSender) -> Unit) {
         val folderIds = selectedFolderIds.value.toList()
+        _folderDeletePrompt.value = null
         if (folderIds.isEmpty()) return
 
         viewModelScope.launch {
