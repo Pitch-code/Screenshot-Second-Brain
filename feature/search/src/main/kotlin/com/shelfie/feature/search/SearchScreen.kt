@@ -36,6 +36,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.FolderOff
 import androidx.compose.material.icons.outlined.Search
@@ -134,6 +135,20 @@ fun SearchScreen(
     val selectedFolderIds by viewModel.folderSelection.collectAsStateWithLifecycle()
     val affectedScreenshotCount by viewModel.affectedScreenshotCount.collectAsStateWithLifecycle()
     var showFolderDeleteConfirm by remember { mutableStateOf(false) }
+
+    // Separate from showCreateFolder, which creates a folder *and* moves a selection
+    // into it. Sharing one flag would file whatever happened to be selected.
+    var showCreateEmptyFolder by remember { mutableStateOf(false) }
+
+    if (showCreateEmptyFolder) {
+        FolderCreateDialog(
+            onDismiss = { showCreateEmptyFolder = false },
+            onCreate = { name, icon ->
+                viewModel.onCreateEmptyFolder(name, icon)
+                showCreateEmptyFolder = false
+            },
+        )
+    }
 
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -414,6 +429,7 @@ fun SearchScreen(
                     onFolderLongPress = viewModel::onFolderLongPress,
                     onFolderToggle = viewModel::onFolderToggle,
                     onScreenshotClick = onScreenshotClick,
+                    onCreateFolder = { showCreateEmptyFolder = true },
                 )
             }
         }
@@ -437,25 +453,43 @@ private fun BrowseList(
     onFolderLongPress: (Long) -> Unit,
     onFolderToggle: (Long) -> Unit,
     onScreenshotClick: (Long) -> Unit,
+    onCreateFolder: () -> Unit,
 ) {
-    if (folders.isEmpty() && categories.isEmpty()) {
-        EmptyState(
-            icon = Icons.Outlined.Search,
-            title = stringResource(R.string.search_idle_title),
-            description = stringResource(R.string.search_idle_body),
-        )
-        return
-    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (folders.isNotEmpty()) {
-            item(key = "folders-header") {
-                SectionLabel(stringResource(R.string.find_section_folders))
+        // Header and the create action are outside the isNotEmpty check, so someone
+        // with no folders yet can still make their first one — previously the only
+        // route to a folder was through moving a screenshot into it.
+        item(key = "folders-header") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SectionLabel(
+                    text = stringResource(R.string.find_section_folders),
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onCreateFolder) {
+                    Icon(Icons.Outlined.CreateNewFolder, contentDescription = null)
+                    Text("  " + stringResource(R.string.find_new_folder))
+                }
             }
+        }
+
+        if (folders.isEmpty()) {
+            item(key = "folders-empty") {
+                Text(
+                    text = stringResource(R.string.find_no_folders),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+            }
+        } else {
             itemsIndexed(items = folders, key = { _, chip -> chip.key }) { index, chip ->
                 val folderId = chip.folder?.id
                 BrowseCard(
@@ -506,12 +540,12 @@ private fun BrowseList(
 }
 
 @Composable
-private fun SectionLabel(text: String) {
+private fun SectionLabel(text: String, modifier: Modifier = Modifier) {
     Text(
         text = text,
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 4.dp, top = 8.dp),
+        modifier = modifier.padding(start = 4.dp, top = 8.dp),
     )
 }
 

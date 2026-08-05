@@ -189,3 +189,129 @@ class ReadingOrderTest {
             .inOrder()
     }
 }
+
+
+/**
+ * Tests for dropping the status bar.
+ *
+ * The reported symptom was shelf tiles labelled `2:03 2.00` and `2:03 0.62 Y…` —
+ * the clock and the phone's network speed indicator. Correct reading order put the
+ * status bar first, and first is where the label is taken from.
+ *
+ * These deliberately include the cases where a status bar must *not* be assumed,
+ * because text discarded here can never be searched for again.
+ */
+class StatusBarRemovalTest {
+
+    /** A typical 1080x2400 screenshot, downsampled. Status bar occupies the top ~40px. */
+    private val imageHeight = 1200
+
+    private fun line(text: String, x: Int, y: Int, width: Int = 200, height: Int = 22) =
+        TextFragment(text = text, left = x, top = y, right = x + width, bottom = y + height)
+
+    @Test
+    fun `the clock and network speed are dropped`() {
+        val result = ReadingOrder.arrange(
+            listOf(
+                line("2:03", x = 30, y = 14, width = 60),
+                line("2.00 KB/s", x = 300, y = 14, width = 120),
+                line("71%", x = 900, y = 14, width = 60),
+                line("Hyderabad", x = 40, y = 200, width = 220),
+            ),
+            imageHeight = imageHeight,
+        )
+
+        assertThat(result).isEqualTo("Hyderabad")
+        assertThat(result).doesNotContain("2:03")
+        assertThat(result).doesNotContain("KB/s")
+        assertThat(result).doesNotContain("71%")
+    }
+
+    @Test
+    fun `the first real line becomes the label instead of the clock`() {
+        // The whole point: what is first after removal is what the shelf shows.
+        val result = ReadingOrder.arrange(
+            listOf(
+                line("2:03  0.62  71%", x = 30, y = 12, width = 400),
+                line("Cognizant Technology Solutions", x = 40, y = 180, width = 400),
+                line("Get Directions", x = 40, y = 240, width = 200),
+            ),
+            imageHeight = imageHeight,
+        )
+
+        assertThat(result.lineSequence().first()).isEqualTo("Cognizant Technology Solutions")
+    }
+
+    @Test
+    fun `nothing is dropped when the image height is unknown`() {
+        // Height 0 means the caller could not supply it. Guessing a position without
+        // it would risk discarding real content, so removal is disabled instead.
+        val result = ReadingOrder.arrange(
+            listOf(
+                line("2:03", x = 30, y = 14, width = 60),
+                line("Hyderabad", x = 40, y = 200),
+            ),
+        )
+
+        assertThat(result).contains("2:03")
+    }
+
+    @Test
+    fun `a time further down the screenshot is kept`() {
+        // A chat timestamp, a departure time, an appointment. Only the topmost band is
+        // ever a candidate, and this one is nowhere near the top.
+        val result = ReadingOrder.arrange(
+            listOf(
+                line("2:03", x = 30, y = 14, width = 60),
+                line("Departs 6:45 PM", x = 40, y = 500, width = 240),
+            ),
+            imageHeight = imageHeight,
+        )
+
+        assertThat(result).isEqualTo("Departs 6:45 PM")
+    }
+
+    @Test
+    fun `a long top line containing a time is kept`() {
+        // A real heading that happens to mention a time must survive. The length gate
+        // is what protects it: a status bar is never this wordy.
+        val heading = "Your 2:30 appointment with Dr Rao is confirmed for today"
+
+        val result = ReadingOrder.arrange(
+            listOf(line(heading, x = 20, y = 10, width = 900)),
+            imageHeight = imageHeight,
+        )
+
+        assertThat(result).isEqualTo(heading)
+    }
+
+    @Test
+    fun `a short top line with no status bar signature is kept`() {
+        // No clock, no percentage, no speed — so it is content, however short.
+        val result = ReadingOrder.arrange(
+            listOf(
+                line("Inbox", x = 40, y = 14, width = 100),
+                line("Hyderabad", x = 40, y = 200),
+            ),
+            imageHeight = imageHeight,
+        )
+
+        assertThat(result).contains("Inbox")
+    }
+
+    @Test
+    fun `only the status bar is dropped, not the row below it`() {
+        val result = ReadingOrder.arrange(
+            listOf(
+                line("9:58", x = 30, y = 10, width = 60),
+                line("90%", x = 900, y = 10, width = 60),
+                line("Cart", x = 40, y = 90, width = 100),
+                line("Total ₹6692", x = 40, y = 300, width = 200),
+            ),
+            imageHeight = imageHeight,
+        )
+
+        assertThat(result.lineSequence().first()).isEqualTo("Cart")
+        assertThat(result).contains("Total ₹6692")
+    }
+}
