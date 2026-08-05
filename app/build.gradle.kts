@@ -11,8 +11,22 @@ android {
     defaultConfig {
         // Permanent and unchangeable once published to Play.
         applicationId = "com.shelfie.app"
-        versionCode = 1
-        versionName = "0.1.0"
+        /*
+         * Both overridable from the command line, e.g. `-PversionCode=2`.
+         *
+         * Play refuses an upload whose version code is not higher than every code
+         * already uploaded, and that includes uploads that were later discarded. So
+         * bumping it is a routine, frequent act — and requiring a commit and a merge
+         * for each one turns a one-word change into a pull request.
+         *
+         * The checked-in values stay the source of truth for what a plain build
+         * produces; the properties only override them for a release run.
+         */
+        versionCode = providers.gradleProperty("versionCode").orNull?.toIntOrNull() ?: 1
+
+        // What users see on the store page. 1.0.0 rather than 0.1.0: a leading zero
+        // reads as unfinished, and this is the version going to the public.
+        versionName = providers.gradleProperty("versionName").orNull ?: "1.0.0"
     }
 
     /**
