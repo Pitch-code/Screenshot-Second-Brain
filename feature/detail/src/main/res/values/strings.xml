@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="detail_change_category">Change</string>
     <string name="detail_detected">Detected</string>
     <string name="detail_text_heading">Text in this screenshot</string>
     <string name="detail_file_heading">File details</string>
@@ -21,5 +20,6 @@
     <string name="viewer_copy_all">Copy all</string>
     <string name="viewer_close">Close</string>
     <string name="viewer_details">Details</string>
+    <string name="viewer_move">Move</string>
     <string name="viewer_copied">Text copied</string>
 </resources>

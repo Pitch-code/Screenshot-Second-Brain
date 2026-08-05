@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.CircularProgressIndicator
@@ -58,6 +59,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.shelfie.core.designsystem.action.ScreenshotActionLauncher
+import com.shelfie.core.designsystem.component.FolderCreateDialog
 import kotlinx.coroutines.launch
 
 /** Bounds on zoom. Below 1 the image would float inside a border of empty space. */
@@ -115,6 +117,8 @@ fun ScreenshotViewer(
 
     var showText by remember { mutableStateOf(false) }
     var showDetails by remember { mutableStateOf(false) }
+    var showMove by remember { mutableStateOf(false) }
+    var showFolderCreate by remember { mutableStateOf(false) }
 
     val copiedMessage = stringResource(R.string.viewer_copied)
 
@@ -213,6 +217,21 @@ fun ScreenshotViewer(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        // Move leads. Filing a screenshot is the thing people come
+                        // here to do, and it used to be a "Change" link inside
+                        // Details — two taps away and named after the mechanism
+                        // rather than the intent.
+                        TextButton(onClick = { showMove = true }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.DriveFileMove,
+                                contentDescription = null,
+                                tint = Color.White,
+                            )
+                            Text(
+                                text = "  " + stringResource(R.string.viewer_move),
+                                color = Color.White,
+                            )
+                        }
                         TextButton(onClick = { showDetails = true }) {
                             Icon(
                                 imageVector = Icons.Outlined.Info,
@@ -252,6 +271,51 @@ fun ScreenshotViewer(
             screenshotId = screenshotId,
             onDismiss = { showDetails = false },
         )
+    }
+
+    // Guarded on the screenshot rather than composed unconditionally, because every
+    // destination and the rule offer are derived from it.
+    state.screenshot?.let { screenshot ->
+        if (showMove) {
+            CategoryPickerDialog(
+                current = screenshot.category,
+                currentFolderId = screenshot.folderId,
+                folders = state.folders,
+                // Offered because the moment someone notices a wrong category is the
+                // only moment they are motivated to fix it for good.
+                ruleKeyword = screenshot.primaryValue?.takeIf { it.length in 3..30 },
+                onDismiss = { showMove = false },
+                onPick = { category, alsoCreateRule ->
+                    val keyword = screenshot.primaryValue
+                    if (alsoCreateRule && keyword != null) {
+                        viewModel.onCreateRule(keyword, category)
+                    } else {
+                        viewModel.onCategoryChanged(category)
+                    }
+                    showMove = false
+                },
+                onPickFolder = { folder ->
+                    viewModel.onFolderChanged(folder.id)
+                    showMove = false
+                },
+                onCreateFolder = {
+                    // Swap dialogs rather than stacking them: two AlertDialogs at once
+                    // leaves the lower one visible behind the scrim.
+                    showMove = false
+                    showFolderCreate = true
+                },
+            )
+        }
+
+        if (showFolderCreate) {
+            FolderCreateDialog(
+                onDismiss = { showFolderCreate = false },
+                onCreate = { name, icon ->
+                    viewModel.onCreateFolderAndFile(name, icon)
+                    showFolderCreate = false
+                },
+            )
+        }
     }
 }
 

@@ -46,7 +46,6 @@ import coil3.compose.AsyncImage
 import com.shelfie.core.designsystem.action.ScreenshotActionLauncher
 import com.shelfie.core.designsystem.category.icon
 import com.shelfie.core.designsystem.category.labelRes
-import com.shelfie.core.designsystem.component.FolderCreateDialog
 import com.shelfie.core.model.Folder
 import com.shelfie.core.designsystem.component.DetailActionChip
 import com.shelfie.core.designsystem.component.EntityChip
@@ -70,8 +69,7 @@ fun DetailSheet(
     }
 
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    var showCategoryPicker by remember { mutableStateOf(false) }
-    var showFolderCreate by remember { mutableStateOf(false) }
+
     // Opens fully expanded rather than half-height. The sheet's whole purpose is
     // reading the recognised text, and a half sheet showed a few lines with the rest
     // needing a second drag before anything useful was visible.
@@ -96,47 +94,6 @@ fun DetailSheet(
         val screenshot = state.screenshot!!
         val entities = state.entities
 
-        if (showCategoryPicker) {
-            CategoryPickerDialog(
-                current = screenshot.category,
-                currentFolderId = screenshot.folderId,
-                folders = state.folders,
-                // Offered because the moment someone notices a wrong category is
-                // the only moment they are motivated to fix it for good.
-                ruleKeyword = screenshot.primaryValue?.takeIf { it.length in 3..30 },
-                onDismiss = { showCategoryPicker = false },
-                onPick = { category, alsoCreateRule ->
-                    val keyword = screenshot.primaryValue
-                    if (alsoCreateRule && keyword != null) {
-                        viewModel.onCreateRule(keyword, category)
-                    } else {
-                        viewModel.onCategoryChanged(category)
-                    }
-                    showCategoryPicker = false
-                },
-                onPickFolder = { folder ->
-                    viewModel.onFolderChanged(folder.id)
-                    showCategoryPicker = false
-                },
-                onCreateFolder = {
-                    // Swap dialogs rather than stacking them: two AlertDialogs at
-                    // once leaves the lower one visible behind the scrim.
-                    showCategoryPicker = false
-                    showFolderCreate = true
-                },
-            )
-        }
-
-        if (showFolderCreate) {
-            FolderCreateDialog(
-                onDismiss = { showFolderCreate = false },
-                onCreate = { name, icon ->
-                    viewModel.onCreateFolderAndFile(name, icon)
-                    showFolderCreate = false
-                },
-            )
-        }
-
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -154,7 +111,10 @@ fun DetailSheet(
                     .heightIn(max = 280.dp),
             )
 
-            // Category, with the route to correcting it.
+            // Where this screenshot currently lives. Read-only here: moving it is a
+            // Move button on the screenshot itself now, rather than a "Change" link
+            // buried two taps deep behind Details, which is where nobody looked for
+            // the single most common thing they wanted to do.
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -172,9 +132,6 @@ fun DetailSheet(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
-                TextButton(onClick = { showCategoryPicker = true }) {
-                    Text(stringResource(R.string.detail_change_category))
-                }
             }
 
             // Primary actions.
@@ -279,8 +236,10 @@ fun DetailSheet(
  * people actually screenshot, so one correction here should fix every future
  * screenshot containing the same term.
  */
+// Internal rather than private: the viewer owns the Move action now, and duplicating
+// this dialog there would mean two lists of destinations to keep in step.
 @Composable
-private fun CategoryPickerDialog(
+internal fun CategoryPickerDialog(
     current: ScreenshotCategory,
     currentFolderId: Long?,
     folders: List<Folder>,

@@ -133,8 +133,7 @@ fun SearchScreen(
     var anyFiled by remember { mutableStateOf(false) }
 
     val selectedFolderIds by viewModel.folderSelection.collectAsStateWithLifecycle()
-    val affectedScreenshotCount by viewModel.affectedScreenshotCount.collectAsStateWithLifecycle()
-    var showFolderDeleteConfirm by remember { mutableStateOf(false) }
+    val folderDeletePrompt by viewModel.folderDeletePrompt.collectAsStateWithLifecycle()
 
     // Separate from showCreateFolder, which creates a folder *and* moves a selection
     // into it. Sharing one flag would file whatever happened to be selected.
@@ -184,17 +183,15 @@ fun SearchScreen(
         onBack = viewModel::clearFolderSelection,
     )
 
-    if (showFolderDeleteConfirm) {
+    // Both counts come from the same snapshot, taken before this existed, so the
+    // sentence can never describe a selection other than the one being deleted.
+    folderDeletePrompt?.let { prompt ->
         FolderDeleteDialog(
-            folderCount = selectedFolderIds.size,
-            screenshotCount = affectedScreenshotCount,
-            onDismiss = { showFolderDeleteConfirm = false },
-            onDeleteFoldersOnly = {
-                showFolderDeleteConfirm = false
-                viewModel.onDeleteFoldersOnly()
-            },
+            folderCount = prompt.folderCount,
+            screenshotCount = prompt.screenshotCount,
+            onDismiss = viewModel::onFolderDeleteDismissed,
+            onDeleteFoldersOnly = viewModel::onDeleteFoldersOnly,
             onDeleteEverything = {
-                showFolderDeleteConfirm = false
                 viewModel.onDeleteFoldersAndScreenshots { sender ->
                     folderDeleteLauncher.launch(IntentSenderRequest.Builder(sender).build())
                 }
@@ -414,10 +411,7 @@ fun SearchScreen(
                     FolderSelectionBar(
                         count = selectedFolderIds.size,
                         onClear = viewModel::clearFolderSelection,
-                        onDelete = {
-                            viewModel.onDeleteFoldersRequested()
-                            showFolderDeleteConfirm = true
-                        },
+                        onDelete = viewModel::onDeleteFoldersRequested,
                     )
                 }
                 BrowseList(
