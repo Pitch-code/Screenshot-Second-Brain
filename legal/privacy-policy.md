@@ -1,7 +1,7 @@
 # Privacy Policy — Shelfie
 
 **Last updated:** [DATE]
-**App:** Shelfie: Screenshot Finder (`com.shelfie.app`)
+**App:** Shelfie: Screenshot Finder (`com.pitchcode.shelfie`)
 **Developer:** [YOUR LEGAL NAME / COMPANY]
 **Contact:** [YOUR SUPPORT EMAIL]
 
@@ -33,7 +33,7 @@ We collect no personal information. We do not operate a server that receives you
 
 Shelfie is built without the `INTERNET` permission. On Android, an app cannot open a network connection without it. This is enforced by the operating system, not by our good intentions.
 
-You can verify this yourself by inspecting the app's declared permissions — for example with `adb shell dumpsys package com.shelfie.app`, or any app-info viewer that lists declared permissions. `android.permission.INTERNET` will not be there.
+You can verify this yourself by inspecting the app's declared permissions — for example with `adb shell dumpsys package com.pitchcode.shelfie`, or any app-info viewer that lists declared permissions. `android.permission.INTERNET` will not be there.
 
 Note that Android's own **Settings → Apps → Permissions** screen only shows *runtime* permissions you can toggle, so it will not list `INTERNET` either way. The absence is visible in the app's full declared-permission list, which is what the methods above show.
 

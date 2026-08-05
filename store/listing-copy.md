@@ -120,7 +120,7 @@ Screenshot 5 is the differentiator — no competitor can honestly make that clai
 **Accuracy note:** do not tell users to verify this in Settings > Apps >
 Permissions. That screen lists only runtime permissions, and `INTERNET` is a
 normal permission, so it never appears there either way. The absence is real and
-checkable (`adb shell dumpsys package com.shelfie.app`), but it is not something
+checkable (`adb shell dumpsys package com.pitchcode.shelfie`), but it is not something
 an ordinary user can confirm in system settings. Claiming otherwise would be a
 deceptive-behaviour risk.
 

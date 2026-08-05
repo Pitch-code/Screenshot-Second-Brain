@@ -9,8 +9,20 @@ android {
     namespace = "com.shelfie.app"
 
     defaultConfig {
-        // Permanent and unchangeable once published to Play.
-        applicationId = "com.shelfie.app"
+        /*
+         * Permanent and unchangeable once published to Play.
+         *
+         * Not `com.shelfie.app`: that identifier is already taken on Play by an
+         * unrelated app, and identifiers are global and first-come. Prefixed with the
+         * developer name instead, which is the convention precisely because it is far
+         * less likely to collide than a bare product name.
+         *
+         * Deliberately different from `namespace` above, which stays `com.shelfie.app`.
+         * The namespace only determines the Kotlin package and the generated `R` class,
+         * so leaving it alone avoids renaming every source directory for no benefit.
+         * The two being different is normal and supported.
+         */
+        applicationId = "com.pitchcode.shelfie"
         /*
          * Both overridable from the command line, e.g. `-PversionCode=2`.
          *

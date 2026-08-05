@@ -79,7 +79,7 @@ jobs:
           tap it, and allow installing from your browser when prompted.
 
           Requires **Android 8.0 or newer**. Installs alongside anything else as
-          `com.shelfie.app.debug`.
+          `com.pitchcode.shelfie.debug`.
 
           These are debug builds: unminified, with logging enabled, and larger than
           the real thing. Play would deliver about 7.3 MB.

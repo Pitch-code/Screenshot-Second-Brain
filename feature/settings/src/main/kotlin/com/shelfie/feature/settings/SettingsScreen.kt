@@ -622,7 +622,7 @@ private fun android.content.Context.openPrivacyPolicy() {
  * the listing.
  *
  * Note this always targets [PLAY_PACKAGE_NAME], never the running package: debug
- * builds are `com.shelfie.app.debug`, which is not on Play, so using
+ * builds are `com.pitchcode.shelfie.debug`, which is not on Play, so using
  * `packageName` here would reliably open a "not found" page during development.
  *
  * Shelfie still holds no INTERNET permission. Launching an intent is not
@@ -663,7 +663,10 @@ private const val PRIVACY_POLICY_URL =
  * Deliberately a constant rather than `context.packageName`, so debug builds link
  * to the real listing instead of to a package Play has never heard of.
  */
-private const val PLAY_PACKAGE_NAME = "com.shelfie.app"
+// Must equal the applicationId in app/build.gradle.kts, not the Kotlin namespace.
+// Those two differ here, and getting it wrong sends Rate the app to a stranger's
+// store page — which is worse than a dead link, because it looks like it worked.
+private const val PLAY_PACKAGE_NAME = "com.pitchcode.shelfie"
 
 
 /**
