@@ -25,3 +25,22 @@
 
 # --- Keep model classes intact ----------------------------------------------
 -keep class com.shelfie.core.model.** { *; }
+
+# --- Readable stack traces in release ---------------------------------------
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
+
+# --- ML Kit -----------------------------------------------------------------
+# ML Kit finds its components reflectively, by name, from manifest meta-data.
+# R8 cannot see those references, so without these it strips them and every
+# recognition attempt fails.
+-keep class com.google.mlkit.** { *; }
+-keep interface com.google.mlkit.** { *; }
+-keep class com.google.android.gms.internal.mlkit_** { *; }
+-dontwarn com.google.mlkit.**
+-keep class * implements com.google.firebase.components.ComponentRegistrar { *; }
+-dontwarn com.google.firebase.components.**
+
+# --- Our own OCR pipeline ---------------------------------------------------
+# Kept so a failure report names real classes and line numbers.
+-keep class com.shelfie.core.ocr.** { *; }
