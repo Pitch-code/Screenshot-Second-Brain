@@ -105,7 +105,7 @@ class MlKitTextRecognitionEngine @Inject constructor(
                 cause = e,
                 // Class name included because ML Kit's own messages are often
                 // empty, and without this the failure is undiagnosable.
-                detail = "${e.javaClass.simpleName}: ${e.message ?: "no message"}",
+                detail = "${e.javaClass.simpleName}: ${e.message} @ " + e.stackTrace.take(4).joinToString(" | ") { "${it.className}.${it.methodName}:${it.lineNumber}" },
             )
         } finally {
             bitmap?.recycle()
