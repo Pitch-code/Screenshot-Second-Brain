@@ -1,6 +1,7 @@
 package com.shelfie.core.ocr
 
 import android.net.Uri
+import androidx.core.net.toUri
 import com.google.common.truth.Truth.assertThat
 import java.io.File
 import java.util.Base64
@@ -44,6 +45,7 @@ class BitmapDecoderBoundsTest {
     val temporaryFolder = TemporaryFolder()
 
     private lateinit var decoder: BitmapDecoder
+    private lateinit var pngFile: File
     private lateinit var pngUri: Uri
 
     @Before
@@ -52,9 +54,9 @@ class BitmapDecoderBoundsTest {
 
         // A real 8x4 PNG. ContentResolver.openInputStream handles file:// URIs,
         // which keeps this test free of a stub ContentProvider.
-        val png = File(temporaryFolder.root, "shot.png")
-        png.writeBytes(Base64.getDecoder().decode(PNG_8X4_BASE64))
-        pngUri = Uri.fromFile(png)
+        pngFile = File(temporaryFolder.root, "shot.png")
+        pngFile.writeBytes(Base64.getDecoder().decode(PNG_8X4_BASE64))
+        pngUri = Uri.fromFile(pngFile)
     }
 
     @Test
@@ -108,6 +110,66 @@ class BitmapDecoderBoundsTest {
         junk.writeText("this is definitely not a PNG")
 
         assertThat(decoder.readBounds(Uri.fromFile(junk))).isNull()
+    }
+
+    // ------------------------------------------------- schemeless file paths
+    //
+    // The second shipped decode bug, and the reason these tests did not catch
+    // it: every case above builds its Uri with Uri.fromFile, which always
+    // produces a file:// scheme. Nothing exercised the *other* form the app
+    // actually stores.
+    //
+    // PickerImporter writes ThumbnailStore's absolute path straight into the
+    // row, so Limited Mode screenshots parse back into a Uri with no scheme at
+    // all. ContentResolver.openInputStream refuses those, so every
+    // picker-imported screenshot failed with
+    // "Could not decode /data/user/0/...", while Coil — which treats a
+    // schemeless Uri as a file path — rendered the tile perfectly. Visible on
+    // the shelf, permanently unreadable.
+
+    @Test
+    fun `a bare filesystem path really does parse without a scheme`() {
+        // Documents the precondition the two tests below depend on. If Uri ever
+        // started inferring a file scheme here, they would pass for the wrong
+        // reason and this would fail loudly instead.
+        assertThat(pngFile.absolutePath.toUri().scheme).isNull()
+    }
+
+    @Test
+    fun `readBounds returns dimensions for a bare filesystem path`() {
+        val schemeless = pngFile.absolutePath.toUri()
+
+        assertThat(decoder.readBounds(schemeless)).isEqualTo(PNG_WIDTH to PNG_HEIGHT)
+    }
+
+    @Test
+    fun `decodeDownsampled produces a bitmap for a bare filesystem path`() {
+        // The exact call that failed for every Limited Mode import.
+        val bitmap = decoder.decodeDownsampled(pngFile.absolutePath.toUri())
+
+        assertThat(bitmap).isNotNull()
+        assertThat(bitmap!!.width).isEqualTo(PNG_WIDTH)
+        assertThat(bitmap.height).isEqualTo(PNG_HEIGHT)
+        bitmap.recycle()
+    }
+
+    @Test
+    fun `decodeForAnalysis produces a bitmap for a bare filesystem path`() {
+        // Feeds the Cleanup screen's duplicate and blur signals, which were
+        // silently empty for every picker-imported screenshot.
+        val bitmap = decoder.decodeForAnalysis(pngFile.absolutePath.toUri())
+
+        assertThat(bitmap).isNotNull()
+        bitmap!!.recycle()
+    }
+
+    @Test
+    fun `readBounds returns null for a missing bare filesystem path`() {
+        val missing = File(temporaryFolder.root, "gone.png").absolutePath.toUri()
+
+        // Still null rather than an exception, on the path that no longer goes
+        // through ContentResolver.
+        assertThat(decoder.readBounds(missing)).isNull()
     }
 
     private companion object {

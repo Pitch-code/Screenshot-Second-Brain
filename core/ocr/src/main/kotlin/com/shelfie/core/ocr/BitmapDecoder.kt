@@ -4,7 +4,9 @@ import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import java.io.File
 import java.io.IOException
+import java.io.InputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -62,12 +64,49 @@ class BitmapDecoder @Inject constructor(
     }
 
     /**
+     * Opens [uri] for reading, whether it is a content URI or a plain file.
+     *
+     * Both forms genuinely occur. MediaStore screenshots arrive as `content://`,
+     * but picker-imported ones are stored as a bare filesystem path — see
+     * `PickerImporter`, which writes `ThumbnailStore`'s absolute path into the
+     * row so the tile survives the picker grant expiring. Parsed back, that path
+     * yields a Uri with **no scheme at all**.
+     *
+     * `ContentResolver.openInputStream` rejects a schemeless Uri with
+     * FileNotFoundException ("no content provider"), which this class caught and
+     * reported as an undecodable image. Coil, meanwhile, treats a schemeless Uri
+     * as a file path — so the picked screenshot rendered perfectly on the shelf
+     * and was permanently unreadable to OCR. Every Limited Mode import failed
+     * with "Could not decode /data/user/0/...".
+     *
+     * Fixed here rather than by rewriting the stored value, because a migration
+     * would be needed for rows that already exist and this method would still be
+     * wrong for the next caller that passes a file path.
+     */
+    private fun openStream(uri: Uri): InputStream? {
+        val scheme = uri.scheme
+
+        if (scheme != null && scheme != ContentResolver.SCHEME_FILE) {
+            return contentResolver.openInputStream(uri)
+        }
+
+        // For a schemeless Uri the original string *is* the path, and toString()
+        // returns it intact. uri.path would silently truncate at a '#' or '?',
+        // which is a legal character in a filename.
+        val path = if (scheme == null) uri.toString() else uri.path ?: return null
+
+        // Throws FileNotFoundException — an IOException — when the file is gone,
+        // which the callers already treat as undecodable.
+        return File(path).inputStream()
+    }
+
+    /**
      * Runs a real (pixel-producing) decode. Unlike [readBounds], a null result
      * here genuinely means failure, so the stream's result is the return value.
      */
     private fun decodeWith(uri: Uri, options: BitmapFactory.Options): Bitmap? =
         try {
-            contentResolver.openInputStream(uri)?.use { stream ->
+            openStream(uri)?.use { stream ->
                 BitmapFactory.decodeStream(stream, null, options)
             }
         } catch (e: IOException) {
@@ -84,14 +123,14 @@ class BitmapDecoder @Inject constructor(
      * [BitmapFactory.Options.inJustDecodeBounds] set, [BitmapFactory.decodeStream]
      * returns null *on success* — the dimensions come back on [options], not as a
      * bitmap. So the null check must be on the stream, never on the decode result.
-     * Collapsing this into `openInputStream(uri)?.use { decodeStream(...) } ?: return null`
+     * Collapsing this into `openStream(uri)?.use { decodeStream(...) } ?: return null`
      * looks tidier and fails 100% of the time.
      */
     fun readBounds(uri: Uri): Pair<Int, Int>? {
         val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
 
         val stream = try {
-            contentResolver.openInputStream(uri)
+            openStream(uri)
         } catch (e: IOException) {
             // Media rows can outlive the underlying file; treat as undecodable.
             null

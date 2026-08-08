@@ -66,12 +66,21 @@ class ScreenshotIndexer @Inject constructor(
                     indexedAt = nowSeconds,
                 )
 
-                // Recognition succeeding with no text is a real outcome worth
-                // recording — it distinguishes "the model ran and found nothing"
-                // from "the model never ran", which look identical in the UI.
-                if (result.text.isBlank()) {
-                    dao.setLastError(entity.id, "Recognised 0 text blocks")
-                }
+                // Nothing is recorded when the text comes back empty, and that is
+                // deliberate.
+                //
+                // This used to write "Recognised 0 text blocks" via setLastError.
+                // The intent was diagnostic — separating "the model ran and found
+                // nothing" from "the model never ran" — but it filed a *successful*
+                // read into the error channel, which then surfaced on the shelf's
+                // red problem card and in the diagnostics dump. A photo with no
+                // writing in it is not a failure, and telling someone their
+                // screenshot could not be read when it was read perfectly well is
+                // worse than saying nothing.
+                //
+                // No information is actually lost: the row is INDEXED with empty
+                // text, so "read but had no text" stays derivable from the database
+                // whenever it is worth reporting. It just is not an error.
 
                 IndexOutcome.Indexed
             }
