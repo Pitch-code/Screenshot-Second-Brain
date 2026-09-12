@@ -3,7 +3,8 @@
 ## The decision
 
 Shelfie earns money from **one thing only**: a single in-app purchase
-(`shelfie_full_version`, ₹199 in India, priced per market by Play).
+(`shelfie_full_version`, ₹250 in India, priced per market by Play). One payment, no
+subscription, no renewals, no expiry.
 
 **There are no ads, and none are planned.** Do not add AdMob, any other ad SDK, or any
 "free version shows ads" wording to the app, the store listing, or the upgrade prompt.
@@ -25,8 +26,8 @@ Adding an ad SDK would trade that for very little:
 
 - Banner eCPM in India is roughly **$0.20–$0.35** per 1,000 impressions.
 - A free user opening the app a few times a week generates about **₹15–20 per year**.
-- One ₹199 sale nets about **₹169** after Play's 15% fee — equivalent to roughly
-  **8,000 banner impressions**, or about ten years of one free user.
+- One ₹250 sale nets about **₹212** after Play's 15% fee — equivalent to roughly
+  **10,000 banner impressions**, or about twelve years of one free user.
 - AdMob does not pay out until **$100** has accumulated, so at that rate the first
   payment needs hundreds of active free users for a full year.
 
@@ -56,6 +57,6 @@ Reopening it means all of the following, and none of them are small:
    string asserting no network access.
 5. Re-recording the content rating questionnaire answers.
 
-Get real conversion data at ₹199 first. If people buy, ads only cannibalise the
+Get real conversion data at ₹250 first. If people buy, ads only cannibalise the
 purchase; if nobody buys, the price or the product is the problem, not the absence of
 ads.

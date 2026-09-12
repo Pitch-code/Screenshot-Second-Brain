@@ -49,7 +49,11 @@ Plus: **user-editable rules.** "Any screenshot containing `Zerodha` → Investme
 
 ### Monetisation
 - **Free forever:** search, categories, actions, up to **50 indexed screenshots** (rolling, newest) — the authoritative value is `IndexingQuota.FREE_INDEX_LIMIT`, not this line
-- **Shelfie Full — one payment, ₹399 / $4.99:** unlimited index, custom rules, bulk cleanup, widget, export
+- **Shelfie Full — one payment, ₹250** (India base price; Play prices every other market from it). Unlocks exactly two things:
+  - the whole library instead of the rolling free window
+  - indexing extra folders — WhatsApp, Telegram, Downloads, anywhere you choose
+
+  Deliberately **not** paywalled, despite an earlier version of this line claiming otherwise: user rules, bulk cleanup, the home-screen widget, the Quick Settings tile and data export all work on the free tier. Gating them was never implemented and should not be — cleanup and export are the features that make the app trustworthy, and charging for the widget would cripple the main habit hook for the people most likely to convert later.
 - **No ads. No subscription. No trial timer.**
 - The pricing *is* the marketing. Store listing leads with "One payment. No subscription."
 - Use Play Billing **one-time product**; nothing else. No consumables, no currency.
