@@ -134,7 +134,7 @@ fun ScreenshotViewer(
             if (state.isLoading || screenshot == null) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else {
-                ZoomableImage(model = screenshot.uri, modifier = Modifier.fillMaxSize())
+                ZoomableImage(model = screenshot.displayUri, modifier = Modifier.fillMaxSize())
 
                 /*
                  * Scrims behind the controls, so white text is readable on any image.
@@ -270,6 +270,12 @@ fun ScreenshotViewer(
         DetailSheet(
             screenshotId = screenshotId,
             onDismiss = { showDetails = false },
+            // The screenshot has just left the index, so staying on a full-screen view
+            // of it would be showing something the rest of the app no longer lists.
+            onDeleted = {
+                showDetails = false
+                onDismiss()
+            },
         )
     }
 

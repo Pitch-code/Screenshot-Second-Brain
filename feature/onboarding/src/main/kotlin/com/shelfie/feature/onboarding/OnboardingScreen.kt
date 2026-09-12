@@ -70,8 +70,22 @@ fun OnboardingScreen(
     ) { uris ->
         if (uris.isNotEmpty()) {
             viewModel.onImagesPicked(uris)
-            onFinished()
+        } else {
+            /*
+             * Backing out of the picker still finishes onboarding, in Limited Mode.
+             *
+             * It used to do nothing at all, which left the only way forward being to
+             * grant broad access — someone who deliberately chose to hand over
+             * screenshots one at a time, and then thought better of doing it right
+             * now, was stuck on this screen with no route past it.
+             *
+             * Landing on the shelf is not a dead end: it shows the Limited Mode
+             * banner and an empty state whose primary action reopens this same
+             * picker, so choosing some screenshots is still one tap away.
+             */
+            viewModel.onSkipToLimitedMode()
         }
+        onFinished()
     }
 
     val scheme = MaterialTheme.colorScheme

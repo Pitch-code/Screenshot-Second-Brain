@@ -418,13 +418,17 @@ class ScreenshotRepository @Inject constructor(
      * failure.
      */
     private suspend fun pruneDeletedFiles(): Int {
-        if (accessChecker.current() != MediaAccess.FULL) return 0
+        val access = accessChecker.current()
+
+        // Checked here as well as inside the decision, and not redundantly: without
+        // this the next line would walk the device's entire image table before the
+        // answer was thrown away.
+        if (access != MediaAccess.FULL) return 0
 
         val liveIds = runCatching { mediaStore.queryAllImageIds() }.getOrDefault(emptySet())
-        if (liveIds.isEmpty()) return 0
-
         val known = runCatching { dao.allMediaStoreIds() }.getOrDefault(emptyList())
-        val missing = known.filterNot { it in liveIds }
+
+        val missing = ReconcileDecisions.idsToRemove(access, liveIds, known)
         if (missing.isEmpty()) return 0
 
         return runCatching { dao.removeByMediaStoreIds(missing) }.getOrDefault(0)
@@ -464,10 +468,6 @@ class ScreenshotRepository @Inject constructor(
         RescanResult.Failed(error.message ?: error::class.simpleName ?: "unknown error")
     }
 
-    /**
-     * Seeds the very first batch: the newest [limit] screenshots regardless of
-     * watermark, so the shelf has content within seconds of first launch.
-     */
     /** How many screenshots Shelfie knows about, searchable or not. */
     suspend fun discoveredCount(): Int = dao.discoveredCount()
 
@@ -480,6 +480,15 @@ class ScreenshotRepository @Inject constructor(
     suspend fun anyFiled(ids: List<Long>): Boolean =
         ids.chunked(SQL_ID_CHUNK).any { chunk -> dao.filedCount(chunk) > 0 }
 
+    /**
+     * Seeds the very first batch: the newest [limit] screenshots regardless of
+     * watermark, so the shelf has content within seconds of first launch.
+     *
+     * Deliberately does not advance the watermark. This runs before the backlog has
+     * been seen, so recording "the newest screenshot on the device" as the high-water
+     * mark here is what would make every later watermark scan match nothing —
+     * [discoverAll] exists to walk the rest.
+     */
     suspend fun discoverNewest(limit: Int): Int {
         if (!accessChecker.canReadAnyMedia()) return 0
 
@@ -515,20 +524,16 @@ class ScreenshotRepository @Inject constructor(
     /**
      * Newest known MediaStore timestamp, clamped to now.
      *
-     * The clamp is not paranoia. `date_added` is copied verbatim from the media
-     * provider, and some OEM providers (and restored or cloud-synced media) report
-     * it in milliseconds or with a timestamp in the future. A single such row makes
-     * `MAX(date_added)` astronomically large, and every later
-     * `DATE_ADDED >= watermark` scan then matches nothing — permanently, and
-     * silently. Symptom: the first launch works, and no screenshot is ever found
-     * again.
+     * The clamp is not paranoia, and it is not optional — see
+     * [ReconcileDecisions.clampWatermark] for what an unclamped watermark does to
+     * discovery.
      */
     private suspend fun currentWatermark(
         nowSeconds: Long = System.currentTimeMillis() / 1000,
-    ): Long {
-        val newest = runCatching { dao.newestDateAdded() }.getOrNull() ?: 0L
-        return newest.coerceIn(0L, nowSeconds)
-    }
+    ): Long = ReconcileDecisions.clampWatermark(
+        newestDateAdded = runCatching { dao.newestDateAdded() }.getOrNull(),
+        nowSeconds = nowSeconds,
+    )
 
     private fun MediaStoreScreenshot.toPendingEntity() = ScreenshotEntity(
         mediaStoreId = mediaStoreId,

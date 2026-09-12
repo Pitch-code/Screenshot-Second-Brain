@@ -1,6 +1,7 @@
 package com.shelfie.core.media
 
 import com.google.common.truth.Truth.assertThat
+import com.shelfie.core.database.dao.SQL_ID_CHUNK
 import com.shelfie.core.model.MediaAccess
 import org.junit.Test
 
@@ -10,19 +11,18 @@ import org.junit.Test
  * Worth pinning precisely because the failure mode is destroying a user's index. Two
  * of these three guards exist to prevent exactly that, and neither is obvious from
  * reading the happy path.
+ *
+ * Calls [ReconcileDecisions.idsToRemove] directly. This file used to hold a private
+ * reimplementation of that logic and assert against it, so the guards it claims to
+ * protect could have been deleted from the repository without a single test going red.
  */
 class PruneDecisionTest {
 
-    /** Mirrors ScreenshotRepository.pruneDeletedFiles' decision logic. */
     private fun idsToRemove(
         access: MediaAccess,
         liveIds: Set<Long>,
         known: List<Long>,
-    ): List<Long> {
-        if (access != MediaAccess.FULL) return emptyList()
-        if (liveIds.isEmpty()) return emptyList()
-        return known.filterNot { it in liveIds }
-    }
+    ): List<Long> = ReconcileDecisions.idsToRemove(access, liveIds, known)
 
     @Test
     fun `a deleted screenshot is removed`() {
@@ -95,12 +95,16 @@ class PruneDecisionTest {
     fun `chunking covers every id exactly once`() {
         // removeByMediaStoreIds chunks to stay inside SQLite's bound-parameter limit.
         // Losing or repeating an id here would silently leave rows behind.
-        val ids = (1L..1_250L).toList()
+        //
+        // Reads the real constant rather than restating 500, so raising the chunk size
+        // past a device's SQLITE_MAX_VARIABLE_NUMBER cannot leave this passing.
+        val ids = (1L..(SQL_ID_CHUNK * 2.5).toLong()).toList()
 
-        val chunks = ids.chunked(500)
+        val chunks = ids.chunked(SQL_ID_CHUNK)
 
         assertThat(chunks.sumOf { it.size }).isEqualTo(ids.size)
         assertThat(chunks.flatten()).containsExactlyElementsIn(ids).inOrder()
-        assertThat(chunks.all { it.size <= 500 }).isTrue()
+        assertThat(chunks.all { it.size <= SQL_ID_CHUNK }).isTrue()
+        assertThat(SQL_ID_CHUNK).isAtMost(999)
     }
 }

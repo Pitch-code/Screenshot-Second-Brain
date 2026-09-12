@@ -80,20 +80,16 @@ class ImmediateIndexer @Inject constructor(
     }
 
     /**
-     * Cheap pass for returning to the shelf: pick up anything new and read a
-     * small batch of it.
-     *
-     * Bounded by [IndexTierPolicy.CATCH_UP_BATCH] rather than the full immediate
-     * batch, because this runs every time the screen resumes and must never feel
-     * like work. Anything it does not reach is left to the background tiers.
-     */
-    /**
      * User-pressed refresh.
      *
      * Bypasses [hasRunThisProcess] and the watermark, and reports back what
      * happened. Exists because there was previously no way at all to force a
      * rescan: the retry card is gated behind "nothing has ever indexed", so a
      * working library with one missing screenshot had no affordance whatsoever.
+     *
+     * Reads only [IndexTierPolicy.CATCH_UP_BATCH] items itself. Anything the scan
+     * turned up beyond that is left to the background tiers, so pressing refresh can
+     * never turn into a long foreground stall.
      */
     suspend fun refreshNow(): RescanResult {
         val result = repository.forceRescan()

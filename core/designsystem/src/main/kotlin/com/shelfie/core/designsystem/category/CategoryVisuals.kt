@@ -71,6 +71,26 @@ val ScreenshotCategory.icon: ImageVector
     }
 
 /**
+ * Name of a folder icon, for screen readers.
+ *
+ * The icon picker's chips carry no visible text, so this is the only thing announced
+ * for each one. It used to be the enum constant itself, which read out as "STAR" and
+ * "HOME_WORK" and could not be translated.
+ */
+@get:StringRes
+val FolderIcon.labelRes: Int
+    get() = when (this) {
+        FolderIcon.FOLDER -> R.string.folder_icon_folder
+        FolderIcon.STAR -> R.string.folder_icon_star
+        FolderIcon.HEART -> R.string.folder_icon_heart
+        FolderIcon.WORK -> R.string.folder_icon_work
+        FolderIcon.TRAVEL -> R.string.folder_icon_travel
+        FolderIcon.MONEY -> R.string.folder_icon_money
+        FolderIcon.HOME -> R.string.folder_icon_home
+        FolderIcon.SHOPPING -> R.string.folder_icon_shopping
+    }
+
+/**
  * Icon for a user-made folder.
  *
  * Folder names are user text and so cannot be string resources; the icon is chosen

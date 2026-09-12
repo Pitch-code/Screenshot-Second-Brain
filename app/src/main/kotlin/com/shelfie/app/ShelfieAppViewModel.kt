@@ -59,10 +59,19 @@ class ShelfieAppViewModel @Inject constructor(
         initialValue = false,
     )
 
+    /**
+     * Wallpaper-derived colour, off unless the user turned it on.
+     *
+     * The initial value has to match [ShelfiePreferences.useDynamicColor]'s own
+     * fallback. It said `true` while the preference defaults to `false`, so the first
+     * composed frame built a dynamic scheme and then swapped to the brand palette a
+     * frame later — a visible flash of the wrong colours on every cold start, for the
+     * majority of users who never touch the setting.
+     */
     val useDynamicColor: StateFlow<Boolean> = preferences.useDynamicColor.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
-        initialValue = true,
+        initialValue = false,
     )
 
     init {

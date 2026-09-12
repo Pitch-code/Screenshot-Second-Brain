@@ -1,5 +1,8 @@
 package com.shelfie.feature.detail
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -54,14 +57,33 @@ import com.shelfie.core.model.ScreenshotAction
 /**
  * Detail as a bottom sheet rather than a full screen, so the shelf stays visible
  * behind it and dismissing feels instant.
+ *
+ * @param onDeleted called once deletion has been started, so the caller can close the
+ *   viewer behind this sheet. Deliberately fired before the system confirmation
+ *   returns: the row is already soft-deleted by then, so leaving the screenshot on
+ *   screen would show something the rest of the app has stopped listing. Declining the
+ *   dialog restores it, exactly as it does on the shelf.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailSheet(
     screenshotId: Long,
     onDismiss: () -> Unit,
+    onDeleted: () -> Unit = {},
     viewModel: DetailViewModel = hiltViewModel(key = "detail-$screenshotId"),
 ) {
+    // Declining restores the soft-deleted row and takes the file back out of the bin,
+    // so cancelling genuinely cancels.
+    val deleteLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            viewModel.selection.onDeleteConfirmed()
+        } else {
+            viewModel.selection.onDeleteCancelled()
+        }
+    }
+
     LaunchedEffect(screenshotId) {
         viewModel.load(screenshotId)
         // Only queried because this sheet is open; the viewer alone does not need it.
@@ -103,7 +125,7 @@ fun DetailSheet(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             AsyncImage(
-                model = screenshot.uri,
+                model = screenshot.displayUri,
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
@@ -217,7 +239,15 @@ fun DetailSheet(
             HorizontalDivider()
 
             // Destructive action, kept well away from the primary ones.
-            TextButton(onClick = { /* delete flow: Phase 4 */ }) {
+            TextButton(
+                onClick = {
+                    viewModel.deleteCurrent { sender ->
+                        deleteLauncher.launch(IntentSenderRequest.Builder(sender).build())
+                    }
+                    onDismiss()
+                    onDeleted()
+                },
+            ) {
                 Icon(Icons.Outlined.Delete, contentDescription = null)
                 Text(
                     text = "  " + stringResource(R.string.detail_delete),

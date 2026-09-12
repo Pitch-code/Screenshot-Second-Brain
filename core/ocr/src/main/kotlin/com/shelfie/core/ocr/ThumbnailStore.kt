@@ -53,25 +53,17 @@ class ThumbnailStore @Inject constructor(
         }
     }
 
-    fun pathFor(key: String): String? =
-        File(directory, "$key.jpg").takeIf { it.exists() }?.absolutePath
-
     fun delete(key: String): Boolean = File(directory, "$key.jpg").let { it.exists() && it.delete() }
 
-    /** Total bytes used, for the Cleanup screen's storage figures. */
-    fun totalBytes(): Long =
-        directory.listFiles()?.sumOf { it.length() } ?: 0L
-
-    /** Removes copies whose screenshot rows no longer exist. */
-    fun pruneExcept(keys: Set<String>): Int {
-        val files = directory.listFiles() ?: return 0
-        var removed = 0
-        for (file in files) {
-            val key = file.nameWithoutExtension
-            if (key !in keys && file.delete()) removed++
-        }
-        return removed
-    }
+    // pathFor, totalBytes and pruneExcept lived here and had no callers.
+    //
+    // pathFor was redundant: PickerImporter writes the saved path straight into the
+    // row, so nothing ever needs to reconstruct it. Cleanup's storage figures come
+    // from the size recorded per screenshot rather than from this directory. Orphaned
+    // copies are removed one at a time by ScreenshotDeleter.finalizeDeletion, so a
+    // sweep had nothing to sweep — and a sweep keyed on a set of ids is a dangerous
+    // thing to keep lying around untested, since being handed an incomplete set
+    // deletes every thumbnail the caller forgot to mention.
 
     private companion object {
         const val DIRECTORY = "picked_thumbnails"

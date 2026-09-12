@@ -9,7 +9,6 @@ import androidx.paging.insertSeparators
 import androidx.paging.map
 import com.shelfie.core.database.dao.IndexStateCount
 import com.shelfie.core.datastore.ShelfiePreferences
-import com.shelfie.core.designsystem.component.ShelfChip
 import com.shelfie.core.media.ImmediateIndexer
 import com.shelfie.core.media.PickerImporter
 import android.app.Activity
@@ -17,18 +16,15 @@ import com.shelfie.core.billing.BillingState
 import com.shelfie.core.billing.PurchaseResult
 import com.shelfie.core.billing.ShelfieBilling
 import com.shelfie.core.media.IndexingQuota
-import android.content.IntentSender
 import com.shelfie.core.media.RescanResult
 import com.shelfie.core.media.ScreenshotDeleter
 import com.shelfie.core.media.ScreenshotRepository
 import com.shelfie.core.media.ScreenshotSelection
 import com.shelfie.core.model.Folder
-import com.shelfie.core.model.FolderIcon
 import com.shelfie.core.model.IndexProgress
 import com.shelfie.core.model.IndexState
 import com.shelfie.core.model.MediaAccess
 import com.shelfie.core.model.Screenshot
-import com.shelfie.core.model.ScreenshotCategory
 import com.shelfie.core.model.ShelfFilter
 import com.shelfie.core.model.ShelfSortOrder
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,7 +34,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -286,9 +281,9 @@ class ShelfViewModel @Inject constructor(
         }
     }
 
-    fun onRecategorise(screenshotId: Long, category: ScreenshotCategory) {
-        viewModelScope.launch { repository.setCategory(screenshotId, category) }
-    }
+    // onRecategorise lived here and had no callers. Re-categorising is done from the
+    // screenshot itself (the viewer's Move button) or in bulk through [selection], both
+    // of which go straight to the repository.
 
     val upsellPrompt: StateFlow<UpsellPrompt?> = upsell
 

@@ -4,7 +4,21 @@ import android.os.Build
 import android.os.StrictMode
 
 /**
- * StrictMode, debug builds only.
+ * StrictMode, installed only in debuggable builds.
+ *
+ * ## Why this lives in `main` rather than in a `debug` source set
+ *
+ * It used to sit in `src/debug`, where nothing in `src/main` could reference it — so
+ * [install] had no callers and StrictMode was never actually switched on, despite the
+ * README and the architecture doc both claiming it was. A source set that only the
+ * debug variant compiles cannot be called from shared code, and the obvious fix of
+ * adding a no-op twin under `src/release` breaks the `benchmark` build type, which
+ * gets its own source set and would have neither.
+ *
+ * So it is compiled into every variant and gated at runtime by the debuggable flag
+ * instead. `BuildConfig.DEBUG` would be the usual gate, but this project does not
+ * enable the `buildConfig` build feature, and turning it on to read one boolean is a
+ * worse trade than a single flag test at startup.
  *
  * Catches the two failure modes this app is most exposed to:
  *

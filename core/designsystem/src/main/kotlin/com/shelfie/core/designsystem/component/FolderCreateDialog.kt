@@ -1,18 +1,13 @@
 package com.shelfie.core.designsystem.component
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -26,14 +21,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.shelfie.core.designsystem.R
 import com.shelfie.core.designsystem.category.icon
+import com.shelfie.core.designsystem.category.labelRes
 import com.shelfie.core.model.Folder
 import com.shelfie.core.model.FolderIcon
 
@@ -90,7 +84,12 @@ fun FolderCreateDialog(
                             label = {
                                 Icon(
                                     imageVector = option.icon,
-                                    contentDescription = option.name,
+                                    // A resource, not `option.name`. These chips are
+                                    // icon-only, so this string is the entire label a
+                                    // screen reader has to work with, and it was
+                                    // announcing the raw enum constant — "STAR",
+                                    // "HOME_WORK" — untranslated.
+                                    contentDescription = stringResource(option.labelRes),
                                     modifier = Modifier.size(FilterChipDefaults.IconSize),
                                 )
                             },
@@ -112,65 +111,7 @@ fun FolderCreateDialog(
     )
 }
 
-/** Row of existing folders plus a create option, used inside the move picker. */
-@Composable
-fun FolderPickerRows(
-    folders: List<Folder>,
-    onPick: (Folder) -> Unit,
-    onCreateNew: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        folders.forEach { folder ->
-            PickerRow(
-                icon = folder.icon.icon,
-                label = folder.name,
-                onClick = { onPick(folder) },
-            )
-        }
-
-        PickerRow(
-            icon = Icons.Outlined.CreateNewFolder,
-            label = stringResource(R.string.folder_new),
-            onClick = onCreateNew,
-            emphasised = true,
-        )
-    }
-}
-
-@Composable
-private fun PickerRow(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit,
-    emphasised: Boolean = false,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = if (emphasised) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            color = if (emphasised) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
-        )
-    }
-}
+// FolderPickerRows and its PickerRow helper lived here and had no callers. The move
+// picker they were written for is MoveToFolderDialog in SelectionControls.kt, which
+// grew its own rows so it could offer automatic categories alongside folders.
 

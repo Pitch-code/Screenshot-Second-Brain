@@ -167,12 +167,10 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Deletes a folder. Its screenshots return to their automatic category.
-     *
-     * Offered here because otherwise a mistyped folder name would be permanent —
-     * the create flow lives in the detail sheet and has no edit path.
-     */
+    // Folder deletion is not here. It lives in the Find tab, where the folders are
+    // shown: long-press to select, then delete, with a confirmation that states how
+    // many screenshots are inside. This KDoc outlived the function it described.
+
     // ------------------------------------------------------- folder scanning
 
     private val availableFolders = MutableStateFlow<List<MediaFolder>>(emptyList())
@@ -208,13 +206,11 @@ class SettingsViewModel @Inject constructor(
         initialValue = FolderPickerState(),
     )
 
-    fun onAddRule(keyword: String, category: com.shelfie.core.model.ScreenshotCategory) {
-        if (keyword.isBlank()) return
-        viewModelScope.launch {
-            repository.addRule(keyword, category)
-            message.value = UiMessage.Text(R.string.settings_rule_saved)
-        }
-    }
+    // onAddRule lived here and had no callers, along with the settings_rule_saved
+    // string it showed. Rules are created where a wrong category is noticed — the
+    // "also sort future screenshots like this" checkbox in the viewer's Move dialog —
+    // which is the only moment anyone is motivated to write one. This screen lists and
+    // deletes them, and its empty state says exactly that.
 
     /** Plain-text export of the index, written by the caller to a chosen file. */
     suspend fun buildExport(): String = repository.exportIndex()
@@ -254,7 +250,9 @@ data class SettingsUiState(
 
     val quota: QuotaState = QuotaState(),
     val billing: BillingState = BillingState.Connecting,
-    val useDynamicColor: Boolean = true,
+    /** Matches ShelfiePreferences.useDynamicColor's own default, so the switch does
+     *  not render checked for a frame before the stored value arrives. */
+    val useDynamicColor: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.Default,
     val appLockEnabled: Boolean = false,
     val access: MediaAccess = MediaAccess.DENIED,

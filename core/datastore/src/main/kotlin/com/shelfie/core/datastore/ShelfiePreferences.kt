@@ -110,10 +110,9 @@ class ShelfiePreferences @Inject constructor(
         }
     }
 
-    /** Used by the reconcile path to force a full re-scan. */
-    suspend fun resetWatermark() {
-        dataStore.edit { it[KEY_WATERMARK] = 0L }
-    }
+    // resetWatermark lived here and had no callers. Forcing a full re-scan does not
+    // need it: ScreenshotRepository.discoverAll ignores the watermark outright, which
+    // is both cheaper and safer than moving a stored value backwards.
 
     suspend fun setOnboardingComplete(complete: Boolean) {
         dataStore.edit { it[KEY_ONBOARDING_COMPLETE] = complete }

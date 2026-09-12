@@ -59,6 +59,15 @@
     <string name="folder_create">Create</string>
     <string name="folder_cancel">Cancel</string>
     <string name="folder_pick_icon">Icon</string>
+    <!-- Icon-picker chips show no text, so these are what a screen reader announces. -->
+    <string name="folder_icon_folder">Folder</string>
+    <string name="folder_icon_star">Star</string>
+    <string name="folder_icon_heart">Heart</string>
+    <string name="folder_icon_work">Work</string>
+    <string name="folder_icon_travel">Travel</string>
+    <string name="folder_icon_money">Money</string>
+    <string name="folder_icon_home">Home</string>
+    <string name="folder_icon_shopping">Shopping</string>
     <plurals name="folder_item_count">
         <item quantity="one">%d screenshot</item>
         <item quantity="other">%d screenshots</item>

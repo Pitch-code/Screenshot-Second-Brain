@@ -20,6 +20,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -105,7 +106,7 @@ private fun MainShell(navController: NavHostController, startOnSearch: Boolean =
                             selected = destination == current,
                             onClick = { onNavigate(destination) },
                             icon = { DestinationIcon(destination, destination == current) },
-                            label = { Text(destination.label) },
+                            label = { Text(stringResource(destination.labelRes)) },
                         )
                     }
                 }
@@ -134,7 +135,7 @@ private fun MainShell(navController: NavHostController, startOnSearch: Boolean =
                                 selected = destination == current,
                                 onClick = { onNavigate(destination) },
                                 icon = { DestinationIcon(destination, destination == current) },
-                                label = { Text(destination.label) },
+                                label = { Text(stringResource(destination.labelRes)) },
                             )
                         }
                     }

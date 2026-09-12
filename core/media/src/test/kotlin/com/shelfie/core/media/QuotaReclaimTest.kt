@@ -16,15 +16,16 @@ import org.junit.Test
  * version hardcoded counts that only made sense at a limit of 150, so lowering it to
  * 50 broke the tests without anything being wrong with the code — the arithmetic being
  * verified is independent of where the limit happens to sit.
+ *
+ * Calls [IndexingQuota.releaseCount] directly, rather than the private copy of the
+ * arithmetic this file used to declare. The copy could not detect a change to the real
+ * implementation, which for a rolling window means the difference between screenshots
+ * coming back and staying unsearchable for good.
  */
 class QuotaReclaimTest {
 
-    /** Mirrors IndexingQuota.reclaimWithinQuota's arithmetic. */
-    private fun releaseCount(limit: Int, indexed: Int, held: Int): Int {
-        val slack = limit - indexed
-        if (slack <= 0) return 0
-        return minOf(slack, held)
-    }
+    private fun releaseCount(limit: Int, indexed: Int, held: Int): Int =
+        IndexingQuota.releaseCount(limit, indexed, held)
 
     private val current = IndexingQuota.FREE_INDEX_LIMIT
 
