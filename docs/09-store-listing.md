@@ -200,7 +200,7 @@ Two things to get right before capturing:
 - [ ] Developer account verified
 - [ ] Payments profile active, BillDesk verification complete (India)
 - [ ] GitHub Pages enabled, policy URL loads
-- [ ] In-app product created: id `shelfie_full_version`, one-time, ₹199
+- [ ] In-app product created: id `shelfie_full_version`, one-time, ₹250
 - [ ] Data safety form submitted
 - [ ] Content rating submitted
 - [ ] Store listing text and graphics uploaded
