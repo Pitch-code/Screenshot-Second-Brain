@@ -95,7 +95,9 @@
     <string name="settings_rule_keyword">\"%1$s\"</string>
     <string name="settings_rule_target">goes to %1$s</string>
     <string name="settings_rule_delete">Delete rule</string>
-    <string name="settings_rule_saved">Rule saved. New screenshots will use it.</string>
+    <!-- settings_rule_saved was removed with SettingsViewModel.onAddRule: rules are
+         created from the viewer's Move dialog, which confirms in place. -->
+
 
     <!-- Data -->
     <string name="settings_export_title">Export my data</string>

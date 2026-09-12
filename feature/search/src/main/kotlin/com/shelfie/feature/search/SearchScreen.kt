@@ -50,11 +50,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.produceState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.style.TextOverflow
-import coil3.compose.AsyncImage
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -675,7 +673,7 @@ private fun PreviewThumb(screenshot: Screenshot, onClick: (() -> Unit)?) {
     val shape = MaterialTheme.shapes.medium
 
     AsyncImage(
-        model = screenshot.uri,
+        model = screenshot.displayUri,
         contentDescription = null,
         contentScale = ContentScale.Crop,
         modifier = Modifier
@@ -900,7 +898,7 @@ private fun SearchResultRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             AsyncImage(
-                model = screenshot.uri,
+                model = screenshot.displayUri,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.size(width = 56.dp, height = 84.dp),

@@ -17,7 +17,12 @@ import dagger.assisted.AssistedInject
 /**
  * Tier 2 — indexes the recent past shortly after launch.
  *
- * Expedited so it starts promptly, but still cancellable and still bounded.
+ * Ordinary background work, not expedited: see [IndexScheduler.scheduleRecent] for why
+ * — on API 30 and below expedited work is backed by a foreground service, which drags
+ * in a Play declaration for no user benefit, because Tier 1 already covers immediacy.
+ * Prompt is enough here; instant is not required.
+ *
+ * Cancellable and bounded to [IndexTierPolicy.RECENT_BATCH] items per run.
  */
 @HiltWorker
 class RecentIndexWorker @AssistedInject constructor(

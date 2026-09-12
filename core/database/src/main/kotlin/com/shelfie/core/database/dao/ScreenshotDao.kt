@@ -542,11 +542,6 @@ interface ScreenshotDao {
     @Query("SELECT * FROM screenshots WHERE id = :id")
     fun observeById(id: Long): Flow<ScreenshotEntity?>
 
-    /**
-     * Watermark source. Restricted to MEDIA_STORE rows: picker imports are
-     * stamped with the import time, so counting them would advance the watermark
-     * to "now" and permanently skip older screenshots still on disk.
-     */
     // ------------------------------------------------------------------ export
 
     /** Flattened rows for the data export, joined with their recognised text. */
@@ -718,11 +713,19 @@ interface ScreenshotDao {
     )
     suspend fun olderThan(olderThan: Long): List<ScreenshotEntity>
 
-    @Query("SELECT * FROM screenshots WHERE is_deleted = 1 ORDER BY deleted_at DESC")
-    fun pagedDeleted(): PagingSource<Int, ScreenshotEntity>
-
-    @Query("SELECT COUNT(*) FROM screenshots WHERE is_deleted = 1")
-    fun observeDeletedCount(): Flow<Int>
+    /*
+     * pagedDeleted and observeDeletedCount lived here to back a "Recently deleted"
+     * browser that was never built, and had no callers.
+     *
+     * The soft-delete window itself is real and still in use: the shelf's delete
+     * trashes the file rather than destroying it, keeps the row for
+     * RECOVERY_WINDOW_SECONDS, and offers an undo that restores both halves;
+     * purgeDeletedBefore expires the rows on reconcile. What did not exist was any
+     * screen to browse that window after the undo snackbar had gone — so these two
+     * queries were the appearance of a feature rather than the feature.
+     *
+     * Reinstate them with the screen, not before.
+     */
 
     @Query("SELECT * FROM screenshots WHERE id IN (:ids)")
     suspend fun byIds(ids: List<Long>): List<ScreenshotEntity>
@@ -731,6 +734,14 @@ interface ScreenshotDao {
     @Query("DELETE FROM screenshots WHERE id IN (:ids)")
     suspend fun hardDelete(ids: List<Long>): Int
 
+    /**
+     * Watermark source. Restricted to MEDIA_STORE rows: picker imports are
+     * stamped with the import time, so counting them would advance the watermark
+     * to "now" and permanently skip older screenshots still on disk.
+     *
+     * The value is not trusted as-is — see `ReconcileDecisions.clampWatermark`, which
+     * bounds it before any scan uses it.
+     */
     @Query("SELECT MAX(date_added) FROM screenshots WHERE source = 'MEDIA_STORE'")
     suspend fun newestDateAdded(): Long?
 

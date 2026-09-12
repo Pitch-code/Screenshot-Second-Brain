@@ -4,8 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 /**
- * The watermark clamp, extracted as pure arithmetic so it is testable without a
- * database or a media provider.
+ * The watermark clamp that `ScreenshotRepository.currentWatermark` applies.
  *
  * This guards a failure mode that is invisible in normal use and permanent once it
  * happens: `date_added` is copied verbatim from the media provider, and some OEM
@@ -13,12 +12,16 @@ import org.junit.Test
  * future timestamp. One such row makes `MAX(date_added)` enormous, and every
  * subsequent `DATE_ADDED >= watermark` scan then matches nothing — for good. The
  * user sees the first launch work and no screenshot ever discovered again.
+ *
+ * Calls [ReconcileDecisions.clampWatermark] directly. It previously asserted against a
+ * private copy of the arithmetic declared in this file, which made the test incapable
+ * of failing when the real implementation changed — for logic whose failure mode is a
+ * library that never grows again.
  */
 class WatermarkClampTest {
 
-    /** Mirrors ScreenshotRepository.currentWatermark's clamping. */
     private fun clamp(newest: Long?, nowSeconds: Long): Long =
-        (newest ?: 0L).coerceIn(0L, nowSeconds)
+        ReconcileDecisions.clampWatermark(newest, nowSeconds)
 
     private val now = 1_800_000_000L
 

@@ -35,7 +35,17 @@
     </plurals>
     <string name="cleanup_delete_selected">Delete selected</string>
     <string name="cleanup_cancel">Cancel</string>
-    <string name="cleanup_recovery_note">Deleted screenshots stay recoverable in Shelfie for 30 days.</string>
+    <!--
+      Was: "Deleted screenshots stay recoverable in Shelfie for 30 days."
+
+      That was not true on this screen. Cleanup exists to reclaim storage, so it uses
+      MediaStore.createDeleteRequest, which deletes the file outright — nothing is left
+      to recover from, and there is no Recently Deleted screen to recover it in. The
+      30-day window is real for the shelf's delete, which bins the file and offers an
+      undo instead, but promising it here was telling people a bulk delete was
+      reversible when it is the one place in the app that it is not.
+    -->
+    <string name="cleanup_recovery_note">Your phone will ask you to confirm. This frees the space straight away and cannot be undone.</string>
 
     <string name="cleanup_removed_from_shelfie">Removed from Shelfie</string>
     <string name="cleanup_removed_needs_android_11">Removed from Shelfie. Deleting the files needs Android 11 or newer.</string>

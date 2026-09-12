@@ -116,8 +116,14 @@ fun ScreenshotTile(
                 .aspectRatio(0.62f),
         ) {
             AsyncImage(
+                // displayUri, not uri: it prefers the durable local copy that Limited
+                // Mode imports keep in app storage. Those two happen to hold the same
+                // value today, because PickerImporter writes the local path into both
+                // columns — so reading `uri` here works by coincidence rather than by
+                // design, and would break the moment a picker import kept the original
+                // URI for anything.
                 model = ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
-                    .data(screenshot.uri)
+                    .data(screenshot.displayUri)
                     .crossfade(true)
                     .build(),
                 contentDescription = null,

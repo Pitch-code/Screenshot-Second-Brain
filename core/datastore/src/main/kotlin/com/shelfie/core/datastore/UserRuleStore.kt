@@ -59,13 +59,10 @@ class UserRuleStore @Inject constructor(
         }
     }
 
-    suspend fun setEnabled(id: Long, enabled: Boolean) {
-        dataStore.edit { prefs ->
-            val updated = RuleCodec.decodeAll(prefs[KEY_RULES].orEmpty())
-                .map { if (it.id == id) it.copy(enabled = enabled) else it }
-            prefs[KEY_RULES] = RuleCodec.encodeAll(updated)
-        }
-    }
+    // setEnabled lived here and had no callers: the rules screen offers create and
+    // delete, not a toggle. [StoredRule.enabled] stays in the model and the codec
+    // regardless — it is part of the persisted format, so dropping it would mean a
+    // migration for a field that costs nothing to keep round-tripping.
 
     suspend fun current(): List<StoredRule> = rules.first()
 

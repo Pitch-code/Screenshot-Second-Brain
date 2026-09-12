@@ -52,9 +52,27 @@ class PickerImporter @Inject constructor(
             val entity = buildEntity(uri) ?: continue
 
             val rowId = runCatching { dao.upsert(entity) }.getOrNull() ?: continue
-            // upsert returns -1 when the row already existed; look it up so a
-            // re-import updates rather than duplicating.
-            val id = if (rowId > 0) rowId else continue
+
+            /*
+             * A non-positive return means the upsert updated an existing row rather
+             * than inserting one, so it carries no id — the row is keyed on the
+             * derived media store id, which is stable per URI.
+             *
+             * Looked up rather than skipped. Skipping is what this did before, which
+             * made re-picking a screenshot a silent no-op: the row was updated, the
+             * local copy was rewritten, and then nothing was indexed and the import
+             * was not counted, so the user was told fewer images had been added than
+             * they chose. Re-picking is also the only route someone has to re-read a
+             * screenshot whose earlier import failed.
+             */
+            val id = if (rowId > 0) {
+                rowId
+            } else {
+                runCatching { dao.idsForMediaStoreIds(listOf(entity.mediaStoreId)) }
+                    .getOrNull()
+                    ?.firstOrNull()
+                    ?: continue
+            }
 
             runCatching { indexer.index(entity.copy(id = id), rules) }
             imported++

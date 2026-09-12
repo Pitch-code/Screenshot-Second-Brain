@@ -6,6 +6,7 @@ import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import com.shelfie.app.MainActivity
+import com.shelfie.app.R
 
 /**
  * Quick Settings tile: "Search Shelfie".
@@ -19,7 +20,11 @@ class ShelfieTileService : TileService() {
         super.onStartListening()
         qsTile?.apply {
             state = Tile.STATE_INACTIVE
-            label = "Search Shelfie"
+            // The same resource the manifest declares for this service, rather than a
+            // second copy of the text as a Kotlin literal — which is how the tile
+            // ended up being the one string that could not be translated even though
+            // `tile_label` already existed.
+            label = getString(R.string.tile_label)
             updateTile()
         }
     }

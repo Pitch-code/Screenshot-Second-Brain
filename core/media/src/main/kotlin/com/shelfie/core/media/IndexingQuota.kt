@@ -11,10 +11,10 @@ import javax.inject.Singleton
 /**
  * The free tier.
  *
- * Deliberately a **rolling window of the newest screenshots** rather than a hard
- * stop at the first 150. A hard stop would mean the app silently stopped working
- * for anything taken after the cap was hit, which is the punitive design the
- * product spec rules out. With a rolling window, a free user's *recent*
+ * Deliberately a **rolling window of the newest [FREE_INDEX_LIMIT] screenshots**
+ * rather than a hard stop at the first N. A hard stop would mean the app silently
+ * stopped working for anything taken after the cap was hit, which is the punitive
+ * design the product spec rules out. With a rolling window, a free user's *recent*
  * screenshots are always searchable — which is where nearly all the value is,
  * since screenshot usefulness decays fast.
  *
@@ -93,8 +93,7 @@ class IndexingQuota @Inject constructor(
      * nothing to reclaim on the pass after that.
      */
     private suspend fun reclaimWithinQuota(): Int {
-        val indexed = dao.indexedCount()
-        val slack = FREE_INDEX_LIMIT - indexed
+        val slack = releaseSlack(FREE_INDEX_LIMIT, dao.indexedCount())
         if (slack <= 0) return 0
 
         return dao.releaseNewestQuotaHolds(slack)
@@ -128,6 +127,28 @@ class IndexingQuota @Inject constructor(
          * a big backlog.
          */
         const val FREE_INDEX_LIMIT = 50
+
+        /**
+         * How many held-back rows the window currently has room for.
+         *
+         * Extracted so it has one definition rather than two. The test for this used
+         * to keep its own copy of the arithmetic, which meant it verified the copy and
+         * not the code that runs.
+         */
+        internal fun releaseSlack(limit: Int, indexed: Int): Int =
+            (limit - indexed).coerceAtLeast(0)
+
+        /**
+         * How many rows a reclaim pass will actually release.
+         *
+         * [reclaimWithinQuota] passes [releaseSlack] to
+         * `releaseNewestQuotaHolds`, whose `LIMIT` clause caps the result at however
+         * many rows are genuinely held — so the effective count is the smaller of the
+         * two. Expressed here so that relationship is stated once and can be asserted
+         * directly.
+         */
+        internal fun releaseCount(limit: Int, indexed: Int, held: Int): Int =
+            minOf(releaseSlack(limit, indexed), held)
     }
 }
 

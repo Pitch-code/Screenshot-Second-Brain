@@ -48,7 +48,7 @@ Ship these detectors, and **only surface a category once it has ≥3 matches**:
 Plus: **user-editable rules.** "Any screenshot containing `Zerodha` → Investments." This single feature answers complaint #2 and no competitor has it.
 
 ### Monetisation
-- **Free forever:** search, categories, actions, up to **150 indexed screenshots** (rolling, newest)
+- **Free forever:** search, categories, actions, up to **50 indexed screenshots** (rolling, newest) — the authoritative value is `IndexingQuota.FREE_INDEX_LIMIT`, not this line
 - **Shelfie Full — one payment, ₹399 / $4.99:** unlimited index, custom rules, bulk cleanup, widget, export
 - **No ads. No subscription. No trial timer.**
 - The pricing *is* the marketing. Store listing leads with "One payment. No subscription."

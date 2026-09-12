@@ -2,6 +2,20 @@
 <resources>
     <string name="app_name">Shelfie</string>
 
+    <!--
+      Navigation bar labels. In resources rather than as Kotlin literals because
+      lint's HardcodedText check only inspects XML, so these were the one set of
+      user-facing strings that could stay in English without failing the build.
+
+      "Find" rather than "Search": the tab browses folders and automatic categories
+      as well as searching text. Note that BaselineProfileGenerator locates these
+      tabs by their displayed text, so renaming one means updating that list too.
+    -->
+    <string name="destination_shelf">Shelf</string>
+    <string name="destination_find">Find</string>
+    <string name="destination_cleanup">Cleanup</string>
+    <string name="destination_settings">Settings</string>
+
     <string name="lock_prompt_title">Unlock Shelfie</string>
     <string name="lock_prompt_subtitle">Use your fingerprint, or your phone\'s PIN, pattern or password.</string>
     <string name="lock_locked_title">Shelfie is locked</string>

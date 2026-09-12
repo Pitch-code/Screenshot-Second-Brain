@@ -84,7 +84,7 @@ Effort is in ideal focused days for one experienced Android developer.
 | # | Task | Owns | Done when |
 |---|---|---|---|
 | 5.1 | Play Billing one-time product, purchase + restore, offline entitlement cache | `:core:datastore` purchase state, `:app` billing client | Purchase, reinstall, restore all work |
-| 5.2 | Free-tier gate at 150 indexed, non-punitive upgrade prompt | `:feature:shelf` gate UI | Gate never blocks search of already-indexed items |
+| 5.2 | Free-tier gate at `IndexingQuota.FREE_INDEX_LIMIT` indexed (currently 50), non-punitive upgrade prompt | `:feature:shelf` gate UI | Gate never blocks search of already-indexed items |
 | 5.3 | Settings screen: permissions status, my rules editor, appearance, export, about | **`:feature:settings`** | Rule created in settings takes effect immediately |
 
 ---

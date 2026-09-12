@@ -1,7 +1,6 @@
 package com.shelfie.core.designsystem.theme
 
 import androidx.compose.material3.Typography
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
@@ -47,9 +46,6 @@ internal val ShelfieTypography = Typography().run {
     )
 }
 
-/** Monospace style for extracted codes, amounts and references. */
-internal val ExtractedValueStyle = TextStyle(
-    fontFamily = FontFamily.Monospace,
-    fontSize = 16.sp,
-    fontWeight = FontWeight.Medium,
-)
+// ExtractedValueStyle lived here, unused: ScreenshotTile builds its own monospace
+// style from bodyMedium so the extracted value scales with the type scale rather than
+// being pinned at 16sp.

@@ -51,9 +51,28 @@ class BaselineProfileGenerator {
             device.waitForIdle()
         }
 
-        // Visit the other destinations so their composition is also profiled.
-        listOf("Search", "Cleanup", "Settings").forEach { label ->
-            device.findObject(By.text(label))?.click()
+        /*
+         * Visit the other destinations so their composition is also profiled.
+         *
+         * These must match the navigation bar labels in `ShelfieDestination`, which
+         * are now string resources — `destination_find`, `destination_cleanup` and
+         * `destination_settings` in `:app`.
+         *
+         * A missing tab fails the run rather than being skipped. This list said
+         * "Search" long after the tab was renamed to "Find", and because the lookup
+         * was a null-safe `?.click()` the step silently did nothing: the Find tab —
+         * search, folders, categories, the whole second half of the app — was left
+         * out of the profile for however long that went unnoticed. A generator that
+         * quietly profiles less than it claims is worse than one that stops.
+         */
+        listOf("Find", "Cleanup", "Settings").forEach { label ->
+            val tab = device.findObject(By.text(label))
+                ?: error(
+                    "Navigation tab \"$label\" was not found. If a destination was " +
+                        "renamed, update this list — otherwise its code never makes " +
+                        "it into the Baseline Profile.",
+                )
+            tab.click()
             device.waitForIdle()
         }
     }

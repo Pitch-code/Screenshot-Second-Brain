@@ -1,12 +1,15 @@
 package com.shelfie.feature.detail
 
+import android.content.IntentSender
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.shelfie.core.classify.EntityExtractor
 import com.shelfie.core.classify.ExtractedEntities
+import com.shelfie.core.media.ScreenshotDeleter
 import com.shelfie.core.media.ScreenshotMetadata
 import com.shelfie.core.media.ScreenshotMetadataReader
 import com.shelfie.core.media.ScreenshotRepository
+import com.shelfie.core.media.ScreenshotSelection
 import com.shelfie.core.model.Folder
 import com.shelfie.core.model.FolderIcon
 import com.shelfie.core.model.Screenshot
@@ -35,7 +38,19 @@ import javax.inject.Inject
 class DetailViewModel @Inject constructor(
     private val repository: ScreenshotRepository,
     private val metadataReader: ScreenshotMetadataReader,
+    deleter: ScreenshotDeleter,
 ) : ViewModel() {
+
+    /**
+     * Deletion, delegated to the same controller the shelf and the Find tab use.
+     *
+     * Not reimplemented here. A two-stage delete with a system confirmation, a soft
+     * delete that has to be reverted when the user declines, and a trash request so
+     * undo can restore the file is exactly the logic that rots when it exists twice —
+     * which is why [ScreenshotSelection] was extracted in the first place. This screen
+     * gets the behaviour by using it, not by copying it.
+     */
+    val selection = ScreenshotSelection(repository, deleter, viewModelScope)
 
     private val screenshotId = MutableStateFlow<Long?>(null)
     private val text = MutableStateFlow<String?>(null)
@@ -99,6 +114,27 @@ class DetailViewModel @Inject constructor(
                 ?: return@launch
             metadata.value = runCatching { metadataReader.read(mediaStoreId) }.getOrNull()
         }
+    }
+
+    /**
+     * Deletes the screenshot currently open.
+     *
+     * Routed through [selection] so this behaves identically to deleting from a grid:
+     * the row is soft-deleted at once, the file is moved to the system bin rather than
+     * destroyed, and declining the system dialog restores both.
+     *
+     * The selection is cleared first because this screen only ever acts on one
+     * screenshot, and a stale id left over from a previous open would otherwise be
+     * deleted alongside it.
+     *
+     * @param launch shows the system's delete confirmation, which Android requires for
+     *   media this app did not create.
+     */
+    fun deleteCurrent(launch: (IntentSender) -> Unit) {
+        val id = screenshotId.value ?: return
+        selection.clear()
+        selection.onToggle(id)
+        selection.delete(launch)
     }
 
     fun onCategoryChanged(category: ScreenshotCategory) {
