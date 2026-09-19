@@ -1,0 +1,9 @@
+body{width:1270px;height:760px;background:linear-gradient(160deg,#1E1E3C 0%,#12122A 70%);
+  color:var(--shelf);padding:92px 96px;display:flex;flex-direction:column;overflow:hidden}
+.lockup{display:flex;align-items:center;gap:16px}
+.lockup svg{width:48px;height:44px}
+.lockup .name{font-weight:700;font-size:30px;letter-spacing:.5px}
+.body{flex:1;display:flex;flex-direction:column;justify-content:center}
+h1{font-weight:700;font-size:82px;line-height:1.05;letter-spacing:-1px;max-width:1010px}
+.accent{margin-top:30px;font-weight:500;font-size:34px;line-height:1.35;color:var(--signal);max-width:960px}
+.accent.cool{color:var(--aqua)}

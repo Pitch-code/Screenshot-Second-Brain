@@ -1,0 +1,6 @@
+@font-face{font-family:'Noto';src:url('file:///usr/share/fonts/google-noto/NotoSans-Regular.ttf');font-weight:400}
+@font-face{font-family:'Noto';src:url('file:///usr/share/fonts/google-noto/NotoSans-Medium.ttf');font-weight:500}
+@font-face{font-family:'Noto';src:url('file:///usr/share/fonts/google-noto/NotoSans-Bold.ttf');font-weight:700}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{font-family:'Noto',sans-serif;-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}
+:root{--deep:#12122A;--deep2:#1E1E3C;--signal:#FFD24A;--shelf:#F6F6FB;--muted:#C9C9DC;--aqua:#5FE0E6}
