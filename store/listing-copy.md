@@ -23,7 +23,10 @@ Shelfie fixes that. It reads the text inside every screenshot on your phone and
 makes it searchable — so the receipt, the OTP, the wifi password, the ticket, the
 recipe you saved months ago is one search away.
 
-Everything happens on your phone.
+And it's private in a way you can actually check: Shelfie ships with no internet
+permission at all. Not restricted — absent. Android won't let it open a network
+connection, so your screenshots physically cannot be uploaded anywhere. No account,
+no ads. The code is public, so you don't have to take our word for it.
 
 
 FIND ANYTHING IN SECONDS
@@ -56,7 +59,8 @@ CLEAR OUT THE CLUTTER
 
 Find exact duplicates, unreadable blurry captures, and old screenshots you never
 opened again. See exactly how much space you'll get back before you delete
-anything. Deleted by mistake? It waits 30 days in Recently Deleted.
+anything, and your phone asks you to confirm every deletion — nothing goes
+without your say-so.
 
 
 FAST, EVEN ON AN OLDER PHONE
@@ -104,18 +108,29 @@ device with Android's on-device AI support.
 
 ## Screenshot sequence
 
-Order matters more than polish. Each one answers the objection the previous raises. Caption text overlaid at the top, large and legible at thumbnail size.
+Order matters more than polish, and it now **leads with the differentiator** — a
+Reddit reviewer's point: privacy is the one thing no competitor can honestly claim,
+so it should be the first thing a browsing user sees, not buried at slide 5.
 
-| # | Shows | Caption |
+Ready-made caption slides are generated in `play/screenshots/` by
+`tools/playstore/render.js` (1080×1920, on-brand). Recommended order:
+
+| # | File | Caption |
 |---|---|---|
-| 1 | Search box with a query typed, one exact result | **Find any screenshot in one search** |
-| 2 | Shelf with category chips and populated grid | **Sorted automatically. No folders to make.** |
-| 3 | Detail sheet, OTP with Copy action highlighted | **Copy the code without hunting for it** |
-| 4 | Cleanup screen showing "780 MB" reclaimable | **Get your storage back** |
-| 5 | In-app privacy screen stating the app has no internet permission | **No internet permission. It cannot upload anything.** |
-| 6 | Purchase screen | **One payment. No subscription.** |
+| 1 | `play-1-privacy.png` | **No internet permission. At all.** |
+| 2 | `play-2-search.png` | **Search the text inside your screenshots** |
+| 3 | `play-3-actions.png` | **Sorted automatically — with an action on each** |
+| 4 | `play-4-cleanup.png` | **Clear out duplicate and blurry screenshots** |
+| 5 | `play-5-price.png` | **One payment. ₹250. No subscription.** |
 
-Screenshot 5 is the differentiator — no competitor can honestly make that claim.
+These are branded caption slides, which convert far better than raw, uncaptioned
+screenshots — the exact feedback that prompted them. **Still interleave 2–3 real
+captures from the live app** (search results, the shelf, the detail sheet) so the
+listing also shows the actual UI. Play wants to see the real app, and a mix of
+caption slides + real screens is the strongest combination.
+
+Privacy leading the sequence is the differentiator — no competitor can honestly
+make that claim.
 
 **Accuracy note:** do not tell users to verify this in Settings > Apps >
 Permissions. That screen lists only runtime permissions, and `INTERNET` is a
