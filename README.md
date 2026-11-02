@@ -2,7 +2,9 @@
 
 Android app that makes every screenshot on your phone searchable and actionable, entirely on-device, with no account and no subscription.
 
-**Status:** planning complete, no code written yet.
+[![Give us feedback on IndieAppCircle](https://www.indieappcircle.com/badge/j57f80jjq9n6sqjxyp13ht5b618hdjsv.svg?theme=light)](https://www.indieappcircle.com/apps/j57f80jjq9n6sqjxyp13ht5b618hdjsv?utm_source=badge&ref=7KTp4y)
+
+**Status:** live on Google Play — [`com.pitchcode.shelfie`](https://play.google.com/store/apps/details?id=com.pitchcode.shelfie). Phases 0–6 complete; see the build-status section below for what shipped.
 
 ## Read in this order
 
