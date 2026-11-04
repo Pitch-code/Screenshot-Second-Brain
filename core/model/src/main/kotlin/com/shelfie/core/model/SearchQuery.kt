@@ -94,6 +94,20 @@ object SearchQuery {
         var end = (start + maxLength).coerceAtMost(flattened.length)
         start = (end - maxLength).coerceAtLeast(0)
 
+        // Snap the window to word boundaries so it never begins or ends mid-word —
+        // a tester saw snippets like "...hat is this?". The window is only ever moved
+        // *inward*, and never past the match itself, so the matched term always stays
+        // visible.
+        if (start > 0) {
+            val nextSpace = flattened.indexOf(' ', start)
+            if (nextSpace in (start + 1)..firstMatch.first) start = nextSpace + 1
+        }
+        if (end < flattened.length) {
+            val matchEnd = firstMatch.last + 1
+            val prevSpace = flattened.lastIndexOf(' ', end - 1)
+            if (prevSpace >= matchEnd) end = prevSpace
+        }
+
         val prefix = if (start > 0) "…" else ""
         val suffix = if (end < flattened.length) "…" else ""
         return prefix + flattened.substring(start, end).trim() + suffix
