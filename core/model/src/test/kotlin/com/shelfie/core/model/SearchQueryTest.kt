@@ -150,4 +150,41 @@ class SearchQueryTest {
         val snippet = SearchQuery.snippet(text, "absent", maxLength = 40)
         assertThat(snippet).endsWith("…")
     }
+
+    @Test
+    fun `snippet does not begin mid-word`() {
+        // A tester saw "...hat is this?" — the window started inside "what". The part
+        // after a leading ellipsis must be the start of a whole word, i.e. the word
+        // just before it was cut must not survive as a fragment.
+        val text = "the quick brown fox jumps over the lazy dog and then the " +
+            "question what is this would ever appear " + "padding ".repeat(30) + "needle tail"
+        val snippet = SearchQuery.snippet(text, "question", maxLength = 50)
+
+        assertThat(snippet).startsWith("…")
+        val firstWord = snippet.removePrefix("…").trim().substringBefore(' ')
+        // The first visible word must be a real word from the source, not a tail
+        // fragment like "hat" (from "what").
+        assertThat(text.split(' ')).contains(firstWord)
+    }
+
+    @Test
+    fun `snippet does not end mid-word`() {
+        val text = "lead ".repeat(30) + "needle then several more trailing words here " +
+            "padding ".repeat(30)
+        val snippet = SearchQuery.snippet(text, "needle", maxLength = 50)
+
+        assertThat(snippet).endsWith("…")
+        val lastWord = snippet.removeSuffix("…").trim().substringAfterLast(' ')
+        assertThat(text.split(' ')).contains(lastWord)
+    }
+
+    @Test
+    fun `word-boundary snapping still keeps the match and respects the length`() {
+        val text = "alpha beta gamma delta ".repeat(10) + "TARGETWORD " +
+            "epsilon zeta eta theta ".repeat(10)
+        val snippet = SearchQuery.snippet(text, "targetword", maxLength = 60)
+
+        assertThat(snippet.lowercase()).contains("targetword")
+        assertThat(snippet.length).isAtMost(64)
+    }
 }
