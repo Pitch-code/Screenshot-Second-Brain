@@ -45,7 +45,7 @@ data class TextFragment(
  * rules match multi-word phrases like "payment successful": when the recogniser
  * splits a phrase across two blocks and those blocks come back separated by
  * unrelated text, the phrase is no longer there to match and the screenshot falls
- * through to "Not sorted yet".
+ * through to "Not sorted".
  *
  * ## Approach
  *

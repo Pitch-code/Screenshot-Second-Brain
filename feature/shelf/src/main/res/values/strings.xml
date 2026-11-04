@@ -62,4 +62,7 @@
     <string name="shelf_date_today">Today</string>
     <string name="shelf_date_yesterday">Yesterday</string>
 
+    <!-- Docked search entry on the shelf. Tapping it opens the Find tab. -->
+    <string name="shelf_search_hint">Search your screenshots</string>
+
 </resources>

@@ -24,6 +24,7 @@ import com.shelfie.feature.shelf.ShelfScreen
 fun ShelfieNavHost(
     navController: NavHostController,
     onScreenshotClick: (Long) -> Unit,
+    onOpenSearch: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     NavHost(
@@ -32,7 +33,7 @@ fun ShelfieNavHost(
         modifier = modifier,
     ) {
         composable(ShelfieDestination.SHELF.route) {
-            ShelfScreen(onScreenshotClick = onScreenshotClick)
+            ShelfScreen(onScreenshotClick = onScreenshotClick, onOpenSearch = onOpenSearch)
         }
         composable(ShelfieDestination.SEARCH.route) {
             SearchScreen(onScreenshotClick = onScreenshotClick)
