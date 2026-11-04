@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Category names. "Not sorted yet" describes a pending state rather than
-         blaming the user's library for being messy. -->
+    <!-- Category names. "Not sorted" is the fallback bucket for screenshots that
+         were read but matched no category. It deliberately drops the old "yet":
+         the word implied the tile was still being processed, when in fact the
+         read had finished. Tiles that genuinely are still being read show the
+         separate "Reading…" badge (tile_reading) instead. -->
     <string name="category_payments">Payments</string>
     <string name="category_otp">OTP codes</string>
     <string name="category_tickets">Tickets</string>
@@ -14,7 +17,9 @@
     <string name="category_places">Places</string>
     <string name="category_study">Study</string>
     <string name="category_contacts">Contacts</string>
-    <string name="category_not_sorted">Not sorted yet</string>
+    <string name="category_not_sorted">Not sorted</string>
+    <!-- Shown on a tile whose screenshot has not finished indexing yet. -->
+    <string name="tile_reading">Reading…</string>
 
     <!-- Shelf filter chips and sort menu. -->
     <string name="filter_all">All</string>

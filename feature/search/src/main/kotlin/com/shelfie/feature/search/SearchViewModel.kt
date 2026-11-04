@@ -107,7 +107,7 @@ class SearchViewModel @Inject constructor(
                     folder = entry.folder,
                 )
             },
-            // "Not sorted yet" is deliberately absent.
+            // "Not sorted" is deliberately absent.
             //
             // It is not a category anyone browses *to* — it is the absence of one, and
             // as the largest group it sat at the top of Find claiming the most

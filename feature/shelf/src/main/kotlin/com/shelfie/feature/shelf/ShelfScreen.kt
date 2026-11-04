@@ -24,6 +24,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,6 +33,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -74,6 +76,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ShelfScreen(
     onScreenshotClick: (Long) -> Unit,
+    onOpenSearch: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ShelfViewModel = hiltViewModel(),
 ) {
@@ -277,6 +280,12 @@ fun ShelfScreen(
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
 
+            // A read-only entry point to the Find tab. The shelf's job is "show me
+            // everything"; searching lives on Find, which already owns the query
+            // field and results. Tapping here just switches tabs rather than
+            // duplicating that logic, so there is only ever one search to maintain.
+            ShelfSearchBar(onClick = onOpenSearch)
+
             // Limited Mode is a working state, not an error, so the banner sits
             // above content without blocking it.
             LimitedModeBanner(
@@ -479,6 +488,35 @@ private fun DateLabel.resolve(): String = when (this) {
     is DateLabel.Formatted -> text
 }
 
+
+@Composable
+private fun ShelfSearchBar(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = stringResource(R.string.shelf_search_hint),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
 
 /**
  * Sort control plus a manual rescan.

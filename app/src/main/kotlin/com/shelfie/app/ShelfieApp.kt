@@ -113,6 +113,7 @@ private fun MainShell(navController: NavHostController, startOnSearch: Boolean =
                 ShelfieNavHost(
                     navController = navController,
                     onScreenshotClick = onScreenshotClick,
+                    onOpenSearch = { onNavigate(ShelfieDestination.SEARCH) },
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -145,6 +146,7 @@ private fun MainShell(navController: NavHostController, startOnSearch: Boolean =
                 ShelfieNavHost(
                     navController = navController,
                     onScreenshotClick = onScreenshotClick,
+                    onOpenSearch = { onNavigate(ShelfieDestination.SEARCH) },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding),

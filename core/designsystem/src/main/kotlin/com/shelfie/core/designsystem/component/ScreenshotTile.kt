@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -41,6 +42,7 @@ import coil3.request.crossfade
 import com.shelfie.core.designsystem.category.icon
 import com.shelfie.core.designsystem.category.labelRes
 import com.shelfie.core.model.Folder
+import com.shelfie.core.model.IndexState
 import com.shelfie.core.model.Screenshot
 import com.shelfie.core.model.ScreenshotAction
 
@@ -81,9 +83,24 @@ fun ScreenshotTile(
      */
     selectionActive: Boolean = false,
 ) {
+    // A screenshot that has not finished indexing is shown as "Reading…" rather
+    // than falling through to its default "Not sorted" category: the two look the
+    // same to the classifier but mean very different things to the user. A folder
+    // the user filed into always wins, so this only applies to unfiled tiles.
+    val isReading = folder == null &&
+        (screenshot.indexState == IndexState.PENDING ||
+            screenshot.indexState == IndexState.IN_PROGRESS)
     val categoryLabel = stringResource(screenshot.category.labelRes)
-    val badgeLabel = folder?.name ?: categoryLabel
-    val badgeIcon = folder?.icon?.icon ?: screenshot.category.icon
+    val badgeLabel = when {
+        folder != null -> folder.name
+        isReading -> stringResource(R.string.tile_reading)
+        else -> categoryLabel
+    }
+    val badgeIcon = when {
+        folder != null -> folder.icon.icon
+        isReading -> Icons.Outlined.Schedule
+        else -> screenshot.category.icon
+    }
 
     // Screen readers get the badge, then the extracted value, then the filename —
     // the same priority the visual tile uses.

@@ -142,7 +142,7 @@ class ReadingOrderTest {
      * `payment successful` as a phrase with flexible whitespace, so it matches only
      * when those two words end up adjacent. Emission order put "Successful" three
      * lines away from "Payment", the phrase never matched, and a perfectly obvious
-     * payment screenshot landed in "Not sorted yet".
+     * payment screenshot landed in "Not sorted".
      */
     @Test
     fun `a shuffled payment screenshot reads in order and keeps its phrases intact`() {
