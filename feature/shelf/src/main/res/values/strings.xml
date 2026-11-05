@@ -65,4 +65,14 @@
     <!-- Docked search entry on the shelf. Tapping it opens the Find tab. -->
     <string name="shelf_search_hint">Search your screenshots</string>
 
+    <!-- Free-tier upgrade banner on the shelf. Shown only when screenshots are
+         held back by the limit, so it always has something concrete to offer. -->
+    <string name="shelf_upgrade_title">You\'re on the free version</string>
+    <plurals name="shelf_upgrade_body">
+        <item quantity="one">%d older screenshot isn\'t searchable. Unlock to see everything.</item>
+        <item quantity="other">%d older screenshots aren\'t searchable. Unlock to see everything.</item>
+    </plurals>
+    <string name="shelf_upgrade_cta">Unlock</string>
+    <string name="shelf_upgrade_cta_price">Unlock for %1$s</string>
+
 </resources>

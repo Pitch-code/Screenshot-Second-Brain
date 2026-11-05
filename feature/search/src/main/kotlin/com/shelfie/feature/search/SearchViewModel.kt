@@ -11,7 +11,6 @@ import com.shelfie.core.media.ScreenshotSelection
 import com.shelfie.core.model.Folder
 import com.shelfie.core.model.FolderIcon
 import com.shelfie.core.model.Screenshot
-import com.shelfie.core.model.ScreenshotCategory
 import com.shelfie.core.model.ShelfFilter
 import com.shelfie.core.model.ShelfSortOrder
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -107,15 +106,11 @@ class SearchViewModel @Inject constructor(
                     folder = entry.folder,
                 )
             },
-            // "Not sorted" is deliberately absent.
-            //
-            // It is not a category anyone browses *to* — it is the absence of one, and
-            // as the largest group it sat at the top of Find claiming the most
-            // prominent position for the screenshots the app understood least.
-            // Everything in it is still on the shelf, still searchable, and still
-            // selectable there, so nothing becomes unreachable.
+            // "Not sorted" is shown here too, as a browsable group, so everything
+            // the classifier could not place is reachable in one tap from Find
+            // rather than only by scrolling the whole shelf. It sorts by count like
+            // any other group.
             categories = categories
-                .filterNot { it.category == ScreenshotCategory.NOT_SORTED }
                 .map { entry ->
                     ShelfChip(
                         filter = ShelfFilter.Category(entry.category),

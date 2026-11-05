@@ -16,6 +16,7 @@ import com.shelfie.core.billing.BillingState
 import com.shelfie.core.billing.PurchaseResult
 import com.shelfie.core.billing.ShelfieBilling
 import com.shelfie.core.media.IndexingQuota
+import com.shelfie.core.media.QuotaState
 import com.shelfie.core.media.RescanResult
 import com.shelfie.core.media.ScreenshotDeleter
 import com.shelfie.core.media.ScreenshotRepository
@@ -296,6 +297,15 @@ class ShelfViewModel @Inject constructor(
     val formattedPrice: StateFlow<String?> = billing.billingState
         .map { (it as? BillingState.Available)?.formattedPrice }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /**
+     * Free-tier state, driving the persistent upgrade banner on the shelf.
+     *
+     * Emits whether the user is unlimited and how many screenshots are held back;
+     * the banner shows only when there is something concrete to unlock.
+     */
+    val quotaState: StateFlow<QuotaState> =
+        quota.state.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), QuotaState())
 
     /**
      * Multi-select, move and delete.
