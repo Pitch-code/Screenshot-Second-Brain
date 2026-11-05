@@ -560,6 +560,24 @@ interface ScreenshotDao {
     )
     suspend fun exportRows(): List<ExportRow>
 
+    /**
+     * Id + recognised text for every live, unfiled screenshot in [category].
+     *
+     * Backs the backlog sweep that runs when a rule is created: the caller confirms
+     * each row's text against the rule's own matcher, so the reclassification is
+     * identical to what a future scan would decide. LEFT JOIN so a row with no text
+     * row still appears — it simply matches no keyword.
+     */
+    @Query(
+        """
+        SELECT s.id AS id, f.text AS text
+        FROM screenshots AS s
+        LEFT JOIN screenshot_text_fts AS f ON s.id = f.rowid
+        WHERE s.category = :category AND s.is_deleted = 0 AND s.folder_id IS NULL
+        """,
+    )
+    suspend fun idTextForCategory(category: ScreenshotCategory): List<IdText>
+
     // --------------------------------------------------------- free-tier quota
 
     /**
@@ -789,6 +807,12 @@ data class ExportRow(
     val dateAdded: Long,
     val category: ScreenshotCategory,
     val primaryValue: String?,
+    val text: String?,
+)
+
+/** An id paired with its recognised text, for backlog reclassification. */
+data class IdText(
+    val id: Long,
     val text: String?,
 )
 

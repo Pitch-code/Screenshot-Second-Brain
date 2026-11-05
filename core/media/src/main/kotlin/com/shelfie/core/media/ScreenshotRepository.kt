@@ -188,6 +188,43 @@ class ScreenshotRepository @Inject constructor(
     suspend fun addRule(keyword: String, category: ScreenshotCategory) =
         ruleStore.add(keyword, category)
 
+    /**
+     * Creates a rule and immediately applies it to the existing NOT_SORTED backlog.
+     *
+     * @return how many already-indexed screenshots the new rule moved out of
+     *   NOT_SORTED. The rule still governs every future scan exactly as before.
+     */
+    suspend fun addRuleAndApply(keyword: String, category: ScreenshotCategory): Int {
+        addRule(keyword, category)
+        return applyRuleToUnsortedBacklog(UserRule(id = 0, keyword = keyword, category = category))
+    }
+
+    /**
+     * Applies a rule to screenshots already sitting in NOT_SORTED.
+     *
+     * Until now a correction only fixed the one screenshot in front of the user and
+     * whatever was scanned afterwards; the identical screenshots already uncategorised
+     * stayed that way, so the fix looked like it had barely worked. This sweeps the
+     * existing NOT_SORTED backlog and moves every row the rule matches.
+     *
+     * Deliberately scoped to NOT_SORTED. A rule is the user's firm instruction, but
+     * replaying it across the whole library could overwrite a category the scorer got
+     * right or the user set by hand. Confined to the uncategorised bucket it can only
+     * fill a gap, never clobber an existing decision.
+     *
+     * Matching is delegated to [UserRule.selectMatchingIds] on each row's own text, so
+     * a row moved here is exactly one a future scan would also have matched — the two
+     * paths cannot disagree.
+     */
+    suspend fun applyRuleToUnsortedBacklog(rule: UserRule): Int {
+        if (!rule.enabled || rule.keyword.isBlank()) return 0
+        val rows = dao.idTextForCategory(ScreenshotCategory.NOT_SORTED).map { it.id to it.text }
+        val matchingIds = rule.selectMatchingIds(rows)
+        if (matchingIds.isEmpty()) return 0
+        setCategoryForAll(matchingIds, rule.category)
+        return matchingIds.size
+    }
+
     suspend fun removeRule(id: Long) = ruleStore.remove(id)
 
     suspend fun currentRules(): List<UserRule> = ruleStore.current().map(::toUserRule)
