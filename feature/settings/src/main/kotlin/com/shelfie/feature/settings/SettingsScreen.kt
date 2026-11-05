@@ -145,6 +145,24 @@ fun SettingsScreen(
             item { SectionHeader(stringResource(R.string.settings_section_full)) }
             item { PurchaseCard(state = state, onPurchase = viewModel::onPurchase) }
 
+            // Restoration already happens automatically on every launch; this is the
+            // recovery path for a failed check, a signed-out Play Store, or the
+            // common case of having bought on a different Google account.
+            item {
+                ListItem(
+                    leadingContent = {
+                        Icon(Icons.Outlined.Restore, contentDescription = null)
+                    },
+                    headlineContent = { Text(stringResource(R.string.settings_restore_title)) },
+                    supportingContent = { Text(stringResource(R.string.settings_restore_detail)) },
+                    trailingContent = {
+                        TextButton(onClick = viewModel::onRestorePurchase) {
+                            Text(stringResource(R.string.settings_restore_cta))
+                        }
+                    },
+                )
+            }
+
             item { SectionHeader(stringResource(R.string.settings_section_access)) }
             item {
                 ListItem(
@@ -261,6 +279,19 @@ fun SettingsScreen(
                     }
                 }
             }
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.settings_dynamic_color)) },
+                    supportingContent = { Text(stringResource(R.string.settings_dynamic_color_detail)) },
+                    trailingContent = {
+                        Switch(
+                            checked = state.useDynamicColor,
+                            onCheckedChange = viewModel::onDynamicColorChanged,
+                        )
+                    },
+                )
+            }
+
             // Its own section rather than filed under Appearance. A lock is not a
             // matter of taste, and someone scanning for it will look for a privacy
             // heading, not a colour one.
@@ -289,19 +320,6 @@ fun SettingsScreen(
                             checked = state.appLockEnabled && canLock,
                             enabled = canLock,
                             onCheckedChange = viewModel::onAppLockChanged,
-                        )
-                    },
-                )
-            }
-
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_dynamic_color)) },
-                    supportingContent = { Text(stringResource(R.string.settings_dynamic_color_detail)) },
-                    trailingContent = {
-                        Switch(
-                            checked = state.useDynamicColor,
-                            onCheckedChange = viewModel::onDynamicColorChanged,
                         )
                     },
                 )
@@ -382,38 +400,7 @@ fun SettingsScreen(
                 )
             }
 
-            // Restoration already happens automatically on every launch; this is the
-            // recovery path for a failed check, a signed-out Play Store, or the
-            // common case of having bought on a different Google account.
-            item {
-                ListItem(
-                    leadingContent = {
-                        Icon(Icons.Outlined.Restore, contentDescription = null)
-                    },
-                    headlineContent = { Text(stringResource(R.string.settings_restore_title)) },
-                    supportingContent = { Text(stringResource(R.string.settings_restore_detail)) },
-                    trailingContent = {
-                        TextButton(onClick = viewModel::onRestorePurchase) {
-                            Text(stringResource(R.string.settings_restore_cta))
-                        }
-                    },
-                )
-            }
 
-            item {
-                ListItem(
-                    leadingContent = {
-                        Icon(Icons.Outlined.StarBorder, contentDescription = null)
-                    },
-                    headlineContent = { Text(stringResource(R.string.settings_rate_title)) },
-                    supportingContent = { Text(stringResource(R.string.settings_rate_detail)) },
-                    trailingContent = {
-                        TextButton(onClick = { context.openPlayStoreReviews() }) {
-                            Text(stringResource(R.string.settings_rate_cta))
-                        }
-                    },
-                )
-            }
 
             /*
              * Collapsed by default, and phrased as a question rather than as
@@ -490,6 +477,21 @@ fun SettingsScreen(
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.settings_about_title)) },
                     supportingContent = { Text(stringResource(R.string.settings_about_detail)) },
+                )
+            }
+
+            item {
+                ListItem(
+                    leadingContent = {
+                        Icon(Icons.Outlined.StarBorder, contentDescription = null)
+                    },
+                    headlineContent = { Text(stringResource(R.string.settings_rate_title)) },
+                    supportingContent = { Text(stringResource(R.string.settings_rate_detail)) },
+                    trailingContent = {
+                        TextButton(onClick = { context.openPlayStoreReviews() }) {
+                            Text(stringResource(R.string.settings_rate_cta))
+                        }
+                    },
                 )
             }
         }
