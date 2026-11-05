@@ -5,6 +5,8 @@ import android.net.Uri
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.TextRecognizer
+import com.google.mlkit.vision.text.devanagari.DevanagariTextRecognizerOptions
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CancellationException
@@ -21,7 +23,11 @@ import javax.inject.Singleton
 import kotlin.coroutines.resume
 
 /**
- * On-device text recognition via ML Kit's bundled Latin recogniser.
+ * On-device text recognition via ML Kit's bundled recognisers.
+ *
+ * Two bundled models are run over each image: Latin, and Devanagari for Hindi and
+ * Marathi screenshots the Latin model returns nothing for. Both ship inside the
+ * APK, so recognition still needs no network and no Play Services download.
  *
  * Three deliberate constraints:
  *
@@ -42,8 +48,12 @@ class MlKitTextRecognitionEngine @Inject constructor(
     private val bitmapDecoder: BitmapDecoder,
 ) : TextRecognitionEngine {
 
-    private val recognizer by lazy {
+    private val latinRecognizer by lazy {
         TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+    }
+
+    private val devanagariRecognizer by lazy {
+        TextRecognition.getClient(DevanagariTextRecognizerOptions.Builder().build())
     }
 
     /** Bounds concurrent recognition to a single image. */
@@ -112,15 +122,43 @@ class MlKitTextRecognitionEngine @Inject constructor(
         }
     }
 
-    private suspend fun recognizeBitmap(bitmap: Bitmap): OcrResult =
+    /**
+     * Runs both bundled recognisers over the image and merges the result.
+     *
+     * Latin is primary; Devanagari is a second pass whose Devanagari-script lines
+     * are appended (see [ScriptMerge.merge]). A hard failure of the Latin pass is
+     * surfaced as-is so the row is retried, but a failure of the Devanagari pass is
+     * tolerated — the Latin text alone is still a useful result, and failing the
+     * whole image because the secondary pass hiccuped would needlessly lose it.
+     *
+     * Both passes share the single caller-side timeout; it is sized to allow for
+     * each model initialising on its first use.
+     */
+    private suspend fun recognizeBitmap(bitmap: Bitmap): OcrResult {
+        val image = InputImage.fromBitmap(bitmap, 0)
+        // Read now, not in a listener. The bitmap is recycled in the caller's finally
+        // block and the listeners run asynchronously — reading height from a recycled
+        // bitmap would throw inside a callback.
+        val imageHeight = bitmap.height
+
+        val latin = await(latinRecognizer, image, imageHeight)
+        if (latin !is OcrResult.Success) return latin
+
+        return when (val deva = await(devanagariRecognizer, image, imageHeight)) {
+            is OcrResult.Success -> OcrResult.Success(
+                text = ScriptMerge.merge(latin.text, deva.text),
+                blockCount = latin.blockCount + deva.blockCount,
+            )
+            is OcrResult.Failure -> latin
+        }
+    }
+
+    private suspend fun await(
+        recognizer: TextRecognizer,
+        image: InputImage,
+        imageHeight: Int,
+    ): OcrResult =
         suspendCancellableCoroutine { continuation ->
-            val image = InputImage.fromBitmap(bitmap, 0)
-
-            // Read now, not in the listener. The bitmap is recycled in the caller's
-            // finally block, and the listener runs asynchronously — reading height
-            // from a recycled bitmap would throw inside a callback.
-            val imageHeight = bitmap.height
-
             recognizer.process(image)
                 .addOnSuccessListener { visionText ->
                     continuation.resumeIfActive(
@@ -182,10 +220,11 @@ class MlKitTextRecognitionEngine @Inject constructor(
 
     private companion object {
         /**
-         * Generous, because the very first call also initialises the model and
-         * can legitimately take several seconds on a slow device. The point is
-         * only to guarantee the permit is eventually released.
+         * Generous, because the first use of each of the two recognisers also
+         * initialises its model, which can legitimately take several seconds on a
+         * slow device. The point is only to guarantee the permit is eventually
+         * released; both passes run within this single budget.
          */
-        const val RECOGNITION_TIMEOUT_MILLIS = 30_000L
+        const val RECOGNITION_TIMEOUT_MILLIS = 45_000L
     }
 }
