@@ -4,6 +4,7 @@ import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.ConfirmationNumber
 import androidx.compose.material.icons.outlined.Contacts
 import androidx.compose.material.icons.outlined.Description
@@ -51,6 +52,7 @@ val ScreenshotCategory.labelRes: Int
         ScreenshotCategory.PLACES -> R.string.category_places
         ScreenshotCategory.STUDY -> R.string.category_study
         ScreenshotCategory.CONTACTS -> R.string.category_contacts
+        ScreenshotCategory.GOVERNMENT_IDS -> R.string.category_government_ids
         ScreenshotCategory.NOT_SORTED -> R.string.category_not_sorted
     }
 
@@ -67,6 +69,7 @@ val ScreenshotCategory.icon: ImageVector
         ScreenshotCategory.PLACES -> Icons.Outlined.Place
         ScreenshotCategory.STUDY -> Icons.Outlined.School
         ScreenshotCategory.CONTACTS -> Icons.Outlined.Contacts
+        ScreenshotCategory.GOVERNMENT_IDS -> Icons.Outlined.Badge
         ScreenshotCategory.NOT_SORTED -> Icons.Outlined.Password
     }
 

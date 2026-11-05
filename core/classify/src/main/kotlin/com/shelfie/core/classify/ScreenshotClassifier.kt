@@ -121,6 +121,7 @@ class ScreenshotClassifier(
 
         ScreenshotCategory.PLACES, ScreenshotCategory.RECIPES,
         ScreenshotCategory.STUDY, ScreenshotCategory.CHATS,
+        ScreenshotCategory.GOVERNMENT_IDS,
         -> firstMeaningfulLine(text)
 
         ScreenshotCategory.NOT_SORTED -> null
