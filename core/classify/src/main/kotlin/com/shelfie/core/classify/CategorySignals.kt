@@ -75,10 +75,16 @@ internal object CategorySignals {
             addAll(words("replied to", "reacted to", "voice message", "seen", weight = 1.5))
         },
 
+        ScreenshotCategory.GOVERNMENT_IDS to buildList {
+            addAll(words("aadhaar", "aadhar", "pan card", "permanent account number", "voter id", "epic no", "passport no", "passport number", "driving licence", "driving license", weight = 3.0))
+            addAll(words("government of india", "unique identification authority", "uidai", "election commission of india", "income tax department", weight = 2.0))
+            addAll(words("date of birth", "valid till", "valid until", "issued on", weight = 1.5))
+        },
+
         ScreenshotCategory.DOCUMENTS to buildList {
-            addAll(words("aadhaar", "aadhar", "pan card", "permanent account number", "driving licence", "driving license", "passport no", "voter id", weight = 3.0))
-            addAll(words("date of birth", "valid until", "valid till", "expiry date", "issued on", "government of india", weight = 2.0))
-            addAll(words("policy number", "insurance", "certificate", "registration no", "enrolment", weight = 1.5))
+            addAll(words("certificate", "agreement", "policy number", "insurance policy", "offer letter", weight = 3.0))
+            addAll(words("expiry date", "reference number", "registration no", "enrolment", weight = 1.5))
+            addAll(words("insurance", "policy", "document", weight = 1.0))
         },
 
         ScreenshotCategory.RECIPES to buildList {

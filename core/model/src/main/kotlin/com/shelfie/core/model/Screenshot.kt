@@ -108,6 +108,9 @@ enum class ScreenshotCategory {
     PLACES,
     STUDY,
     CONTACTS,
+
+    /** Government-issued identity: Aadhaar, PAN, voter ID, passport, driving licence. */
+    GOVERNMENT_IDS,
     NOT_SORTED,
 }
 

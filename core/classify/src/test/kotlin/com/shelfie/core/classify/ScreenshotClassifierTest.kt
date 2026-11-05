@@ -145,7 +145,7 @@ class ScreenshotClassifierTest {
         val result = classifier.classify(
             "Government of India\nAadhaar\nDate of Birth: 12/03/1994\nValid until further notice",
         )
-        assertThat(result.category).isEqualTo(ScreenshotCategory.DOCUMENTS)
+        assertThat(result.category).isEqualTo(ScreenshotCategory.GOVERNMENT_IDS)
     }
 
     // -------------------------------------------------------------- places
@@ -271,7 +271,7 @@ class ScreenshotClassifierTest {
             "Add to cart. Nykaa. Offer price ₹649. Free delivery" to ScreenshotCategory.PRODUCTS,
             "Ingredients 2 cups rice 1 tsp salt preheat oven serves 3" to ScreenshotCategory.RECIPES,
             "Telegram last seen recently forwarded from channel" to ScreenshotCategory.CHATS,
-            "PAN Card Permanent Account Number Date of Birth 04/07/1988" to ScreenshotCategory.DOCUMENTS,
+            "PAN Card Permanent Account Number Date of Birth 04/07/1988" to ScreenshotCategory.GOVERNMENT_IDS,
             "Uber 3.1 km away ETA 7 min get directions" to ScreenshotCategory.PLACES,
             "Semester 4 syllabus chapter 6 assignment marks 25" to ScreenshotCategory.STUDY,
             "Add to contacts mobile no 7012345678" to ScreenshotCategory.CONTACTS,

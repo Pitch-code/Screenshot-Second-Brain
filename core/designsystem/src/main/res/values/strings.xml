@@ -17,6 +17,7 @@
     <string name="category_places">Places</string>
     <string name="category_study">Study</string>
     <string name="category_contacts">Contacts</string>
+    <string name="category_government_ids">Government IDs</string>
     <string name="category_not_sorted">Not sorted</string>
     <!-- Shown on a tile whose screenshot has not finished indexing yet. -->
     <string name="tile_reading">Reading…</string>
