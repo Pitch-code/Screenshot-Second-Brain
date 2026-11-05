@@ -173,7 +173,10 @@ class DetailViewModel @Inject constructor(
     fun onCreateRule(keyword: String, category: ScreenshotCategory) {
         val id = screenshotId.value ?: return
         viewModelScope.launch {
-            repository.addRule(keyword, category)
+            // Also sweeps the NOT_SORTED backlog, so correcting one screenshot fixes
+            // every identical one already sitting uncategorised — not just this tile
+            // and whatever is scanned next.
+            repository.addRuleAndApply(keyword, category)
             repository.setCategory(id, category)
         }
     }

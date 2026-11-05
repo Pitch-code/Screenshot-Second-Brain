@@ -26,4 +26,14 @@ data class UserRule(
 
     fun matches(text: String): Boolean =
         enabled && keyword.isNotBlank() && matcher.containsMatchIn(text)
+
+    /**
+     * Of the given (id, text) rows, the ids whose text this rule matches.
+     *
+     * Pulled out of the repository so the backlog sweep that runs when a rule is
+     * created can be tested without a database: the result is exactly the set of
+     * screenshots a future scan would also file under this rule.
+     */
+    fun selectMatchingIds(rows: List<Pair<Long, String?>>): List<Long> =
+        rows.filter { matches(it.second.orEmpty()) }.map { it.first }
 }
