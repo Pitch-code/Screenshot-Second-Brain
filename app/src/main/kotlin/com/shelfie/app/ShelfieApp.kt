@@ -77,10 +77,11 @@ private fun MainShell(navController: NavHostController, startOnSearch: Boolean =
 
     val onNavigate: (ShelfieDestination) -> Unit = { destination ->
         navController.navigate(destination.route) {
-            // One instance per tab, and each tab keeps its own state.
-            popUpTo(navController.graph.startDestinationId) { saveState = true }
+            // Back should return to the tab the user came from, not jump straight to
+            // the Shelf. So a tab selection is pushed onto the back stack rather than
+            // collapsing it to the start destination; launchSingleTop stops tapping
+            // the current tab from stacking a duplicate of itself.
             launchSingleTop = true
-            restoreState = true
         }
     }
 

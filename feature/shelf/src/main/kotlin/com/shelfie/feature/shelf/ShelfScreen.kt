@@ -23,8 +23,10 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
 import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -265,6 +267,7 @@ fun ShelfScreen(
 
     val upsell by viewModel.upsellPrompt.collectAsStateWithLifecycle()
     val price by viewModel.formattedPrice.collectAsStateWithLifecycle()
+    val quota by viewModel.quotaState.collectAsStateWithLifecycle()
     upsell?.let { prompt ->
         UpsellDialog(
             foundCount = prompt.foundCount,
@@ -285,6 +288,19 @@ fun ShelfScreen(
             // field and results. Tapping here just switches tabs rather than
             // duplicating that logic, so there is only ever one search to maintain.
             ShelfSearchBar(onClick = onOpenSearch)
+
+            // Persistent, non-punitive reminder for free users with screenshots held
+            // back by the tier limit. Hidden entirely once unlocked or when nothing
+            // is held back, so it never nags someone with nothing to gain.
+            if (quota.shouldSuggestUpgrade) {
+                ShelfUpgradeBanner(
+                    heldBack = quota.heldBack,
+                    formattedPrice = price,
+                    onUnlock = {
+                        (context as? android.app.Activity)?.let(viewModel::onUnlockRequested)
+                    },
+                )
+            }
 
             // Limited Mode is a working state, not an error, so the banner sits
             // above content without blocking it.
@@ -488,6 +504,58 @@ private fun DateLabel.resolve(): String = when (this) {
     is DateLabel.Formatted -> text
 }
 
+
+@Composable
+private fun ShelfUpgradeBanner(
+    heldBack: Int,
+    formattedPrice: String?,
+    onUnlock: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 12.dp, bottom = 12.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Lock,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.shelf_upgrade_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                Text(
+                    text = pluralStringResource(R.plurals.shelf_upgrade_body, heldBack, heldBack),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
+            Button(onClick = onUnlock) {
+                Text(
+                    text = if (formattedPrice != null) {
+                        stringResource(R.string.shelf_upgrade_cta_price, formattedPrice)
+                    } else {
+                        stringResource(R.string.shelf_upgrade_cta)
+                    },
+                )
+            }
+        }
+    }
+}
 
 @Composable
 private fun ShelfSearchBar(onClick: () -> Unit, modifier: Modifier = Modifier) {
