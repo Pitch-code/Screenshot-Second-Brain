@@ -10,8 +10,10 @@ package com.shelfie.core.ocr
  *
  * 1 — ML Kit's own `Text.getText()`, in model output order.
  * 2 — geometric reading order, see [ReadingOrder].
+ * 3 — a second recognition pass with the bundled Devanagari model, merged in so
+ *     Hindi and Marathi text is read too; see [ScriptMerge].
  */
-const val TEXT_PIPELINE_VERSION = 2
+const val TEXT_PIPELINE_VERSION = 3
 
 /**
  * One recognised run of text, with where it sits on the image.

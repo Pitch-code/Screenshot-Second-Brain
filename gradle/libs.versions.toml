@@ -28,6 +28,8 @@ exifinterface = "1.4.2"
 
 # Bundled ML Kit model: ships in the APK so OCR works with zero network access.
 mlkitTextRecognition = "16.0.1"
+# Bundled Devanagari model, for Hindi/Marathi screenshots. Also ships in the APK.
+mlkitTextRecognitionDevanagari = "16.0.1"
 
 # Image loading. Only coil-compose is used: the coil-network-* artifacts would
 # declare INTERNET, which would break the no-network guarantee.
@@ -87,6 +89,7 @@ androidx-navigation-compose = { group = "androidx.navigation", name = "navigatio
 # no network at any point. The unbundled play-services variant would have to
 # download the model, which we cannot do without INTERNET.
 mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitTextRecognition" }
+mlkit-text-recognition-devanagari = { group = "com.google.mlkit", name = "text-recognition-devanagari", version.ref = "mlkitTextRecognitionDevanagari" }
 androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
 
 # Images
