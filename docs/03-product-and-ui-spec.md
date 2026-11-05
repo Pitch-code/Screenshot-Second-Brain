@@ -48,7 +48,7 @@ Ship these detectors, and **only surface a category once it has ≥3 matches**:
 Plus: **user-editable rules.** "Any screenshot containing `Zerodha` → Investments." This single feature answers complaint #2 and no competitor has it.
 
 ### Monetisation
-- **Free forever:** search, categories, actions, up to **50 indexed screenshots** (rolling, newest) — the authoritative value is `IndexingQuota.FREE_INDEX_LIMIT`, not this line
+- **Free forever:** search, categories, actions, up to **20 indexed screenshots** (rolling, newest) — the authoritative value is `IndexingQuota.FREE_INDEX_LIMIT`, not this line
 - **Shelfie Full — one payment, ₹250** (India base price; Play prices every other market from it). Unlocks exactly two things:
   - the whole library instead of the rolling free window
   - indexing extra folders — WhatsApp, Telegram, Downloads, anywhere you choose

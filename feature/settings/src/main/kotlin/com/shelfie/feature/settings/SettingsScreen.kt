@@ -13,10 +13,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.foundation.clickable
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.FolderOpen
@@ -28,9 +26,7 @@ import com.shelfie.core.model.IndexState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
@@ -57,7 +53,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.shelfie.core.billing.BillingState
 import com.shelfie.core.designsystem.category.icon
-import com.shelfie.core.designsystem.category.labelRes
 import com.shelfie.core.media.IndexingQuota
 import com.shelfie.core.designsystem.component.resolve
 import com.shelfie.core.model.MediaAccess
@@ -329,42 +324,6 @@ fun SettingsScreen(
             // one to select it, then delete. A second list of the same folders here,
             // with different delete behaviour, meant two places to learn and two
             // places to keep correct.
-
-            item { SectionHeader(stringResource(R.string.settings_section_rules)) }
-            if (state.rules.isEmpty()) {
-                item {
-                    Text(
-                        text = stringResource(R.string.settings_rules_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                    )
-                }
-            } else {
-                items(items = state.rules, key = { it.id }) { rule ->
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.settings_rule_keyword, rule.keyword)) },
-                        supportingContent = {
-                            Text(
-                                stringResource(
-                                    R.string.settings_rule_target,
-                                    stringResource(rule.category.labelRes),
-                                ),
-                            )
-                        },
-                        trailingContent = {
-                            IconButton(onClick = { viewModel.onDeleteRule(rule.id) }) {
-                                Icon(
-                                    Icons.Outlined.Delete,
-                                    contentDescription = stringResource(R.string.settings_rule_delete),
-                                )
-                            }
-                        },
-                    )
-                }
-            }
-
-            item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) }
 
             item { SectionHeader(stringResource(R.string.settings_section_data)) }
             item {

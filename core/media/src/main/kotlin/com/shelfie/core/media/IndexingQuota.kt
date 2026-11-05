@@ -120,13 +120,14 @@ class IndexingQuota @Inject constructor(
 
     companion object {
         /**
-         * Free-tier window size.
+         * Free-tier window size: the newest N screenshots stay searchable for free,
+         * and everything older is held back until the one-time unlock.
          *
-         * Large enough to be genuinely useful — most people's recent screenshots
-         * fit comfortably — while leaving a real reason to unlock for anyone with
-         * a big backlog.
+         * Kept deliberately small, so there is a clear reason to unlock for anyone
+         * with more than a handful of screenshots, while the most recent — where
+         * nearly all the value is — stays free.
          */
-        const val FREE_INDEX_LIMIT = 50
+        const val FREE_INDEX_LIMIT = 20
 
         /**
          * How many held-back rows the window currently has room for.
